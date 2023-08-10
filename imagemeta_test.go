@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rwcarlsen/goexif/exif"
+
 	"github.com/bep/imagemeta"
 	qt "github.com/frankban/quicktest"
 	"github.com/google/go-cmp/cmp"
@@ -104,5 +106,33 @@ func TestSmoke(t *testing.T) {
 		c.Assert(len(meta.EXIF)+len(meta.IPTC), qt.Not(qt.Equals), 0)
 		img.Close()
 	}
+
+}
+
+func BenchmarkDecode(b *testing.B) {
+
+	runBenchmark := func(b *testing.B, name string, f func(r imagemeta.Reader) error) {
+		img, close := getSunrise(qt.New(b))
+		b.Cleanup(close)
+		b.Run(name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				if err := f(img); err != nil {
+					b.Fatal(err)
+				}
+				img.Seek(0, 0)
+			}
+
+		})
+	}
+
+	runBenchmark(b, "bep/imagemeta", func(r imagemeta.Reader) error {
+		_, err := imagemeta.Decode(imagemeta.Options{R: r, SkipITPC: true})
+		return err
+	})
+
+	runBenchmark(b, "rwcarlsen/goexif", func(r imagemeta.Reader) error {
+		_, err := exif.Decode(r)
+		return err
+	})
 
 }

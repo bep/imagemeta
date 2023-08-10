@@ -141,8 +141,10 @@ type decoder struct {
 	readerOffset int
 	byteOrder    binary.ByteOrder
 
+	opts   Options
 	tagSet map[string]bool // May be nil.
-	err    error
+
+	err error
 
 	tagsExif Tags
 	tagsIPTC Tags
@@ -197,19 +199,23 @@ func (e *decoder) decode() (err error) {
 
 	}
 
-	pos := e.pos()
-	if findMarker(markerAPP1) > 0 {
-		if err := e.decodeExif(); err != nil {
-			return err
+	if !e.opts.SkipExif {
+		pos := e.pos()
+		if findMarker(markerAPP1) > 0 {
+			if err := e.decodeExif(); err != nil {
+				return err
+			}
 		}
+		e.seek(pos)
 	}
-	e.seek(pos)
 
-	// EXIF may be stored in a different order, but IPTC is always big-endian.
-	e.byteOrder = binary.BigEndian
-	if length := findMarker(markerApp13); length > 0 {
-		if err := e.decodeIPTC(length); err != nil {
-			return err
+	if !e.opts.SkipITPC {
+		// EXIF may be stored in a different order, but IPTC is always big-endian.
+		e.byteOrder = binary.BigEndian
+		if length := findMarker(markerApp13); length > 0 {
+			if err := e.decodeIPTC(length); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -644,6 +650,7 @@ func decode(opts Options) (Meta, error) {
 	dec := &decoder{
 		r:         opts.R,
 		byteOrder: binary.BigEndian,
+		opts:      opts,
 		tagSet:    tagSet,
 		tagsExif:  m.EXIF,
 		tagsIPTC:  m.IPTC,
