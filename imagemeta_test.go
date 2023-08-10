@@ -85,3 +85,24 @@ func getSunrise(c *qt.C) (imagemeta.Reader, func()) {
 		img.Close()
 	}
 }
+
+func TestSmoke(t *testing.T) {
+	c := qt.New(t)
+
+	// Test the images in the testdata/smoke folder and make sure we get a sensible result for each.
+	// The primary goal of this test is to make sure we don't crash on any of them.
+
+	files, err := filepath.Glob(filepath.Join("testdata", "smoke", "*.*"))
+	c.Assert(err, qt.IsNil)
+
+	for _, file := range files {
+		img, err := os.Open(file)
+		c.Assert(err, qt.IsNil)
+		meta, err := imagemeta.Decode(imagemeta.Options{R: img})
+		c.Assert(err, qt.IsNil)
+		c.Assert(meta, qt.Not(qt.IsNil))
+		c.Assert(len(meta.EXIF)+len(meta.IPTC), qt.Not(qt.Equals), 0)
+		img.Close()
+	}
+
+}

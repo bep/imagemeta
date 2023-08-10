@@ -235,6 +235,13 @@ func (e *decoder) decodeEXIFTag() error {
 
 	dataType := e.read2()
 	count := e.read4()
+	if count > 0x10000 {
+		e.skip(4)
+		return nil
+	}
+	if count == 0 {
+		count = 1
+	}
 
 	t := tagExif{
 		id:    tagID,
@@ -368,6 +375,10 @@ func (e *decoder) convertEXIFValues(t *tagExif, b []byte) {
 		for i := 0; i < int(t.count); i++ {
 			t.vals = append(t.vals, e.read4r(r))
 		}
+	case typeSignedLong:
+		for i := 0; i < int(t.count); i++ {
+			t.vals = append(t.vals, e.read4Signedr(r))
+		}
 	case typeUnsignedRat:
 		for i := 0; i < int(t.count); i++ {
 			n, d := e.read4r(r), e.read4r(r)
@@ -380,7 +391,7 @@ func (e *decoder) convertEXIFValues(t *tagExif, b []byte) {
 		}
 	default:
 		// TODO1
-		panic(fmt.Errorf("unsupported exif type %d", t.typ))
+		panic(fmt.Errorf("exif type %d not implemented", t.typ))
 	}
 }
 
