@@ -1,4 +1,4 @@
-package goexif
+package imagemeta
 
 import "fmt"
 

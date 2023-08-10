@@ -1,4 +1,4 @@
-package goexif
+package imagemeta
 
 var iptcFieldMap = map[uint8]iptcField{
 	0:   {"RecordVersion", false, "B"},

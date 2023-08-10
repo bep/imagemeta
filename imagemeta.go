@@ -1,4 +1,4 @@
-package goexif
+package imagemeta
 
 import (
 	"bytes"
@@ -109,7 +109,7 @@ type Reader interface {
 	io.ReaderAt
 }
 
-// Tags is a map of EXIF tags.
+// Tags is a map of EXIF and ITPC tags.
 type Tags map[string]any
 
 func (tags Tags) toDegrees(v any) float64 {
@@ -285,8 +285,12 @@ func (e *decoder) decodeEXIFTag() error {
 	return nil
 }
 
+func (e *decoder) done() bool {
+	return e.tagSet != nil && len(e.tagSet) == 0
+}
+
 func (e *decoder) decodeEXIFTags() error {
-	if e.tagSet != nil && len(e.tagSet) == 0 {
+	if e.done() {
 		e.stop(nil)
 	}
 
@@ -381,6 +385,9 @@ func (e *decoder) convertEXIFValues(t *tagExif, b []byte) {
 }
 
 func (e *decoder) decodeIPTC(length int) (err error) {
+	if e.done() {
+		e.stop(nil)
+	}
 
 	// Skip the IPTC header.
 	e.skip(14)
@@ -459,6 +466,9 @@ func (e *decoder) decodeIPTC(length int) (err error) {
 				fmt.Println("unknown datasetNumber", datasetNumber)
 				continue
 			}
+			if !e.shouldDecode(recordDef.name) {
+				continue
+			}
 			var v any
 			switch recordDef.format {
 			case "string":
@@ -466,6 +476,7 @@ func (e *decoder) decodeIPTC(length int) (err error) {
 			case "B": // TODO1 check these
 				v = recordBytes
 			}
+
 			e.tagsIPTC[recordDef.name] = v
 		}
 	}
@@ -570,6 +581,7 @@ func (e *decoder) skip(n int64) {
 	}
 }
 
+//lint:ignore U1000 // will be used later
 func (e *decoder) skipr(n int64, r io.Reader) {
 	switch r := r.(type) {
 	case io.Seeker:

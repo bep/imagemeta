@@ -1,11 +1,10 @@
-module github.com/bep/goexif
+module github.com/bep/imagemeta
 
 go 1.18
 
 require (
 	github.com/frankban/quicktest v1.14.5
 	github.com/google/go-cmp v0.5.9
-	golang.org/x/text v0.12.0
 )
 
 require (
