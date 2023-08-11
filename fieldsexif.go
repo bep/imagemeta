@@ -2,6 +2,7 @@ package imagemeta
 
 import "fmt"
 
+// TODO1
 const (
 	OrientationUnspecified Orientation = iota
 	OrientationNormal
@@ -33,7 +34,7 @@ var errStop = fmt.Errorf("stop")
 
 const (
 	typeUnsignedByte  exifType = 1
-	typeUnsignedAscii exifType = 2
+	typeUnsignedASCII exifType = 2
 	typeUnsignedShort exifType = 3
 	typeUnsignedLong  exifType = 4
 	typeUnsignedRat   exifType = 5
@@ -49,7 +50,7 @@ const (
 // Size in bytes of each type.
 var typeSize = map[exifType]uint32{
 	typeUnsignedByte:  1,
-	typeUnsignedAscii: 1,
+	typeUnsignedASCII: 1,
 	typeUnsignedShort: 2,
 	typeUnsignedLong:  4,
 	typeUnsignedRat:   8,

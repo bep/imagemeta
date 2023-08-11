@@ -1,91 +1,76 @@
-package imagemeta_test
+package imagemeta
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/rwcarlsen/goexif/exif"
 
-	"github.com/bep/imagemeta"
 	qt "github.com/frankban/quicktest"
 	"github.com/google/go-cmp/cmp"
-)
-
-var eq = qt.CmpEquals(
-	cmp.Comparer(func(x, y *big.Rat) bool {
-		return x.RatString() == y.RatString()
-	}),
-
-	cmp.Comparer(func(x, y float64) bool {
-		delta := math.Abs(x - y)
-		mean := math.Abs(x+y) / 2.0
-		return delta/mean < 0.00001
-	}),
 )
 
 func TestDecodeBasic(t *testing.T) {
 	c := qt.New(t)
 
-	img, close := getSunrise(c)
-	c.Cleanup(close)
+	// ImageFormatJPEG,
 
-	meta, err := imagemeta.Decode(imagemeta.Options{R: img})
-	c.Assert(err, qt.IsNil)
-	c.Assert(meta, qt.IsNotNil)
-	//fmt.Printf("%+v\n", tags)
-	c.Assert(meta.Orientation(), qt.Equals, imagemeta.OrientationNormal)
-	c.Assert(meta.DateTime(time.UTC).IsZero(), qt.IsFalse)
-	c.Assert(meta.EXIF["ExposureTime"], eq, big.NewRat(1, 200))
-	c.Assert(meta.IPTC["Headline"], qt.Equals, "Sunrise in Spain")
-	c.Assert(meta.IPTC["Copyright"], qt.Equals, "Bjørn Erik Pedersen")
+	for _, imageFormat := range []ImageFormat{ImageFormatJPEG, ImageFormatWebP} {
+		c.Run(fmt.Sprintf("%v", imageFormat), func(c *qt.C) {
+			img, close := getSunrise(c, imageFormat)
+			c.Cleanup(close)
 
-}
+			tags := make(map[string]TagInfo)
+			handleTag := func(ti TagInfo) error {
+				tags[ti.Tag] = ti
+				return nil
+			}
 
-func TestDecodeLatLong(t *testing.T) {
-	c := qt.New(t)
+			err := Decode(Options{R: img, ImageFormat: imageFormat, HandleTag: handleTag})
+			c.Assert(err, qt.IsNil)
 
-	img, close := getSunrise(c)
-	c.Cleanup(close)
+			c.Assert(tags["Orientation"].Value, qt.Equals, uint16(1))
+			c.Assert(tags["ExposureTime"].Value, eq, big.NewRat(1, 200))
+			c.Assert(tags["Headline"].Value, qt.Equals, "Sunrise in Spain")
+			c.Assert(tags["Copyright"].Value, qt.Equals, "Bjørn Erik Pedersen")
 
-	tags, err := imagemeta.Decode(imagemeta.Options{R: img})
-	c.Assert(err, qt.IsNil)
-
-	lat, long := tags.LatLong()
-	c.Assert(lat, eq, 36.59744)
-	c.Assert(long, eq, -4.50846)
+			// TODO1 InteroperabilityIndex
+		})
+	}
 }
 
 func TestDecodeOrientationOnly(t *testing.T) {
 	c := qt.New(t)
 
-	img, close := getSunrise(c)
+	img, close := getSunrise(c, ImageFormatJPEG)
 	c.Cleanup(close)
 
-	meta, err := imagemeta.Decode(
-		imagemeta.Options{
-			R: img,
-			TagSet: map[string]bool{
-				"Orientation": true,
-			},
+	tags := make(map[string]TagInfo)
+	handleTag := func(ti TagInfo) error {
+		if ti.Tag == "Orientation" {
+			tags[ti.Tag] = ti
+			return ErrStopWalking
+		}
+		return nil
+	}
+
+	err := Decode(
+		Options{
+			R:           img,
+			ImageFormat: ImageFormatJPEG,
+			HandleTag:   handleTag,
+			SourceSet:   map[TagSource]bool{TagSourceEXIF: true},
 		},
 	)
 
 	c.Assert(err, qt.IsNil)
-	c.Assert(meta.Orientation(), qt.Equals, imagemeta.OrientationNormal)
-	c.Assert(len(meta.EXIF), qt.Equals, 1)
-	c.Assert(len(meta.IPTC), qt.Equals, 0)
-}
+	c.Assert(tags["Orientation"].Value, qt.Equals, uint16(1))
+	c.Assert(len(tags), qt.Equals, 1)
 
-func getSunrise(c *qt.C) (imagemeta.Reader, func()) {
-	img, err := os.Open(filepath.Join("testdata", "sunrise.jpg"))
-	c.Assert(err, qt.IsNil)
-	return img, func() {
-		img.Close()
-	}
 }
 
 func TestSmoke(t *testing.T) {
@@ -99,20 +84,65 @@ func TestSmoke(t *testing.T) {
 
 	for _, file := range files {
 		img, err := os.Open(file)
+		format := ImageFormatJPEG
+		if filepath.Ext(file) == ".webp" {
+			format = ImageFormatWebP
+		}
+
 		c.Assert(err, qt.IsNil)
-		meta, err := imagemeta.Decode(imagemeta.Options{R: img})
+		tags := make(map[string]TagInfo)
+		handleTag := func(ti TagInfo) error {
+			tags[ti.Tag] = ti
+			return nil
+		}
+		err = Decode(Options{R: img, ImageFormat: format, HandleTag: handleTag})
 		c.Assert(err, qt.IsNil)
-		c.Assert(meta, qt.Not(qt.IsNil))
-		c.Assert(len(meta.EXIF)+len(meta.IPTC), qt.Not(qt.Equals), 0)
+		c.Assert(len(tags), qt.Not(qt.Equals), 0)
 		img.Close()
 	}
 
 }
 
+func getSunrise(c *qt.C, imageFormat ImageFormat) (Reader, func()) {
+	ext := ""
+	switch imageFormat {
+	case ImageFormatJPEG:
+		ext = ".jpg"
+	case ImageFormatWebP:
+		ext = ".webp"
+	default:
+		c.Fatalf("unknown image format: %v", imageFormat)
+	}
+
+	img, err := os.Open(filepath.Join("testdata", "sunrise"+ext))
+	c.Assert(err, qt.IsNil)
+	return img, func() {
+		img.Close()
+	}
+}
+
+var eq = qt.CmpEquals(
+	cmp.Comparer(func(x, y *big.Rat) bool {
+		return x.RatString() == y.RatString()
+	}),
+
+	cmp.Comparer(func(x, y float64) bool {
+		delta := math.Abs(x - y)
+		mean := math.Abs(x+y) / 2.0
+		return delta/mean < 0.00001
+	}),
+)
+
 func BenchmarkDecode(b *testing.B) {
 
-	runBenchmark := func(b *testing.B, name string, f func(r imagemeta.Reader) error) {
-		img, close := getSunrise(qt.New(b))
+	handleTag := func(ti TagInfo) error {
+		return nil
+	}
+
+	sourceSet := map[TagSource]bool{TagSourceEXIF: true}
+
+	runBenchmark := func(b *testing.B, name string, f func(r Reader) error) {
+		img, close := getSunrise(qt.New(b), ImageFormatJPEG)
 		b.Cleanup(close)
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -125,12 +155,12 @@ func BenchmarkDecode(b *testing.B) {
 		})
 	}
 
-	runBenchmark(b, "bep/imagemeta", func(r imagemeta.Reader) error {
-		_, err := imagemeta.Decode(imagemeta.Options{R: r, SkipITPC: true})
+	runBenchmark(b, "bep/imagemeta", func(r Reader) error {
+		err := Decode(Options{R: r, ImageFormat: ImageFormatJPEG, HandleTag: handleTag, SourceSet: sourceSet})
 		return err
 	})
 
-	runBenchmark(b, "rwcarlsen/goexif", func(r imagemeta.Reader) error {
+	runBenchmark(b, "rwcarlsen/goexif", func(r Reader) error {
 		_, err := exif.Decode(r)
 		return err
 	})
