@@ -5,19 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-)
-
-// TODO1
-const (
-	OrientationUnspecified Orientation = iota
-	OrientationNormal
-	OrientationFlipH
-	OrientationRotate180
-	OrientationFlipV
-	OrientationTranspose
-	OrientationRotate270
-	OrientationTransverse
-	OrientationRotate90
+	"strings"
 )
 
 const (
@@ -35,8 +23,6 @@ const (
 	tagOrientation        = 0x0112
 	tagDate               = 0x0132
 )
-
-var errStop = fmt.Errorf("stop")
 
 const (
 	typeUnsignedByte  exifType = 1
@@ -102,12 +88,12 @@ func (e *metaDecoderEXIF) convertValue(typ exifType, r io.Reader) any {
 	case typeUnsignedLong:
 		return e.read4r(r)
 	case typeSignedLong:
-		return e.read4Signedr(r)
+		return e.read4sr(r)
 	case typeUnsignedRat:
 		n, d := e.read4r(r), e.read4r(r)
 		return big.NewRat(int64(n), int64(d))
 	case typeSignedRat:
-		n, d := e.read4Signedr(r), e.read4Signedr(r)
+		n, d := e.read4sr(r), e.read4sr(r)
 		return big.NewRat(int64(n), int64(d))
 	default:
 		// TODO1
@@ -187,7 +173,7 @@ func (e *metaDecoderEXIF) decodeTags() error {
 	return nil
 }
 
-func (e *metaDecoderEXIF) decodeTagsAT(offset int) error {
+func (e *metaDecoderEXIF) decodeTagsAt(offset int) error {
 	oldPos := e.pos()
 	defer func() {
 		e.seek(oldPos)
@@ -213,4 +199,71 @@ func init() {
 	for k, v := range fieldsThumbnail {
 		fieldsAll[k] = v
 	}
+}
+
+// exifType represents the basic tiff tag data types.
+type exifType uint16
+
+// A tag is represented in 12 bytes:
+//   - 2 bytes for the tag ID
+//   - 2 bytes for the data type
+//   - 4 bytes for the number of data values of the specified type
+//   - 4 bytes for the value itself, if it fits, otherwise for a pointer to another location where the data may be found;
+//     this could be a pointer to the beginning of another IFD
+func (e *metaDecoderEXIF) decodeTag() error {
+	tagID := e.read2()
+	tagName := fieldsAll[tagID]
+	if tagName == "" {
+		tagName = fmt.Sprintf("%s0x%x", UnknownPrefix, tagID)
+	}
+
+	dataType := e.read2()
+	count := e.read4()
+	if count > 0x10000 {
+		e.skip(4)
+		return nil
+	}
+	if count == 0 {
+		count = 1 // TODO1 make this 0.
+	}
+	typ := exifType(dataType)
+
+	size, ok := typeSize[typ]
+	if !ok {
+		return fmt.Errorf("unknown type for tag %s %d", tagName, typ)
+	}
+	valLen := size * count
+
+	var r io.Reader = e.r
+
+	if valLen > 4 {
+		offset := e.read4() + uint32(e.readerOffset)
+		r = io.NewSectionReader(e.r, int64(offset), int64(valLen))
+	}
+
+	val := e.convertValues(typ, int(count), int(valLen), r)
+
+	if valLen <= 4 {
+		padding := 4 - valLen
+		if padding > 0 {
+			e.skip(int64(padding))
+		}
+	}
+
+	if strings.HasSuffix(tagName, "IFDPointer") {
+		offset := val.(uint32)
+		return e.decodeTagsAt(int(offset))
+	}
+
+	tagInfo := TagInfo{
+		Source: TagSourceEXIF,
+		Tag:    tagName,
+		Value:  val,
+	}
+
+	if err := e.handleTag(tagInfo); err != nil {
+		return err
+	}
+
+	return nil
 }

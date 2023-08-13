@@ -4,15 +4,14 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-
-	"golang.org/x/image/riff"
 )
 
 var (
-	fccVP8X = riff.FourCC{'V', 'P', '8', 'X'}
-	fccWEBP = riff.FourCC{'W', 'E', 'B', 'P'}
-	fccEXIF = riff.FourCC{'E', 'X', 'I', 'F'}
-	fccXMP  = riff.FourCC{'X', 'M', 'P', ' '}
+	fccRIFF = fourCC{'R', 'I', 'F', 'F'}
+	fccWEBP = fourCC{'W', 'E', 'B', 'P'}
+	fccVP8X = fourCC{'V', 'P', '8', 'X'}
+	fccEXIF = fourCC{'E', 'X', 'I', 'F'}
+	fccXMP  = fourCC{'X', 'M', 'P', ' '}
 )
 
 var errInvalidFormat = fmt.Errorf("imagemeta: invalid format")
@@ -28,21 +27,11 @@ type decoderWebP struct {
 }
 
 func (e *decoderWebP) decode() (err error) {
-	handleEXIF := e.opts.SourceSet[TagSourceEXIF]
-	handleXMP := e.opts.SourceSet[TagSourceXMP]
+	handleEXIF := e.opts.Sources.Has(TagSourceEXIF)
+	handleXMP := e.opts.Sources.Has(TagSourceXMP)
 
 	if !handleEXIF && !handleXMP {
 		return nil
-	}
-
-	r := e.streamReader.r
-
-	formType, riffReader, err := riff.NewReader(r)
-	if err != nil {
-		return err
-	}
-	if formType != fccWEBP {
-		return fmt.Errorf("imagemeta: not a WebP file")
 	}
 
 	var (
@@ -55,32 +44,43 @@ func (e *decoderWebP) decode() (err error) {
 		xmpHandled  = !handleXMP
 	)
 
+	var chunkID fourCC
+	// Read the RIFF header.
+	e.readBytes(chunkID[:])
+	if chunkID != fccRIFF {
+		return errInvalidFormat
+	}
+
+	// File size.
+	e.skip(4)
+
+	e.readBytes(chunkID[:])
+	if chunkID != fccWEBP {
+		return errInvalidFormat
+	}
+
 	for {
 		if exifHandled && xmpHandled {
 			return nil
 		}
 
-		chunkID, chunkLen, chunkData, err := riffReader.Next()
-		if err == io.EOF {
-			err = errInvalidFormat
-		}
-		if err != nil {
-			return err
-		}
+		e.readBytes(chunkID[:])
+
+		chunkLen := e.read4()
 
 		switch chunkID {
+
 		case fccVP8X:
 			if chunkLen != 10 {
 				return errInvalidFormat
 			}
+
 			const (
 				xmpMetadataBit  = 1 << 2
 				exifMetadataBit = 1 << 3
 			)
 
-			if _, err := io.ReadFull(chunkData, buf[:10]); err != nil {
-				return err
-			}
+			e.readBytes(buf[:])
 
 			hasExif = buf[0]&exifMetadataBit != 0
 			hasXMP = buf[0]&xmpMetadataBit != 0
@@ -88,12 +88,12 @@ func (e *decoderWebP) decode() (err error) {
 			if !hasExif && !hasXMP {
 				return nil
 			}
-
 		case fccEXIF:
 			if exifHandled {
 				continue
 			}
-			dec := newMetaDecoderEXIF(chunkData, e.opts.HandleTag)
+			r := io.LimitReader(e.r, int64(chunkLen))
+			dec := newMetaDecoderEXIF(r, e.opts.HandleTag)
 
 			if err := dec.decode(); err != nil {
 				return err
@@ -106,9 +106,9 @@ func (e *decoderWebP) decode() (err error) {
 			}
 
 			xmpHandled = true
-
+			r := io.LimitReader(e.r, int64(chunkLen))
 			var meta xmpmeta
-			if err := xml.NewDecoder(chunkData).Decode(&meta); err != nil {
+			if err := xml.NewDecoder(r).Decode(&meta); err != nil {
 				return err
 			}
 
@@ -124,9 +124,8 @@ func (e *decoderWebP) decode() (err error) {
 					return err
 				}
 			}
-
+		default:
+			e.skip(int64(chunkLen))
 		}
-
 	}
-
 }

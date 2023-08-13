@@ -4,6 +4,16 @@ package imagemeta
 
 import "strconv"
 
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[ImageFormatAuto-0]
+	_ = x[ImageFormatJPEG-1]
+	_ = x[ImageFormatPNG-2]
+	_ = x[ImageFormatWebP-3]
+}
+
 const _ImageFormat_name = "ImageFormatAutoImageFormatJPEGImageFormatPNGImageFormatWebP"
 
 var _ImageFormat_index = [...]uint8{0, 15, 30, 44, 59}
@@ -13,14 +23,4 @@ func (i ImageFormat) String() string {
 		return "ImageFormat(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ImageFormat_name[_ImageFormat_index[i]:_ImageFormat_index[i+1]]
-}
-
-func _() {
-	// An "invalid array index" compiler error signifies that the constant values have changed.
-	// Re-run the stringer command to generate them again.
-	var x [1]struct{}
-	_ = x[ImageFormatAuto-0]
-	_ = x[ImageFormatJPEG-1]
-	_ = x[ImageFormatPNG-2]
-	_ = x[ImageFormatWebP-3]
 }

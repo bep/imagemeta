@@ -25,8 +25,7 @@ func (e *metaDecoderIPTC) decode() (err error) {
 	const iptcMetaDataBlockID = 0x0404
 
 	decodeBlock := func() error {
-		blockType := make([]byte, 4)
-		e.readFull(blockType)
+		blockType := e.readBytesVolatile(4)
 		if string(blockType) != "8BIM" {
 			return errStop
 		}

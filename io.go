@@ -31,14 +31,30 @@ func newStreamReader(r io.Reader) *streamReader {
 	}
 }
 
+type closerFunc func() error
+
+func (f closerFunc) Close() error {
+	return f()
+}
+
 type decoder interface {
 	decode() error
 }
 
+type fourCC [4]byte
+
+type readerCloser interface {
+	Reader
+	io.Closer
+}
+
+// streamReader is a wrapper around a Reader that provides methods to read binary data.
+// Note that this is not thread safe.
 type streamReader struct {
 	r Reader
 
 	byteOrder binary.ByteOrder
+	buf       []byte
 
 	readErr      error
 	readerOffset int
@@ -64,7 +80,12 @@ func (e *streamReader) bufferedReader(length int) (readerCloser, error) {
 		r,
 		closer,
 	}, nil
+}
 
+func (e *streamReader) allocateBuf(length int) {
+	if length > len(e.buf) {
+		e.buf = make([]byte, length)
+	}
 }
 
 func (e *streamReader) pos() int {
@@ -77,9 +98,9 @@ func (e *streamReader) read1() uint8 {
 }
 
 func (e *streamReader) read1r(r io.Reader) uint8 {
-	var v uint8
-	e.readFullr(&v, r)
-	return v
+	const n = 1
+	e.readNFromRIntoBuf(n, r)
+	return e.buf[0]
 }
 
 func (e *streamReader) read2() uint16 {
@@ -87,43 +108,60 @@ func (e *streamReader) read2() uint16 {
 }
 
 func (e *streamReader) read2r(r io.Reader) uint16 {
-	var v uint16
-	e.readFullr(&v, r)
-	return v
+	const n = 2
+	e.readNFromRIntoBuf(n, r)
+	return e.byteOrder.Uint16(e.buf[:n])
 }
 
 func (e *streamReader) read4() uint32 {
-	return e.read4r(e.r)
-}
-
-func (e *streamReader) read4Signedr(r io.Reader) int32 {
-	var v int32
-	e.readFullr(&v, r)
-	return v
+	const n = 4
+	e.readNIntoBuf(n)
+	return e.byteOrder.Uint32(e.buf[:n])
 }
 
 func (e *streamReader) read4r(r io.Reader) uint32 {
-	var v uint32
-	e.readFullr(&v, r)
-	return v
+	const n = 4
+	e.readNFromRIntoBuf(n, r)
+	return e.byteOrder.Uint32(e.buf[:n])
 }
 
-func (e *streamReader) readFull(v any) {
-	e.readFullr(v, e.r)
+func (e *streamReader) read4sr(r io.Reader) int32 {
+	const n = 4
+	e.readNFromRIntoBuf(n, r)
+	return int32(e.byteOrder.Uint32(e.buf[:n]))
+}
+
+func (e *streamReader) readBytes(b []byte) {
+	if _, err := io.ReadFull(e.r, b); err != nil {
+		e.stop(err)
+	}
+}
+
+// readBytesVolatile reads a slice of bytes from the stream
+// which is not guaranteed to be valid after the next read.
+func (e *streamReader) readBytesVolatile(n int) []byte {
+	e.allocateBuf(n)
+	e.readNIntoBuf(n)
+	return e.buf[:n]
 }
 
 func (e *streamReader) readFullE(v any) error {
 	return e.readFullrE(v, e.r)
 }
 
-func (e *streamReader) readFullr(v any, r io.Reader) {
-	if err := binary.Read(r, e.byteOrder, v); err != nil {
+func (e *streamReader) readFullrE(v any, r io.Reader) error {
+	return binary.Read(r, e.byteOrder, v)
+}
+
+func (e *streamReader) readNFromRIntoBuf(n int, r io.Reader) {
+	e.allocateBuf(n)
+	if _, err := io.ReadFull(r, e.buf[:n]); err != nil {
 		e.stop(err)
 	}
 }
 
-func (e *streamReader) readFullrE(v any, r io.Reader) error {
-	return binary.Read(r, e.byteOrder, v)
+func (e *streamReader) readNIntoBuf(n int) {
+	e.readNFromRIntoBuf(n, e.r)
 }
 
 func (e *streamReader) seek(pos int) {
