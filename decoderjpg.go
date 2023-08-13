@@ -43,7 +43,7 @@ type decoder interface {
 //   - 4 bytes for the number of data values of the specified type
 //   - 4 bytes for the value itself, if it fits, otherwise for a pointer to another location where the data may be found;
 //     this could be a pointer to the beginning of another IFD
-func (e *decoderExif) decodeEXIFTag() error {
+func (e *decoderEXIF) decodeTag() error {
 	tagID := e.read2()
 	tagName := fieldsAll[tagID]
 	if tagName == "" {
@@ -90,7 +90,7 @@ func (e *decoderExif) decodeEXIFTag() error {
 
 	if strings.HasSuffix(tagName, "IFDPointer") {
 		offset := val.(uint32)
-		return e.decodeEXIFTagsAt(int(offset))
+		return e.decodeTagsAT(int(offset))
 	}
 
 	tagInfo := TagInfo{
@@ -159,21 +159,32 @@ func (e *decoderJPEG) decode() (err error) {
 	}
 
 	if e.opts.SourceSet[TagSourceEXIF] {
-		exifr := &decoderExif{
-			streamReader: e.streamReader,
-			handleTag:    e.opts.HandleTag,
-		}
-
 		pos := e.pos()
-		if findMarker(markerAPP1) > 0 {
-			header := exifr.read4()
-			if header != exifHeader {
+		if length := findMarker(markerAPP1); length > 0 {
+			err := func() error {
+				r, err := e.bufferedReader(length)
+				if err != nil {
+					return err
+				}
+				defer r.Close()
+				exifr := newDecoderEXIF(r, e.opts.HandleTag)
+
+				header := exifr.read4()
+				if header != exifHeader {
+					return err
+				}
+				exifr.skip(2)
+				if err := exifr.decode(); err != nil {
+					return err
+				}
+				return nil
+
+			}()
+
+			if err != nil {
 				return err
 			}
-			exifr.skip(2)
-			if err := exifr.decode(); err != nil {
-				return err
-			}
+
 		}
 		e.seek(pos)
 	}
@@ -182,123 +193,20 @@ func (e *decoderJPEG) decode() (err error) {
 		// EXIF may be stored in a different order, but IPTC is always big-endian.
 		e.byteOrder = binary.BigEndian
 		if length := findMarker(markerApp13); length > 0 {
-			if err := e.decodeIPTC(length); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (e *decoderJPEG) decodeIPTC(length int) (err error) {
-	// Skip the IPTC header.
-	e.skip(14)
-
-	const iptcMetaDataBlockID = 0x0404
-
-	decodeBlock := func() error {
-		blockType := make([]byte, 4)
-		e.readFull(blockType)
-		if string(blockType) != "8BIM" {
-			return errStop
-		}
-
-		identifier := e.read2()
-		isMeta := identifier == iptcMetaDataBlockID
-
-		nameLength := e.read1()
-		if nameLength == 0 {
-			nameLength = 2
-		} else if nameLength%2 == 1 {
-			nameLength++
-		}
-
-		e.skip(int64(nameLength - 1))
-		dataSize := e.read4()
-
-		if !isMeta {
-			e.skip(int64(dataSize))
-			return nil
-		}
-
-		// TODO1 extended datasets.
-
-		if dataSize%2 != 0 {
-			defer func() {
-				// Skip padding byte.
-				e.skip(1)
-			}()
-		}
-
-		r := io.LimitReader(e.r, int64(dataSize))
-
-		for {
-			var marker uint8
-			if err := binary.Read(r, e.byteOrder, &marker); err != nil {
-				if err == io.EOF {
-					return nil
+			if err := func() error {
+				r, err := e.bufferedReader(length)
+				if err != nil {
+					return err
 				}
+				defer r.Close()
+				dec := newDecoderIPTC(r, e.opts.HandleTag)
+				return dec.decode()
+			}(); err != nil {
 				return err
 			}
-			if marker != 0x1C {
-				return errStop
-			}
-
-			var recordType, datasetNumber uint8
-			var recordSize uint16
-			if err := binary.Read(r, e.byteOrder, &recordType); err != nil {
-				return err
-			}
-			if err := binary.Read(r, e.byteOrder, &datasetNumber); err != nil {
-				return err
-			}
-			if err := binary.Read(r, e.byteOrder, &recordSize); err != nil {
-				return err
-			}
-
-			recordBytes := make([]byte, recordSize)
-			if err := binary.Read(r, e.byteOrder, recordBytes); err != nil {
-				return err
-			}
-
-			// TODO1 get an up to date field map.
-			// TODO1 handle unkonwn dataset numbers.
-			recordDef, ok := iptcFieldMap[datasetNumber]
-			if !ok {
-				fmt.Println("unknown datasetNumber", datasetNumber)
-				continue
-			}
-
-			var v any
-			switch recordDef.format {
-			case "string":
-				v = string(recordBytes)
-			case "B": // TODO1 check these
-				v = recordBytes
-			}
-
-			if err := e.opts.HandleTag(TagInfo{
-				Source: TagSourceIPTC,
-				Tag:    recordDef.name,
-				Value:  v,
-			}); err != nil {
-				return err
-			}
-
 		}
 	}
-
-	for {
-		if err := decodeBlock(); err != nil {
-			if err == errStop {
-				break
-			}
-			return err
-		}
-	}
-
 	return nil
-
 }
 
 // exifTy
@@ -313,6 +221,29 @@ type streamReader struct {
 
 	readErr      error
 	readerOffset int
+}
+
+func (e *streamReader) bufferedReader(length int) (readerCloser, error) {
+	buff := getBuffer()
+	n, err := io.CopyN(buff, e.r, int64(length))
+	if err != nil || n != int64(length) {
+		return nil, err
+	}
+	r := bytes.NewReader(buff.Bytes())
+
+	var closer closerFunc = func() error {
+		putBuffer(buff)
+		return nil
+	}
+
+	return struct {
+		Reader
+		io.Closer
+	}{
+		r,
+		closer,
+	}, nil
+
 }
 
 func (e *streamReader) pos() int {
@@ -394,36 +325,6 @@ func (e *streamReader) stop(err error) {
 
 func getBuffer() (buf *bytes.Buffer) {
 	return bufferPool.Get().(*bytes.Buffer)
-}
-
-func decode(opts Options) error {
-	br := &streamReader{
-		r:         opts.R,
-		byteOrder: binary.BigEndian,
-	}
-
-	base := &baseStreamingDecoder{
-		streamReader: br,
-		opts:         opts,
-	}
-
-	var dec decoder
-
-	switch opts.ImageFormat {
-	case ImageFormatJPEG:
-		dec = &decoderJPEG{baseStreamingDecoder: base}
-	case ImageFormatWebP:
-		dec = &decoderWebP{baseStreamingDecoder: base}
-	default:
-		return fmt.Errorf("unsupported image format")
-
-	}
-
-	err := dec.decode()
-	if err == ErrStopWalking {
-		return nil
-	}
-	return err
 }
 
 func putBuffer(buf *bytes.Buffer) {

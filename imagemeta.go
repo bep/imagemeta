@@ -1,6 +1,7 @@
 package imagemeta
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math/big"
@@ -37,7 +38,33 @@ func Decode(opts Options) error {
 		opts.SourceSet = map[TagSource]bool{TagSourceEXIF: true, TagSourceIPTC: true, TagSourceXMP: true}
 	}
 
-	return decode(opts)
+	br := &streamReader{
+		r:         opts.R,
+		byteOrder: binary.BigEndian,
+	}
+
+	base := &baseStreamingDecoder{
+		streamReader: br,
+		opts:         opts,
+	}
+
+	var dec decoder
+
+	switch opts.ImageFormat {
+	case ImageFormatJPEG:
+		dec = &decoderJPEG{baseStreamingDecoder: base}
+	case ImageFormatWebP:
+		dec = &decoderWebP{baseStreamingDecoder: base}
+	default:
+		return fmt.Errorf("unsupported image format")
+
+	}
+
+	err := dec.decode()
+	if err == ErrStopWalking {
+		return nil
+	}
+	return err
 }
 
 type HandleTagFunc func(info TagInfo) error
@@ -131,6 +158,17 @@ type Reader interface {
 	io.ReaderAt
 }
 
+type readerCloser interface {
+	Reader
+	io.Closer
+}
+
+type closerFunc func() error
+
+func (f closerFunc) Close() error {
+	return f()
+}
+
 type TagInfo struct {
 	// The tag source.
 	Source TagSource
@@ -145,7 +183,7 @@ type TagInfo struct {
 //go:generate stringer -type=TagSource
 type TagSource int
 
-// Tags is a map of EXIF and ITPC tags.
+// Tags is a map of EXIF and IPTC tags.
 type Tags map[string]any
 
 func (tags Tags) toDegrees(v any) float64 {
