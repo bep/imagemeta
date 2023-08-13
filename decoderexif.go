@@ -7,19 +7,19 @@ import (
 	"math/big"
 )
 
-func newDecoderExif(r io.Reader, callback HandleTagFunc) *decoderExif {
-	return &decoderExif{
+func newDecoderEXIF(r io.Reader, callback HandleTagFunc) *decoderEXIF {
+	return &decoderEXIF{
 		streamReader: newStreamReader(r),
 		handleTag:    callback,
 	}
 }
 
-type decoderExif struct {
+type decoderEXIF struct {
 	*streamReader
 	handleTag HandleTagFunc
 }
 
-func (e *decoderExif) convertValues(typ exifType, count, len int, r io.Reader) any {
+func (e *decoderEXIF) convertValues(typ exifType, count, len int, r io.Reader) any {
 	if count == 0 {
 		return nil
 	}
@@ -47,7 +47,7 @@ func (e *decoderExif) convertValues(typ exifType, count, len int, r io.Reader) a
 	return values
 }
 
-func (e *decoderExif) convertValue(typ exifType, r io.Reader) any {
+func (e *decoderEXIF) convertValue(typ exifType, r io.Reader) any {
 	switch typ {
 	case typeUnsignedByte, typeUndef:
 		return e.read1r(r)
@@ -69,7 +69,7 @@ func (e *decoderExif) convertValue(typ exifType, r io.Reader) any {
 	}
 }
 
-func (e *decoderExif) decode() (err error) {
+func (e *decoderEXIF) decode() (err error) {
 	byteOrderTag := e.read2()
 
 	switch byteOrderTag {
@@ -93,11 +93,11 @@ func (e *decoderExif) decode() (err error) {
 	e.skip(int64(firstOffset - 8))
 	e.readerOffset = e.pos() - 8
 
-	return e.decodeEXIFTags()
+	return e.decodeTags()
 
 }
 
-func (e *decoderExif) decodeEXIFTags() error {
+func (e *decoderEXIF) decodeTags() error {
 	if e.done() {
 		e.stop(nil)
 	}
@@ -105,7 +105,7 @@ func (e *decoderExif) decodeEXIFTags() error {
 	numTags := e.read2()
 
 	for i := 0; i < int(numTags); i++ {
-		if err := e.decodeEXIFTag(); err != nil {
+		if err := e.decodeTag(); err != nil {
 			return err
 		}
 	}
@@ -113,15 +113,15 @@ func (e *decoderExif) decodeEXIFTags() error {
 	return nil
 }
 
-func (e *decoderExif) decodeEXIFTagsAt(offset int) error {
+func (e *decoderEXIF) decodeTagsAT(offset int) error {
 	oldPos := e.pos()
 	defer func() {
 		e.seek(oldPos)
 	}()
 	e.seek(offset + e.readerOffset)
-	return e.decodeEXIFTags()
+	return e.decodeTags()
 }
 
-func (e *decoderExif) done() bool {
+func (e *decoderEXIF) done() bool {
 	return false // TODO1
 }

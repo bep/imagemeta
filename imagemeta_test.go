@@ -141,7 +141,7 @@ func BenchmarkDecode(b *testing.B) {
 	}
 
 	sourceSetEXIF := map[imagemeta.TagSource]bool{imagemeta.TagSourceEXIF: true}
-	sourceSetITPC := map[imagemeta.TagSource]bool{imagemeta.TagSourceIPTC: true}
+	sourceSetIPTC := map[imagemeta.TagSource]bool{imagemeta.TagSourceIPTC: true}
 	sourceSetAll := map[imagemeta.TagSource]bool{imagemeta.TagSourceEXIF: true, imagemeta.TagSourceIPTC: true}
 
 	runBenchmark := func(b *testing.B, name string, f func(r imagemeta.Reader) error) {
@@ -163,8 +163,8 @@ func BenchmarkDecode(b *testing.B) {
 		return err
 	})
 
-	runBenchmark(b, "bep/imagemeta/itpc", func(r imagemeta.Reader) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imagemeta.ImageFormatJPEG, HandleTag: handleTag, SourceSet: sourceSetITPC})
+	runBenchmark(b, "bep/imagemeta/iptc", func(r imagemeta.Reader) error {
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imagemeta.ImageFormatJPEG, HandleTag: handleTag, SourceSet: sourceSetIPTC})
 		return err
 	})
 

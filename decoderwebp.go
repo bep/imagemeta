@@ -104,7 +104,7 @@ func (e *decoderWebP) decode() (err error) {
 			if exifHandled {
 				continue
 			}
-			dec := newDecoderExif(chunkData, e.opts.HandleTag)
+			dec := newDecoderEXIF(chunkData, e.opts.HandleTag)
 
 			if err := dec.decode(); err != nil {
 				return err
