@@ -28,17 +28,6 @@ type decoderWebP struct {
 }
 
 func (e *decoderWebP) decode() (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			if r != errStop {
-				panic(r)
-			}
-			if err == nil {
-				err = e.err
-			}
-		}
-	}()
-
 	handleEXIF := e.opts.SourceSet[TagSourceEXIF]
 	handleXMP := e.opts.SourceSet[TagSourceXMP]
 
@@ -104,7 +93,7 @@ func (e *decoderWebP) decode() (err error) {
 			if exifHandled {
 				continue
 			}
-			dec := newDecoderEXIF(chunkData, e.opts.HandleTag)
+			dec := newMetaDecoderEXIF(chunkData, e.opts.HandleTag)
 
 			if err := dec.decode(); err != nil {
 				return err
@@ -140,16 +129,4 @@ func (e *decoderWebP) decode() (err error) {
 
 	}
 
-}
-
-type rdf struct {
-	Description rdfDescription `xml:"Description"`
-}
-
-type rdfDescription struct {
-	Attrs []xml.Attr `xml:",any,attr"`
-}
-
-type xmpmeta struct {
-	RDF rdf `xml:"RDF"`
 }

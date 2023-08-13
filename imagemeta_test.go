@@ -18,9 +18,7 @@ import (
 func TestDecodeBasic(t *testing.T) {
 	c := qt.New(t)
 
-	// ImageFormatJPEG,
-
-	for _, imageFormat := range []imagemeta.ImageFormat{imagemeta.ImageFormatJPEG, imagemeta.ImageFormatWebP} {
+	for _, imageFormat := range []imagemeta.ImageFormat{imagemeta.ImageFormatJPEG, imagemeta.ImageFormatPNG, imagemeta.ImageFormatWebP} {
 		c.Run(fmt.Sprintf("%v", imageFormat), func(c *qt.C) {
 			img, close := getSunrise(c, imageFormat)
 			c.Cleanup(close)
@@ -36,8 +34,10 @@ func TestDecodeBasic(t *testing.T) {
 
 			c.Assert(tags["Orientation"].Value, qt.Equals, uint16(1))
 			c.Assert(tags["ExposureTime"].Value, eq, big.NewRat(1, 200))
-			c.Assert(tags["Headline"].Value, qt.Equals, "Sunrise in Spain")
-			c.Assert(tags["Copyright"].Value, qt.Equals, "Bjørn Erik Pedersen")
+			if imageFormat != imagemeta.ImageFormatPNG { // No IPTC in PNG.
+				c.Assert(tags["Headline"].Value, qt.Equals, "Sunrise in Spain")
+				c.Assert(tags["Copyright"].Value, qt.Equals, "Bjørn Erik Pedersen")
+			}
 
 			// TODO1 InteroperabilityIndex
 		})
@@ -111,6 +111,8 @@ func getSunrise(c *qt.C, imageFormat imagemeta.ImageFormat) (imagemeta.Reader, f
 		ext = ".jpg"
 	case imagemeta.ImageFormatWebP:
 		ext = ".webp"
+	case imagemeta.ImageFormatPNG:
+		ext = ".png"
 	default:
 		c.Fatalf("unknown image format: %v", imageFormat)
 	}
@@ -142,10 +144,10 @@ func BenchmarkDecode(b *testing.B) {
 
 	sourceSetEXIF := map[imagemeta.TagSource]bool{imagemeta.TagSourceEXIF: true}
 	sourceSetIPTC := map[imagemeta.TagSource]bool{imagemeta.TagSourceIPTC: true}
-	sourceSetAll := map[imagemeta.TagSource]bool{imagemeta.TagSourceEXIF: true, imagemeta.TagSourceIPTC: true}
+	sourceSetAll := map[imagemeta.TagSource]bool{imagemeta.TagSourceEXIF: true, imagemeta.TagSourceIPTC: true, imagemeta.TagSourceXMP: true}
 
-	runBenchmark := func(b *testing.B, name string, f func(r imagemeta.Reader) error) {
-		img, close := getSunrise(qt.New(b), imagemeta.ImageFormatJPEG)
+	runBenchmark := func(b *testing.B, name string, imageFormat imagemeta.ImageFormat, f func(r imagemeta.Reader) error) {
+		img, close := getSunrise(qt.New(b), imageFormat)
 		b.Cleanup(close)
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -158,22 +160,35 @@ func BenchmarkDecode(b *testing.B) {
 		})
 	}
 
-	runBenchmark(b, "bep/imagemeta/exif", func(r imagemeta.Reader) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imagemeta.ImageFormatJPEG, HandleTag: handleTag, SourceSet: sourceSetEXIF})
+	imageFormat := imagemeta.ImageFormatPNG
+	runBenchmark(b, "bep/imagemeta/png/exif", imagemeta.ImageFormatPNG, func(r imagemeta.Reader) error {
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, SourceSet: sourceSetAll})
 		return err
 	})
 
-	runBenchmark(b, "bep/imagemeta/iptc", func(r imagemeta.Reader) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imagemeta.ImageFormatJPEG, HandleTag: handleTag, SourceSet: sourceSetIPTC})
+	imageFormat = imagemeta.ImageFormatWebP
+	runBenchmark(b, "bep/imagemeta/webp/all", imageFormat, func(r imagemeta.Reader) error {
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, SourceSet: sourceSetAll})
 		return err
 	})
 
-	runBenchmark(b, "bep/imagemeta/all", func(r imagemeta.Reader) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imagemeta.ImageFormatJPEG, HandleTag: handleTag, SourceSet: sourceSetAll})
+	imageFormat = imagemeta.ImageFormatJPEG
+	runBenchmark(b, "bep/imagemeta/jpg/exif", imageFormat, func(r imagemeta.Reader) error {
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, SourceSet: sourceSetEXIF})
 		return err
 	})
 
-	runBenchmark(b, "rwcarlsen/goexif", func(r imagemeta.Reader) error {
+	runBenchmark(b, "bep/imagemeta/jpg/iptc", imageFormat, func(r imagemeta.Reader) error {
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, SourceSet: sourceSetIPTC})
+		return err
+	})
+
+	runBenchmark(b, "bep/imagemeta/jpg/all", imageFormat, func(r imagemeta.Reader) error {
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, SourceSet: sourceSetAll})
+		return err
+	})
+
+	runBenchmark(b, "rwcarlsen/goexif", imageFormat, func(r imagemeta.Reader) error {
 		_, err := exif.Decode(r)
 		return err
 	})
