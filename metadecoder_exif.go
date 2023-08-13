@@ -1,6 +1,11 @@
 package imagemeta
 
-import "fmt"
+import (
+	"encoding/binary"
+	"fmt"
+	"io"
+	"math/big"
+)
 
 // TODO1
 const (
@@ -24,6 +29,7 @@ const (
 	gpsPointer            = 0x8825
 	interopPointer        = 0xa005
 	exifHeader            = 0x45786966
+	pngExifMarker         = 0x65584966
 	byteOrderBigEndian    = 0x4d4d
 	byteOrderLittleEndian = 0x4949
 	tagOrientation        = 0x0112
@@ -74,6 +80,125 @@ var (
 
 	fieldsAll = map[uint16]string{}
 )
+
+func newMetaDecoderEXIF(r io.Reader, handleTag HandleTagFunc) *metaDecoderEXIF {
+	return &metaDecoderEXIF{
+		streamReader: newStreamReader(r),
+		handleTag:    handleTag,
+	}
+}
+
+type metaDecoderEXIF struct {
+	*streamReader
+	handleTag HandleTagFunc
+}
+
+func (e *metaDecoderEXIF) convertValue(typ exifType, r io.Reader) any {
+	switch typ {
+	case typeUnsignedByte, typeUndef:
+		return e.read1r(r)
+	case typeUnsignedShort:
+		return e.read2r(r)
+	case typeUnsignedLong:
+		return e.read4r(r)
+	case typeSignedLong:
+		return e.read4Signedr(r)
+	case typeUnsignedRat:
+		n, d := e.read4r(r), e.read4r(r)
+		return big.NewRat(int64(n), int64(d))
+	case typeSignedRat:
+		n, d := e.read4Signedr(r), e.read4Signedr(r)
+		return big.NewRat(int64(n), int64(d))
+	default:
+		// TODO1
+		panic(fmt.Errorf("exif type %d not implemented", typ))
+	}
+}
+
+func (e *metaDecoderEXIF) convertValues(typ exifType, count, len int, r io.Reader) any {
+	if count == 0 {
+		return nil
+	}
+
+	if typ == typeUnsignedASCII {
+		buff := getBuffer()
+		defer putBuffer(buff)
+		// Read len bytes into buff from r.
+		n, err := io.CopyN(buff, r, int64(len))
+		if err != nil || n != int64(len) {
+			// TODO1
+			panic(err)
+		}
+		return string(buff.Bytes()[:count-1])
+	}
+
+	if count == 1 {
+		return e.convertValue(typ, r)
+	}
+
+	values := make([]any, count)
+	for i := 0; i < count; i++ {
+		values[i] = e.convertValue(typ, r)
+	}
+	return values
+}
+
+func (e *metaDecoderEXIF) decode() (err error) {
+	byteOrderTag := e.read2()
+
+	switch byteOrderTag {
+	case byteOrderBigEndian:
+		e.byteOrder = binary.BigEndian
+	case byteOrderLittleEndian:
+		e.byteOrder = binary.LittleEndian
+	default:
+
+		return nil
+	}
+
+	e.skip(2)
+
+	firstOffset := e.read4()
+
+	if firstOffset < 8 {
+		return nil
+	}
+
+	e.skip(int64(firstOffset - 8))
+	e.readerOffset = e.pos() - 8
+
+	return e.decodeTags()
+
+}
+
+func (e *metaDecoderEXIF) decodeTags() error {
+	if e.done() {
+		e.stop(nil)
+	}
+
+	numTags := e.read2()
+
+	for i := 0; i < int(numTags); i++ {
+		if err := e.decodeTag(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (e *metaDecoderEXIF) decodeTagsAT(offset int) error {
+	oldPos := e.pos()
+	defer func() {
+		e.seek(oldPos)
+	}()
+	e.seek(offset + e.readerOffset)
+	return e.decodeTags()
+}
+
+func (e *metaDecoderEXIF) done() bool {
+	return false // TODO1
+}
 
 func init() {
 	for k, v := range fieldsExif {

@@ -20,11 +20,12 @@ var ErrStopWalking = fmt.Errorf("stop walking")
 const (
 	ImageFormatAuto ImageFormat = iota
 	ImageFormatJPEG
+	ImageFormatPNG
 	ImageFormatWebP
 )
 
 // Decode reads EXIF and IPTC metadata from r and returns a Meta struct.
-func Decode(opts Options) error {
+func Decode(opts Options) (err error) {
 	if opts.R == nil {
 		return fmt.Errorf("need a reader")
 	}
@@ -48,19 +49,32 @@ func Decode(opts Options) error {
 		opts:         opts,
 	}
 
+	defer func() {
+		if r := recover(); r != nil {
+			if r != errStop {
+				panic(r)
+			}
+			if err == nil {
+				err = base.err
+			}
+		}
+	}()
+
 	var dec decoder
 
 	switch opts.ImageFormat {
 	case ImageFormatJPEG:
-		dec = &decoderJPEG{baseStreamingDecoder: base}
+		dec = &imageDecoderJPEG{baseStreamingDecoder: base}
 	case ImageFormatWebP:
 		dec = &decoderWebP{baseStreamingDecoder: base}
+	case ImageFormatPNG:
+		dec = &imageDecoderPNG{baseStreamingDecoder: base}
 	default:
 		return fmt.Errorf("unsupported image format")
 
 	}
 
-	err := dec.decode()
+	err = dec.decode()
 	if err == ErrStopWalking {
 		return nil
 	}
@@ -158,17 +172,6 @@ type Reader interface {
 	io.ReaderAt
 }
 
-type readerCloser interface {
-	Reader
-	io.Closer
-}
-
-type closerFunc func() error
-
-func (f closerFunc) Close() error {
-	return f()
-}
-
 type TagInfo struct {
 	// The tag source.
 	Source TagSource
@@ -207,4 +210,15 @@ func (tags Tags) get(key string) any {
 		return v
 	}
 	return nil
+}
+
+type closerFunc func() error
+
+func (f closerFunc) Close() error {
+	return f()
+}
+
+type readerCloser interface {
+	Reader
+	io.Closer
 }
