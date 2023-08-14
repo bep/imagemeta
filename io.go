@@ -3,6 +3,7 @@ package imagemeta
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 	"sync"
 )
@@ -60,11 +61,16 @@ type streamReader struct {
 	readerOffset int
 }
 
+var errShortRead = errors.New("short read")
+
 func (e *streamReader) bufferedReader(length int) (readerCloser, error) {
 	buff := getBuffer()
 	n, err := io.CopyN(buff, e.r, int64(length))
-	if err != nil || n != int64(length) {
+	if err != nil {
 		return nil, err
+	}
+	if n != int64(length) {
+		return nil, errShortRead
 	}
 	r := bytes.NewReader(buff.Bytes())
 
@@ -113,6 +119,14 @@ func (e *streamReader) read2r(r io.Reader) uint16 {
 	return e.byteOrder.Uint16(e.buf[:n])
 }
 
+func (e *streamReader) read2E() (uint16, error) {
+	const n = 2
+	if err := e.readNIntoBufE(n); err != nil {
+		return 0, err
+	}
+	return e.byteOrder.Uint16(e.buf[:n]), nil
+}
+
 func (e *streamReader) read4() uint32 {
 	const n = 4
 	e.readNIntoBuf(n)
@@ -145,19 +159,26 @@ func (e *streamReader) readBytesVolatile(n int) []byte {
 	return e.buf[:n]
 }
 
-func (e *streamReader) readFullE(v any) error {
-	return e.readFullrE(v, e.r)
-}
-
-func (e *streamReader) readFullrE(v any, r io.Reader) error {
-	return binary.Read(r, e.byteOrder, v)
+func (e *streamReader) readNFromRIntoBufE(n int, r io.Reader) error {
+	e.allocateBuf(n)
+	n2, err := io.ReadFull(r, e.buf[:n])
+	if err != nil {
+		return err
+	}
+	if n != n2 {
+		return errShortRead
+	}
+	return nil
 }
 
 func (e *streamReader) readNFromRIntoBuf(n int, r io.Reader) {
-	e.allocateBuf(n)
-	if _, err := io.ReadFull(r, e.buf[:n]); err != nil {
+	if err := e.readNFromRIntoBufE(n, r); err != nil {
 		e.stop(err)
 	}
+}
+
+func (e *streamReader) readNIntoBufE(n int) error {
+	return e.readNFromRIntoBufE(n, e.r)
 }
 
 func (e *streamReader) readNIntoBuf(n int) {

@@ -14,7 +14,8 @@ var (
 	fccXMP  = fourCC{'X', 'M', 'P', ' '}
 )
 
-var errInvalidFormat = fmt.Errorf("imagemeta: invalid format")
+// ErrInvalidFormat is returned when the format is not recognized.
+var ErrInvalidFormat = fmt.Errorf("imagemeta: invalid format")
 
 type baseStreamingDecoder struct {
 	*streamReader
@@ -48,7 +49,7 @@ func (e *decoderWebP) decode() (err error) {
 	// Read the RIFF header.
 	e.readBytes(chunkID[:])
 	if chunkID != fccRIFF {
-		return errInvalidFormat
+		return ErrInvalidFormat
 	}
 
 	// File size.
@@ -56,7 +57,7 @@ func (e *decoderWebP) decode() (err error) {
 
 	e.readBytes(chunkID[:])
 	if chunkID != fccWEBP {
-		return errInvalidFormat
+		return ErrInvalidFormat
 	}
 
 	for {
@@ -72,7 +73,7 @@ func (e *decoderWebP) decode() (err error) {
 
 		case fccVP8X:
 			if chunkLen != 10 {
-				return errInvalidFormat
+				return ErrInvalidFormat
 			}
 
 			const (

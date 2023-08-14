@@ -230,7 +230,7 @@ func (e *metaDecoderEXIF) decodeTag() error {
 
 	size, ok := typeSize[typ]
 	if !ok {
-		return fmt.Errorf("unknown type for tag %s %d", tagName, typ)
+		return ErrInvalidFormat
 	}
 	valLen := size * count
 

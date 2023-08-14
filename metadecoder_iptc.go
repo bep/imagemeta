@@ -24,6 +24,8 @@ func (e *metaDecoderIPTC) decode() (err error) {
 
 	const iptcMetaDataBlockID = 0x0404
 
+	stringSlices := make(map[uint8][]string)
+
 	decodeBlock := func() error {
 		blockType := e.readBytesVolatile(4)
 		if string(blockType) != "8BIM" {
@@ -71,47 +73,44 @@ func (e *metaDecoderIPTC) decode() (err error) {
 				return errStop
 			}
 
-			var recordType, datasetNumber uint8
-			var recordSize uint16
-			if err := binary.Read(r, e.byteOrder, &recordType); err != nil {
-				return err
-			}
-			if err := binary.Read(r, e.byteOrder, &datasetNumber); err != nil {
-				return err
-			}
-			if err := binary.Read(r, e.byteOrder, &recordSize); err != nil {
-				return err
-			}
+			e.skip(1) // recordType
+			datasetNumber := e.read1()
+			recordSize := e.read2()
 
-			recordBytes := make([]byte, recordSize)
-			if err := binary.Read(r, e.byteOrder, recordBytes); err != nil {
-				return err
-			}
-
-			// TODO1 get an up to date field map.
-			// TODO1 handle unkonwn dataset numbers.
 			recordDef, ok := iptcFieldMap[datasetNumber]
 			if !ok {
-				fmt.Println("unknown datasetNumber", datasetNumber)
-				continue
+				// Assume a non repeatable string.
+				recordDef = iptcField{
+					name:       fmt.Sprintf("%s%d", UnknownPrefix, datasetNumber),
+					format:     "string",
+					repeatable: false,
+				}
 			}
 
 			var v any
 			switch recordDef.format {
 			case "string":
-				v = string(recordBytes)
-			case "B": // TODO1 check these
-				v = recordBytes
+				b := e.readBytesVolatile(int(recordSize))
+				v = string(b)
+			case "short":
+				v = e.read2()
+			case "byte":
+				v = e.read1()
+			default:
+				panic(fmt.Sprintf("unhandled format %q", recordDef.format))
 			}
 
-			if err := e.handleTag(TagInfo{
-				Source: TagSourceIPTC,
-				Tag:    recordDef.name,
-				Value:  v,
-			}); err != nil {
-				return err
+			if recordDef.repeatable {
+				stringSlices[datasetNumber] = append(stringSlices[datasetNumber], v.(string))
+			} else {
+				if err := e.handleTag(TagInfo{
+					Source: TagSourceIPTC,
+					Tag:    recordDef.name,
+					Value:  v,
+				}); err != nil {
+					return err
+				}
 			}
-
 		}
 	}
 
@@ -122,6 +121,19 @@ func (e *metaDecoderIPTC) decode() (err error) {
 			}
 			return err
 		}
+	}
+
+	if len(stringSlices) > 0 {
+		for datasetNumber, values := range stringSlices {
+			if err := e.handleTag(TagInfo{
+				Source: TagSourceIPTC,
+				Tag:    iptcFieldMap[datasetNumber].name,
+				Value:  values,
+			}); err != nil {
+				return err
+			}
+		}
+
 	}
 
 	return nil
@@ -135,10 +147,12 @@ type iptcField struct {
 }
 
 var iptcFieldMap = map[uint8]iptcField{
-	0:   {"RecordVersion", false, "B"},
+	0:   {"RecordVersion", false, "short"},
+	4:   {"ObjectTypeReference", false, "string"},
 	5:   {"ObjectName", false, "string"},
 	7:   {"EditStatus", false, "string"},
-	10:  {"Urgency", false, "B"},
+	10:  {"Urgency", false, "byte"},
+	12:  {"SubjectReference", true, "string"},
 	15:  {"Category", true, "string"},
 	20:  {"SupplementalCategory", true, "string"},
 	22:  {"FixtureIdentifier", false, "string"},
@@ -174,4 +188,6 @@ var iptcFieldMap = map[uint8]iptcField{
 	115: {"Source", false, "string"},
 	116: {"Copyright", false, "string"},
 	118: {"Contact", false, "string"},
+	120: {"Caption", false, "string"},
+	122: {"LocalCaption", false, "string"},
 }

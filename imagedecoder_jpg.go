@@ -11,7 +11,7 @@ type imageDecoderJPEG struct {
 func (e *imageDecoderJPEG) decode() (err error) {
 	// JPEG SOI marker.
 	var soi uint16
-	if err = e.readFullE(&soi); err != nil {
+	if soi, err = e.read2E(); err != nil {
 		return nil
 	}
 	if soi != markerSOI {
@@ -21,10 +21,10 @@ func (e *imageDecoderJPEG) decode() (err error) {
 	findMarker := func(markerToFind uint16) int {
 		for {
 			var marker, length uint16
-			if err = e.readFullE(&marker); err != nil {
+			if marker, err = e.read2E(); err != nil {
 				return -1
 			}
-			if err = e.readFullE(&length); err != nil {
+			if length, err = e.read2E(); err != nil {
 				return -1
 			}
 
