@@ -44,6 +44,46 @@ func TestDecodeBasic(t *testing.T) {
 	}
 }
 
+func TestDecodeIPTCReference(t *testing.T) {
+	c := qt.New(t)
+	const filename = "IPTC-PhotometadataRef-Std2021.1.jpg"
+
+	img, err := os.Open(filepath.Join("testdata", filename))
+	c.Assert(err, qt.IsNil)
+
+	c.Cleanup(func() {
+		c.Assert(img.Close(), qt.IsNil)
+	})
+
+	tags := make(map[string]imagemeta.TagInfo)
+	handleTag := func(ti imagemeta.TagInfo) error {
+		if _, seen := tags[ti.Tag]; seen {
+			c.Fatalf("duplicate tag: %s", ti.Tag)
+		}
+		c.Assert(ti.Tag, qt.Not(qt.Contains), "Unknown")
+		tags[ti.Tag] = ti
+		return nil
+	}
+
+	err = imagemeta.Decode(
+		imagemeta.Options{
+			R:           img,
+			ImageFormat: imagemeta.ImageFormatJPEG,
+			HandleTag:   handleTag,
+			Sources:     imagemeta.TagSourceIPTC,
+		},
+	)
+	c.Assert(err, qt.IsNil)
+
+	c.Assert(len(tags), qt.Equals, 22)
+	c.Assert(tags["Byline"].Value, qt.Equals, "Creator1 (ref2021.1)")
+	c.Assert(tags["BylineTitle"].Value, qt.Equals, "Creator's Job Title  (ref2021.1)")
+	c.Assert(tags["RecordVersion"].Value, qt.Equals, uint16(4))
+	c.Assert(tags["DateCreated"].Value, qt.Equals, "20211020")
+	c.Assert(tags["Keywords"].Value, qt.DeepEquals, []string{"Keyword1ref2021.1", "Keyword2ref2021.1", "Keyword3ref2021.1"})
+
+}
+
 func TestDecodeOrientationOnly(t *testing.T) {
 	c := qt.New(t)
 
@@ -85,12 +125,8 @@ func TestSmoke(t *testing.T) {
 
 	for _, file := range files {
 		img, err := os.Open(file)
-		format := imagemeta.ImageFormatJPEG
-		if filepath.Ext(file) == ".webp" {
-			format = imagemeta.ImageFormatWebP
-		}
-
 		c.Assert(err, qt.IsNil)
+		format := extToFormat(filepath.Ext(file))
 		tags := make(map[string]imagemeta.TagInfo)
 		handleTag := func(ti imagemeta.TagInfo) error {
 			tags[ti.Tag] = ti
@@ -102,6 +138,39 @@ func TestSmoke(t *testing.T) {
 		img.Close()
 	}
 
+}
+
+func TestCorrupt(t *testing.T) {
+	c := qt.New(t)
+
+	files, err := filepath.Glob(filepath.Join("testdata", "corrupt", "*.*"))
+	c.Assert(err, qt.IsNil)
+
+	for _, file := range files {
+		img, err := os.Open(file)
+		c.Assert(err, qt.IsNil)
+		format := extToFormat(filepath.Ext(file))
+		handleTag := func(ti imagemeta.TagInfo) error {
+			return nil
+		}
+		err = imagemeta.Decode(imagemeta.Options{R: img, ImageFormat: format, HandleTag: handleTag})
+		c.Assert(err, qt.Equals, imagemeta.ErrInvalidFormat)
+		img.Close()
+	}
+
+}
+
+func extToFormat(ext string) imagemeta.ImageFormat {
+	switch ext {
+	case ".jpg":
+		return imagemeta.ImageFormatJPEG
+	case ".webp":
+		return imagemeta.ImageFormatWebP
+	case ".png":
+		return imagemeta.ImageFormatPNG
+	default:
+		panic("unknown image format")
+	}
 }
 
 func getSunrise(c *qt.C, imageFormat imagemeta.ImageFormat) (imagemeta.Reader, func()) {
