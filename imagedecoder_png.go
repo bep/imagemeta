@@ -4,7 +4,7 @@ type imageDecoderPNG struct {
 	*baseStreamingDecoder
 }
 
-func (e *imageDecoderPNG) decode() (err error) {
+func (e *imageDecoderPNG) decode() error {
 	// http://ftp-osl.osuosl.org/pub/libpng/documents/pngext-1.5.0.html#C.eXIf
 	// The four-byte chunk type field contains the decimal values:
 	// 101 88 73 102 (ASCII "eXIf")
@@ -19,7 +19,7 @@ func (e *imageDecoderPNG) decode() (err error) {
 	for {
 		chunkLength, typ := e.read4(), e.read4()
 
-		if typ == pngExifMarker {
+		if typ == pngEXIFMarker {
 			return func() error {
 				r, err := e.bufferedReader(int(chunkLength))
 				if err != nil {

@@ -10,13 +10,14 @@ func _() {
 	var x [1]struct{}
 	_ = x[ImageFormatAuto-0]
 	_ = x[ImageFormatJPEG-1]
-	_ = x[ImageFormatPNG-2]
-	_ = x[ImageFormatWebP-3]
+	_ = x[ImageFormatTIFF-2]
+	_ = x[ImageFormatPNG-3]
+	_ = x[ImageFormatWebP-4]
 }
 
-const _ImageFormat_name = "ImageFormatAutoImageFormatJPEGImageFormatPNGImageFormatWebP"
+const _ImageFormat_name = "ImageFormatAutoImageFormatJPEGImageFormatTIFFImageFormatPNGImageFormatWebP"
 
-var _ImageFormat_index = [...]uint8{0, 15, 30, 44, 59}
+var _ImageFormat_index = [...]uint8{0, 15, 30, 45, 59, 74}
 
 func (i ImageFormat) String() string {
 	if i < 0 || i >= ImageFormat(len(_ImageFormat_index)-1) {

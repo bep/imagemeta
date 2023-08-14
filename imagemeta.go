@@ -6,14 +6,20 @@ import (
 	"io"
 )
 
+// UnknownPrefix is used as prefix for unknown tags.
+const UnknownPrefix = "UnknownTag_"
+
 const (
+	// TagSourceEXIF is the EXIF tag source.
 	TagSourceEXIF TagSource = 1 << iota
+	// TagSourceIPTC is the IPTC tag source.
 	TagSourceIPTC
+	// TagSourceXMP is the XMP tag source.
 	TagSourceXMP
 )
 
 var (
-	// Sentinel error to signal that the walk should stop.
+	// ErrStopWalking is a sentinel error to signal that the walk should stop.
 	ErrStopWalking = fmt.Errorf("stop walking")
 
 	// Internal error to signal that we should stop any further processing.
@@ -21,14 +27,21 @@ var (
 )
 
 const (
+	// ImageFormatAuto signals that the image format should be detected automatically (not implemented yet).
 	ImageFormatAuto ImageFormat = iota
+	// ImageFormatJPEG is the JPEG image format.
 	ImageFormatJPEG
+	// ImageFormatTIFF is the TIFF image format.
+	ImageFormatTIFF
+	// ImageFormatPNG is the PNG image format.
 	ImageFormatPNG
+	// ImageFormatWebP is the WebP image format.
 	ImageFormatWebP
 )
 
 // Decode reads EXIF and IPTC metadata from r and returns a Meta struct.
 func Decode(opts Options) (err error) {
+
 	if opts.R == nil {
 		return fmt.Errorf("need a reader")
 	}
@@ -57,9 +70,11 @@ func Decode(opts Options) (err error) {
 			if r != errStop {
 				panic(r)
 			}
+
 			if err == nil {
-				err = base.err
+				err = base.streamErr()
 			}
+
 		}
 	}()
 
@@ -68,6 +83,8 @@ func Decode(opts Options) (err error) {
 	switch opts.ImageFormat {
 	case ImageFormatJPEG:
 		dec = &imageDecoderJPEG{baseStreamingDecoder: base}
+	case ImageFormatTIFF:
+		dec = &imageDecoderTIF{baseStreamingDecoder: base}
 	case ImageFormatWebP:
 		base.byteOrder = binary.LittleEndian
 		dec = &decoderWebP{baseStreamingDecoder: base}
@@ -82,12 +99,10 @@ func Decode(opts Options) (err error) {
 	if err == ErrStopWalking {
 		return nil
 	}
-	if err != nil {
-		return err
-	}
-	return base.err
+	return err
 }
 
+// HandleTagFunc is the function that is called for each tag.
 type HandleTagFunc func(info TagInfo) error
 
 //go:generate stringer -type=ImageFormat
@@ -134,4 +149,15 @@ type TagSource uint32
 // Has returns true if the given source is set.
 func (t TagSource) Has(source TagSource) bool {
 	return t&source != 0
+}
+
+// Remove removes the given source.
+func (t TagSource) Remove(source TagSource) TagSource {
+	t &= ^source
+	return t
+}
+
+// IsZero returns true if the source is zero.
+func (t TagSource) IsZero() bool {
+	return t == 0
 }

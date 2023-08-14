@@ -18,7 +18,7 @@ import (
 func TestDecodeBasic(t *testing.T) {
 	c := qt.New(t)
 
-	for _, imageFormat := range []imagemeta.ImageFormat{imagemeta.ImageFormatJPEG, imagemeta.ImageFormatPNG, imagemeta.ImageFormatWebP} {
+	for _, imageFormat := range []imagemeta.ImageFormat{imagemeta.ImageFormatJPEG, imagemeta.ImageFormatTIFF, imagemeta.ImageFormatPNG, imagemeta.ImageFormatWebP} {
 		c.Run(fmt.Sprintf("%v", imageFormat), func(c *qt.C) {
 			img, close := getSunrise(c, imageFormat)
 			c.Cleanup(close)
@@ -31,12 +31,15 @@ func TestDecodeBasic(t *testing.T) {
 
 			err := imagemeta.Decode(imagemeta.Options{R: img, ImageFormat: imageFormat, HandleTag: handleTag})
 			c.Assert(err, qt.IsNil)
+			c.Assert(len(tags), qt.Not(qt.Equals), 0)
 
-			c.Assert(tags["Orientation"].Value, qt.Equals, uint16(1))
-			c.Assert(tags["ExposureTime"].Value, eq, big.NewRat(1, 200))
-			if imageFormat != imagemeta.ImageFormatPNG { // No IPTC in PNG.
+			if imageFormat != imagemeta.ImageFormatPNG && imageFormat != imagemeta.ImageFormatTIFF {
 				c.Assert(tags["Headline"].Value, qt.Equals, "Sunrise in Spain")
 				c.Assert(tags["Copyright"].Value, qt.Equals, "Bjørn Erik Pedersen")
+			}
+			if imageFormat != imagemeta.ImageFormatTIFF { // TODO1
+				c.Assert(tags["Orientation"].Value, qt.Equals, uint16(1))
+				c.Assert(tags["ExposureTime"].Value, eq, big.NewRat(1, 200))
 			}
 
 			// TODO1 InteroperabilityIndex
@@ -160,6 +163,20 @@ func TestCorrupt(t *testing.T) {
 
 }
 
+func TestTagSource(t *testing.T) {
+	c := qt.New(t)
+	sources := imagemeta.TagSourceEXIF | imagemeta.TagSourceIPTC
+	c.Assert(sources.Has(imagemeta.TagSourceEXIF), qt.Equals, true)
+	c.Assert(sources.Has(imagemeta.TagSourceIPTC), qt.Equals, true)
+	c.Assert(sources.Has(imagemeta.TagSourceXMP), qt.Equals, false)
+	sources = sources.Remove(imagemeta.TagSourceEXIF)
+	c.Assert(sources.Has(imagemeta.TagSourceEXIF), qt.Equals, false)
+	c.Assert(sources.Has(imagemeta.TagSourceIPTC), qt.Equals, true)
+	c.Assert(sources.IsZero(), qt.Equals, false)
+	sources = sources.Remove(imagemeta.TagSourceIPTC)
+	c.Assert(sources.IsZero(), qt.Equals, true)
+}
+
 func extToFormat(ext string) imagemeta.ImageFormat {
 	switch ext {
 	case ".jpg":
@@ -168,6 +185,8 @@ func extToFormat(ext string) imagemeta.ImageFormat {
 		return imagemeta.ImageFormatWebP
 	case ".png":
 		return imagemeta.ImageFormatPNG
+	case ".tif", ".tiff":
+		return imagemeta.ImageFormatTIFF
 	default:
 		panic("unknown image format")
 	}
@@ -182,6 +201,8 @@ func getSunrise(c *qt.C, imageFormat imagemeta.ImageFormat) (imagemeta.Reader, f
 		ext = ".webp"
 	case imagemeta.ImageFormatPNG:
 		ext = ".png"
+	case imagemeta.ImageFormatTIFF:
+		ext = ".tif"
 	default:
 		c.Fatalf("unknown image format: %v", imageFormat)
 	}
