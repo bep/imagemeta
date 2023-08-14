@@ -1,7 +1,6 @@
 package imagemeta
 
 import (
-	"encoding/xml"
 	"fmt"
 	"io"
 )
@@ -23,26 +22,31 @@ type baseStreamingDecoder struct {
 	err  error
 }
 
+func (d *baseStreamingDecoder) streamErr() error {
+	if d.err != nil {
+		return d.err
+	}
+	return d.readErr
+}
+
 type decoderWebP struct {
 	*baseStreamingDecoder
 }
 
-func (e *decoderWebP) decode() (err error) {
-	handleEXIF := e.opts.Sources.Has(TagSourceEXIF)
-	handleXMP := e.opts.Sources.Has(TagSourceXMP)
+func (e *decoderWebP) decode() error {
 
-	if !handleEXIF && !handleXMP {
+	// These are the sources we currently support in WebP.
+	sourceSet := TagSourceEXIF | TagSourceXMP
+	// Remove sources that are not requested.
+	sourceSet = sourceSet & e.opts.Sources
+
+	if sourceSet.IsZero() {
+		// Done.
 		return nil
 	}
 
 	var (
 		buf [10]byte
-
-		hasExif bool
-		hasXMP  bool
-
-		exifHandled = !handleEXIF
-		xmpHandled  = !handleXMP
 	)
 
 	var chunkID fourCC
@@ -61,11 +65,14 @@ func (e *decoderWebP) decode() (err error) {
 	}
 
 	for {
-		if exifHandled && xmpHandled {
+		if sourceSet.IsZero() {
 			return nil
 		}
 
 		e.readBytes(chunkID[:])
+		if e.isEOF {
+			return nil
+		}
 
 		chunkLen := e.read4()
 
@@ -83,14 +90,21 @@ func (e *decoderWebP) decode() (err error) {
 
 			e.readBytes(buf[:])
 
-			hasExif = buf[0]&exifMetadataBit != 0
-			hasXMP = buf[0]&xmpMetadataBit != 0
+			hasEXIF := buf[0]&exifMetadataBit != 0
+			hasXMP := buf[0]&xmpMetadataBit != 0
 
-			if !hasExif && !hasXMP {
+			if !hasEXIF {
+				sourceSet = sourceSet.Remove(TagSourceEXIF)
+			}
+			if !hasXMP {
+				sourceSet = sourceSet.Remove(TagSourceXMP)
+			}
+
+			if !hasEXIF && !hasXMP {
 				return nil
 			}
 		case fccEXIF:
-			if exifHandled {
+			if !sourceSet.Has(TagSourceEXIF) {
 				continue
 			}
 			r := io.LimitReader(e.r, int64(chunkLen))
@@ -99,31 +113,15 @@ func (e *decoderWebP) decode() (err error) {
 			if err := dec.decode(); err != nil {
 				return err
 			}
-
-			exifHandled = true
+			sourceSet = sourceSet.Remove(TagSourceEXIF)
 		case fccXMP:
-			if xmpHandled {
+			if !sourceSet.Has(TagSourceXMP) {
 				continue
 			}
-
-			xmpHandled = true
+			sourceSet = sourceSet.Remove(TagSourceXMP)
 			r := io.LimitReader(e.r, int64(chunkLen))
-			var meta xmpmeta
-			if err := xml.NewDecoder(r).Decode(&meta); err != nil {
+			if err := decodeXMP(r, e.opts.HandleTag); err != nil {
 				return err
-			}
-
-			for _, attr := range meta.RDF.Description.Attrs {
-				tagInfo := TagInfo{
-					Source:    TagSourceXMP,
-					Tag:       attr.Name.Local,
-					Namespace: attr.Name.Space,
-					Value:     attr.Value,
-				}
-
-				if err := e.opts.HandleTag(tagInfo); err != nil {
-					return err
-				}
 			}
 		default:
 			e.skip(int64(chunkLen))

@@ -57,6 +57,7 @@ type streamReader struct {
 	byteOrder binary.ByteOrder
 	buf       []byte
 
+	isEOF        bool
 	readErr      error
 	readerOffset int
 }
@@ -145,10 +146,11 @@ func (e *streamReader) read4sr(r io.Reader) int32 {
 	return int32(e.byteOrder.Uint32(e.buf[:n]))
 }
 
-func (e *streamReader) readBytes(b []byte) {
+func (e *streamReader) readBytes(b []byte) error {
 	if _, err := io.ReadFull(e.r, b); err != nil {
 		e.stop(err)
 	}
+	return nil
 }
 
 // readBytesVolatile reads a slice of bytes from the stream
@@ -197,6 +199,12 @@ func (e *streamReader) skip(n int64) {
 }
 
 func (e *streamReader) stop(err error) {
+	// Alow one silent EOF.
+	// This allows the client to not having to check for EOF on every read.
+	if err == io.EOF && !e.isEOF {
+		e.isEOF = true
+		return
+	}
 	if err != nil {
 		e.readErr = err
 	}
