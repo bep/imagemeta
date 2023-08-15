@@ -45,11 +45,11 @@ func Decode(opts Options) (err error) {
 	if opts.R == nil {
 		return fmt.Errorf("need a reader")
 	}
-	if opts.HandleTag == nil {
-		return fmt.Errorf("need a HandleTag function")
-	}
 	if opts.ImageFormat == ImageFormatAuto {
 		return fmt.Errorf("need an image format; format detection not implemented yet")
+	}
+	if opts.HandleTag == nil {
+		opts.HandleTag = func(TagInfo) error { return nil }
 	}
 	if opts.Sources == 0 {
 		opts.Sources = TagSourceEXIF | TagSourceIPTC | TagSourceXMP
@@ -117,6 +117,12 @@ type Options struct {
 
 	// The function to call for each tag.
 	HandleTag HandleTagFunc
+
+	// The default XMP handler is currently very simple:
+	// It decodes the RDF.Description.Attrs using Go's xml package and passes each tag to HandleTag.
+	// If HandleXMP is set, the decoder will call this function for each XMP packet instead.
+	// Note that r must be read completely.
+	HandleXMP func(r io.Reader) error
 
 	// If set, the decoder will only read the given tag sources.
 	// Note that this is a bitmask and you may send multiple sources at once.

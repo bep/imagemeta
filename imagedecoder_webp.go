@@ -76,9 +76,8 @@ func (e *decoderWebP) decode() error {
 
 		chunkLen := e.read4()
 
-		switch chunkID {
-
-		case fccVP8X:
+		switch {
+		case chunkID == fccVP8X:
 			if chunkLen != 10 {
 				return ErrInvalidFormat
 			}
@@ -103,24 +102,17 @@ func (e *decoderWebP) decode() error {
 			if !hasEXIF && !hasXMP {
 				return nil
 			}
-		case fccEXIF:
-			if !sourceSet.Has(TagSourceEXIF) {
-				continue
-			}
+		case chunkID == fccEXIF && sourceSet.Has(TagSourceEXIF):
 			r := io.LimitReader(e.r, int64(chunkLen))
 			dec := newMetaDecoderEXIF(r, e.opts.HandleTag)
-
 			if err := dec.decode(); err != nil {
 				return err
 			}
 			sourceSet = sourceSet.Remove(TagSourceEXIF)
-		case fccXMP:
-			if !sourceSet.Has(TagSourceXMP) {
-				continue
-			}
+		case chunkID == fccXMP && sourceSet.Has(TagSourceXMP):
 			sourceSet = sourceSet.Remove(TagSourceXMP)
 			r := io.LimitReader(e.r, int64(chunkLen))
-			if err := decodeXMP(r, e.opts.HandleTag); err != nil {
+			if err := decodeXMP(r, e.opts); err != nil {
 				return err
 			}
 		default:
