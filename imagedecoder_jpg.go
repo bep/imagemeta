@@ -77,7 +77,7 @@ func (e *imageDecoderJPEG) decode() error {
 			e.skip(int64(xmpIDLen))
 			length -= xmpIDLen
 			r := io.LimitReader(e.r, int64(length))
-			if err := decodeXMP(r, e.opts.HandleTag); err != nil {
+			if err := decodeXMP(r, e.opts); err != nil {
 				return err
 			}
 			continue

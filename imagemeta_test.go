@@ -2,6 +2,7 @@ package imagemeta_test
 
 import (
 	"fmt"
+	"io"
 	"math"
 	"math/big"
 	"os"
@@ -114,6 +115,53 @@ func TestDecodeOrientationOnly(t *testing.T) {
 	c.Assert(err, qt.IsNil)
 	c.Assert(tags["Orientation"].Value, qt.Equals, uint16(1))
 	c.Assert(len(tags), qt.Equals, 1)
+
+}
+
+func TestDecodeCustomXMPHandler(t *testing.T) {
+	c := qt.New(t)
+
+	img, close := getSunrise(c, imagemeta.ImageFormatWebP)
+	c.Cleanup(close)
+
+	var xml string
+	err := imagemeta.Decode(
+		imagemeta.Options{
+			R:           img,
+			ImageFormat: imagemeta.ImageFormatWebP,
+			HandleXMP: func(r io.Reader) error {
+				b, err := io.ReadAll(r)
+				xml = string(b)
+				return err
+			},
+			Sources: imagemeta.TagSourceXMP,
+		},
+	)
+
+	c.Assert(err, qt.IsNil)
+	c.Assert(xml, qt.Contains, "Sunrise in Spain")
+
+}
+
+func TestDecodeCustomXMPHandlerShortRead(t *testing.T) {
+	c := qt.New(t)
+
+	img, close := getSunrise(c, imagemeta.ImageFormatWebP)
+	c.Cleanup(close)
+
+	err := imagemeta.Decode(
+		imagemeta.Options{
+			R:           img,
+			ImageFormat: imagemeta.ImageFormatWebP,
+			HandleXMP: func(r io.Reader) error {
+				return nil
+			},
+			Sources: imagemeta.TagSourceXMP,
+		},
+	)
+
+	c.Assert(err, qt.IsNotNil)
+	c.Assert(err.Error(), qt.Contains, "expected EOF after XMP")
 
 }
 

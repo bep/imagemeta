@@ -59,7 +59,7 @@ func (e *imageDecoderTIF) decode() error {
 			pos := e.pos()
 			e.seek(int(valueOffset))
 			r := io.LimitReader(e.r, int64(count))
-			if err := decodeXMP(r, e.opts.HandleTag); err != nil {
+			if err := decodeXMP(r, e.opts); err != nil {
 				return err
 			}
 			sourceSet = sourceSet.Remove(TagSourceXMP)

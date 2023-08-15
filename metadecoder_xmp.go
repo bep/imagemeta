@@ -2,6 +2,7 @@ package imagemeta
 
 import (
 	"encoding/xml"
+	"errors"
 	"io"
 )
 
@@ -17,7 +18,19 @@ type xmpmeta struct {
 	RDF rdf `xml:"RDF"`
 }
 
-func decodeXMP(r io.Reader, handleTag HandleTagFunc) error {
+func decodeXMP(r io.Reader, opts Options) error {
+	if opts.HandleXMP != nil {
+		if err := opts.HandleXMP(r); err != nil {
+			return err
+		}
+		// Read one more byte to make sure we're at EOF.
+		var b [1]byte
+		if _, err := r.Read(b[:]); err != io.EOF {
+			return errors.New("expected EOF after XMP")
+		}
+		return nil
+	}
+
 	var meta xmpmeta
 	if err := xml.NewDecoder(r).Decode(&meta); err != nil {
 		return err
@@ -34,7 +47,7 @@ func decodeXMP(r io.Reader, handleTag HandleTagFunc) error {
 			Value:     attr.Value,
 		}
 
-		if err := handleTag(tagInfo); err != nil {
+		if err := opts.HandleTag(tagInfo); err != nil {
 			return err
 		}
 	}
