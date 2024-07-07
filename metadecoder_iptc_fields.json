@@ -1,0 +1,930 @@
+[
+  {
+    "record": "1",
+    "id": "0",
+    "name": "EnvelopeRecordVersion",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "1",
+    "id": "5",
+    "name": "Destination",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "1",
+    "id": "20",
+    "name": "FileFormat",
+    "format": "short",
+    "repeatable": "false",
+    "notes": "0 = No ObjectData 1 = IPTC-NAA Digital Newsphoto Parameter Record 2 = IPTC7901 Recommended Message Format 3 = Tagged Image File Format (Adobe/Aldus Image data) 4 = Illustrator (Adobe Graphics data) 5 = AppleSingle (Apple Computer Inc) 6 = NAA 89-3 (ANPA 1312) 7 = MacBinary II 8 = IPTC Unstructured Character Oriented File Format (UCOFF) 9 = United Press International ANPA 1312 variant 10 = United Press International Down-Load Message 11 = JPEG File Interchange (JFIF) 12 = Photo-CD Image-Pac (Eastman Kodak) 13 = Bit Mapped Graphics File [.BMP] (Microsoft) 14 = Digital Audio File [.WAV] (Microsoft & Creative Labs) 15 = Audio plus Moving Video [.AVI] (Microsoft) 16 = PC DOS/Windows Executable Files [.COM][.EXE] 17 = Compressed Binary File [.ZIP] (PKWare Inc) 18 = Audio Interchange File Format AIFF (Apple Computer Inc) 19 = RIFF Wave (Microsoft Corporation) 20 = Freehand (Macromedia/Aldus) 21 = Hypertext Markup Language [.HTML] (The Internet Society) 22 = MPEG 2 Audio Layer 2 (Musicom), ISO/IEC 23 = MPEG 2 Audio Layer 3, ISO/IEC 24 = Portable Document File [.PDF] Adobe 25 = News Industry Text Format (NITF) 26 = Tape Archive [.TAR] 27 = Tidningarnas Telegrambyra NITF version (TTNITF DTD) 28 = Ritzaus Bureau NITF version (RBNITF DTD) 29 = Corel Draw [.CDR]"
+  },
+  {
+    "record": "1",
+    "id": "22",
+    "name": "FileVersion",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "1",
+    "id": "30",
+    "name": "ServiceIdentifier",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "1",
+    "id": "40",
+    "name": "EnvelopeNumber",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "1",
+    "id": "50",
+    "name": "ProductID",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "1",
+    "id": "60",
+    "name": "EnvelopePriority",
+    "format": "string",
+    "repeatable": "false",
+    "notes": "0 = 0 (reserved) 1 = 1 (most urgent) 2 = 2 3 = 3 4 = 4 5 = 5 (normal urgency) 6 = 6 7 = 7 8 = 8 (least urgent) 9 = 9 (user-defined priority)"
+  },
+  {
+    "record": "1",
+    "id": "70",
+    "name": "DateSent",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "1",
+    "id": "80",
+    "name": "TimeSent",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "1",
+    "id": "90",
+    "name": "CodedCharacterSet",
+    "format": "string",
+    "repeatable": "false",
+    "notes": "(values are entered in the form \"ESC X Y[, ...]\".  The escape sequence for UTF-8 character coding is \"ESC % G\", but this is displayed as \"UTF8\" for convenience.  Either string may be used when writing.  The value of this tag affects the decoding of string values in the Application and NewsPhoto records.  This tag is marked as \"unsafe\" to prevent it from being copied by default in a group operation because existing tags in the destination image may use a different encoding.  When creating a new IPTC record from scratch, it is suggested that this be set to \"UTF8\" if special characters are a possibility)"
+  },
+  {
+    "record": "1",
+    "id": "100",
+    "name": "UniqueObjectName",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "1",
+    "id": "120",
+    "name": "ARMIdentifier",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "1",
+    "id": "122",
+    "name": "ARMVersion",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "0",
+    "name": "ApplicationRecordVersion",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "3",
+    "name": "ObjectTypeReference",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "4",
+    "name": "ObjectAttributeReference",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "5",
+    "name": "ObjectName",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "7",
+    "name": "EditStatus",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "8",
+    "name": "EditorialUpdate",
+    "format": "string",
+    "repeatable": "false",
+    "notes": "01 = Additional language"
+  },
+  {
+    "record": "2",
+    "id": "10",
+    "name": "Urgency",
+    "format": "string",
+    "repeatable": "false",
+    "notes": "0 = 0 (reserved) 1 = 1 (most urgent) 2 = 2 3 = 3 4 = 4 5 = 5 (normal urgency) 6 = 6 7 = 7 8 = 8 (least urgent) 9 = 9 (user-defined priority)"
+  },
+  {
+    "record": "2",
+    "id": "12",
+    "name": "SubjectReference",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "15",
+    "name": "Category",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "20",
+    "name": "SupplementalCategories",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "22",
+    "name": "FixtureIdentifier",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "25",
+    "name": "Keywords",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "26",
+    "name": "ContentLocationCode",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "27",
+    "name": "ContentLocationName",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "30",
+    "name": "ReleaseDate",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "35",
+    "name": "ReleaseTime",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "37",
+    "name": "ExpirationDate",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "38",
+    "name": "ExpirationTime",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "40",
+    "name": "SpecialInstructions",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "42",
+    "name": "ActionAdvised",
+    "format": "string",
+    "repeatable": "false",
+    "notes": "01 = Object Kill 02 = Object Replace 03 = Object Append 04 = Object Reference"
+  },
+  {
+    "record": "2",
+    "id": "45",
+    "name": "ReferenceService",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "47",
+    "name": "ReferenceDate",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "50",
+    "name": "ReferenceNumber",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "55",
+    "name": "DateCreated",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "60",
+    "name": "TimeCreated",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "62",
+    "name": "DigitalCreationDate",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "63",
+    "name": "DigitalCreationTime",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "65",
+    "name": "OriginatingProgram",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "70",
+    "name": "ProgramVersion",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "75",
+    "name": "ObjectCycle",
+    "format": "string",
+    "repeatable": "false",
+    "notes": "a' = Morning 'b' = Both Morning and Evening 'p' = Evening"
+  },
+  {
+    "record": "2",
+    "id": "80",
+    "name": "By-line",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "85",
+    "name": "By-lineTitle",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "90",
+    "name": "City",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "92",
+    "name": "Sub-location",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "95",
+    "name": "Province-State",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "100",
+    "name": "Country-PrimaryLocationCode",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "101",
+    "name": "Country-PrimaryLocationName",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "103",
+    "name": "OriginalTransmissionReference",
+    "format": "string",
+    "repeatable": "false",
+    "notes": "(now used as a job identifier)"
+  },
+  {
+    "record": "2",
+    "id": "105",
+    "name": "Headline",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "110",
+    "name": "Credit",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "115",
+    "name": "Source",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "116",
+    "name": "CopyrightNotice",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "118",
+    "name": "Contact",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "120",
+    "name": "Caption-Abstract",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "121",
+    "name": "LocalCaption",
+    "format": "string",
+    "repeatable": "false",
+    "notes": "(I haven't found a reference for the format of tags 121, 184-188 and 225-232, so I have just make them writable as strings with reasonable length.  Beware that if this is wrong, other utilities may not be able to read these tags as written by ExifTool)"
+  },
+  {
+    "record": "2",
+    "id": "122",
+    "name": "Writer-Editor",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "125",
+    "name": "RasterizedCaption",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "130",
+    "name": "ImageType",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "131",
+    "name": "ImageOrientation",
+    "format": "string",
+    "repeatable": "false",
+    "notes": "L' = Landscape 'P' = Portrait 'S' = Square"
+  },
+  {
+    "record": "2",
+    "id": "135",
+    "name": "LanguageIdentifier",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "150",
+    "name": "AudioType",
+    "format": "string",
+    "repeatable": "false",
+    "notes": "0T' = Text Only '1A' = Mono Actuality '1C' = Mono Question and Answer Session '1M' = Mono Music '1Q' = Mono Response to a Question '1R' = Mono Raw Sound '1S' = Mono Scener '1V' = Mono Voicer '1W' = Mono Wrap '2A' = Stereo Actuality '2C' = Stereo Question and Answer Session '2M' = Stereo Music '2Q' = Stereo Response to a Question '2R' = Stereo Raw Sound '2S' = Stereo Scener '2V' = Stereo Voicer '2W' = Stereo Wrap"
+  },
+  {
+    "record": "2",
+    "id": "151",
+    "name": "AudioSamplingRate",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "152",
+    "name": "AudioSamplingResolution",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "153",
+    "name": "AudioDuration",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "154",
+    "name": "AudioOutcue",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "184",
+    "name": "JobID",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "185",
+    "name": "MasterDocumentID",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "186",
+    "name": "ShortDocumentID",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "187",
+    "name": "UniqueDocumentID",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "188",
+    "name": "OwnerID",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "200",
+    "name": "ObjectPreviewFileFormat",
+    "format": "short",
+    "repeatable": "false",
+    "notes": "0 = No ObjectData 1 = IPTC-NAA Digital Newsphoto Parameter Record 2 = IPTC7901 Recommended Message Format 3 = Tagged Image File Format (Adobe/Aldus Image data) 4 = Illustrator (Adobe Graphics data) 5 = AppleSingle (Apple Computer Inc) 6 = NAA 89-3 (ANPA 1312) 7 = MacBinary II 8 = IPTC Unstructured Character Oriented File Format (UCOFF) 9 = United Press International ANPA 1312 variant 10 = United Press International Down-Load Message 11 = JPEG File Interchange (JFIF) 12 = Photo-CD Image-Pac (Eastman Kodak) 13 = Bit Mapped Graphics File [.BMP] (Microsoft) 14 = Digital Audio File [.WAV] (Microsoft & Creative Labs) 15 = Audio plus Moving Video [.AVI] (Microsoft) 16 = PC DOS/Windows Executable Files [.COM][.EXE] 17 = Compressed Binary File [.ZIP] (PKWare Inc) 18 = Audio Interchange File Format AIFF (Apple Computer Inc) 19 = RIFF Wave (Microsoft Corporation) 20 = Freehand (Macromedia/Aldus) 21 = Hypertext Markup Language [.HTML] (The Internet Society) 22 = MPEG 2 Audio Layer 2 (Musicom), ISO/IEC 23 = MPEG 2 Audio Layer 3, ISO/IEC 24 = Portable Document File [.PDF] Adobe 25 = News Industry Text Format (NITF) 26 = Tape Archive [.TAR] 27 = Tidningarnas Telegrambyra NITF version (TTNITF DTD) 28 = Ritzaus Bureau NITF version (RBNITF DTD) 29 = Corel Draw [.CDR]"
+  },
+  {
+    "record": "2",
+    "id": "201",
+    "name": "ObjectPreviewFileVersion",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "202",
+    "name": "ObjectPreviewData",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "221",
+    "name": "Prefs",
+    "format": "string",
+    "repeatable": "false",
+    "notes": "(PhotoMechanic preferences)"
+  },
+  {
+    "record": "2",
+    "id": "225",
+    "name": "ClassifyState",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "228",
+    "name": "SimilarityIndex",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "230",
+    "name": "DocumentNotes",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "231",
+    "name": "DocumentHistory",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "232",
+    "name": "ExifCameraInfo",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "2",
+    "id": "255",
+    "name": "CatalogSets",
+    "format": "string",
+    "repeatable": "true",
+    "notes": "(written by iView MediaPro)"
+  },
+  {
+    "record": "3",
+    "id": "0",
+    "name": "NewsPhotoVersion",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "10",
+    "name": "IPTCPictureNumber",
+    "format": "string",
+    "repeatable": "false",
+    "notes": "(4 numbers: 1-Manufacturer ID, 2-Equipment ID, 3-Date, 4-Sequence)"
+  },
+  {
+    "record": "3",
+    "id": "20",
+    "name": "IPTCImageWidth",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "30",
+    "name": "IPTCImageHeight",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "40",
+    "name": "IPTCPixelWidth",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "50",
+    "name": "IPTCPixelHeight",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "55",
+    "name": "SupplementalType",
+    "format": "short",
+    "repeatable": "false",
+    "notes": "0 = Main Image 1 = Reduced Resolution Image 2 = Logo 3 = Rasterized Caption"
+  },
+  {
+    "record": "3",
+    "id": "60",
+    "name": "ColorRepresentation",
+    "format": "short",
+    "repeatable": "false",
+    "notes": "0x0 = No Image, Single Frame 0x100 = Monochrome, Single Frame 0x300 = 3 Components, Single Frame 0x301 = 3 Components, Frame Sequential in Multiple Objects 0x302 = 3 Components, Frame Sequential in One Object 0x303 = 3 Components, Line Sequential 0x304 = 3 Components, Pixel Sequential 0x305 = 3 Components, Special Interleaving 0x400 = 4 Components, Single Frame 0x401 = 4 Components, Frame Sequential in Multiple Objects 0x402 = 4 Components, Frame Sequential in One Object 0x403 = 4 Components, Line Sequential 0x404 = 4 Components, Pixel Sequential 0x405 = 4 Components, Special Interleaving"
+  },
+  {
+    "record": "3",
+    "id": "64",
+    "name": "InterchangeColorSpace",
+    "format": "short",
+    "repeatable": "false",
+    "notes": "1 = X,Y,Z CIE 2 = RGB SMPTE 3 = Y,U,V (K) (D65) 4 = RGB Device Dependent 5 = CMY (K) Device Dependent 6 = Lab (K) CIE 7 = YCbCr 8 = sRGB"
+  },
+  {
+    "record": "3",
+    "id": "65",
+    "name": "ColorSequence",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "66",
+    "name": "ICC_Profile",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "70",
+    "name": "ColorCalibrationMatrix",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "80",
+    "name": "LookupTable",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "84",
+    "name": "NumIndexEntries",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "85",
+    "name": "ColorPalette",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "86",
+    "name": "IPTCBitsPerSample",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "90",
+    "name": "SampleStructure",
+    "format": "short",
+    "repeatable": "false",
+    "notes": "0 = OrthogonalConstangSampling 1 = Orthogonal4-2-2Sampling 2 = CompressionDependent"
+  },
+  {
+    "record": "3",
+    "id": "100",
+    "name": "ScanningDirection",
+    "format": "short",
+    "repeatable": "false",
+    "notes": "0 = L-R, Top-Bottom 1 = R-L, Top-Bottom 2 = L-R, Bottom-Top 3 = R-L, Bottom-Top  4 = Top-Bottom, L-R 5 = Bottom-Top, L-R 6 = Top-Bottom, R-L 7 = Bottom-Top, R-L"
+  },
+  {
+    "record": "3",
+    "id": "102",
+    "name": "IPTCImageRotation",
+    "format": "short",
+    "repeatable": "false",
+    "notes": "0 = 0 1 = 90 2 = 180 3 = 270"
+  },
+  {
+    "record": "3",
+    "id": "110",
+    "name": "DataCompressionMethod",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "120",
+    "name": "QuantizationMethod",
+    "format": "short",
+    "repeatable": "false",
+    "notes": "0 = Linear Reflectance/Transmittance 1 = Linear Density 2 = IPTC Ref B 3 = Linear Dot Percent 4 = AP Domestic Analogue 5 = Compression Method Specific 6 = Color Space Specific 7 = Gamma Compensated"
+  },
+  {
+    "record": "3",
+    "id": "125",
+    "name": "EndPoints",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "130",
+    "name": "ExcursionTolerance",
+    "format": "short",
+    "repeatable": "false",
+    "notes": "0 = Not Allowed 1 = Allowed"
+  },
+  {
+    "record": "3",
+    "id": "135",
+    "name": "BitsPerComponent",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "140",
+    "name": "MaximumDensityRange",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "3",
+    "id": "145",
+    "name": "GammaCompensatedValue",
+    "format": "short",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "7",
+    "id": "10",
+    "name": "SizeMode",
+    "format": "string",
+    "repeatable": "false",
+    "notes": "0 = Size Not Known 1 = Size Known"
+  },
+  {
+    "record": "7",
+    "id": "20",
+    "name": "MaxSubfileSize",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "7",
+    "id": "90",
+    "name": "ObjectSizeAnnounced",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "7",
+    "id": "95",
+    "name": "MaximumObjectSize",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  },
+  {
+    "record": "8",
+    "id": "10",
+    "name": "SubFile",
+    "format": "string",
+    "repeatable": "true",
+    "notes": null
+  },
+  {
+    "record": "9",
+    "id": "10",
+    "name": "ConfirmedObjectSize",
+    "format": "string",
+    "repeatable": "false",
+    "notes": null
+  }
+]

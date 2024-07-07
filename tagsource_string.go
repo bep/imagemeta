@@ -8,18 +8,18 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[TagSourceEXIF-1]
-	_ = x[TagSourceIPTC-2]
-	_ = x[TagSourceXMP-4]
+	_ = x[EXIF-1]
+	_ = x[IPTC-2]
+	_ = x[XMP-4]
 }
 
 const (
-	_TagSource_name_0 = "TagSourceEXIFTagSourceIPTC"
-	_TagSource_name_1 = "TagSourceXMP"
+	_TagSource_name_0 = "EXIFIPTC"
+	_TagSource_name_1 = "XMP"
 )
 
 var (
-	_TagSource_index_0 = [...]uint8{0, 13, 26}
+	_TagSource_index_0 = [...]uint8{0, 4, 8}
 )
 
 func (i TagSource) String() string {

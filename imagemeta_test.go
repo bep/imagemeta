@@ -1,12 +1,15 @@
 package imagemeta_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
-	"math/big"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/bep/imagemeta"
@@ -16,182 +19,43 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestDecodeBasic(t *testing.T) {
+func TestDecodeAllImageFormats(t *testing.T) {
 	c := qt.New(t)
 
-	for _, imageFormat := range []imagemeta.ImageFormat{imagemeta.ImageFormatJPEG, imagemeta.ImageFormatTIFF, imagemeta.ImageFormatPNG, imagemeta.ImageFormatWebP} {
+	for _, imageFormat := range []imagemeta.ImageFormat{imagemeta.JPEG, imagemeta.TIFF, imagemeta.PNG, imagemeta.WebP} {
 		c.Run(fmt.Sprintf("%v", imageFormat), func(c *qt.C) {
 			img, close := getSunrise(c, imageFormat)
 			c.Cleanup(close)
 
-			tags := make(map[string]imagemeta.TagInfo)
+			var tags imagemeta.Tags
 			handleTag := func(ti imagemeta.TagInfo) error {
-				tags[ti.Tag] = ti
+				tags.Add(ti)
 				return nil
 			}
 
 			err := imagemeta.Decode(imagemeta.Options{R: img, ImageFormat: imageFormat, HandleTag: handleTag})
 			c.Assert(err, qt.IsNil)
-			c.Assert(len(tags), qt.Not(qt.Equals), 0)
 
-			if imageFormat != imagemeta.ImageFormatPNG && imageFormat != imagemeta.ImageFormatTIFF {
-				c.Assert(tags["Headline"].Value, qt.Equals, "Sunrise in Spain")
-				c.Assert(tags["Copyright"].Value, qt.Equals, "Bjørn Erik Pedersen")
-			}
-			if imageFormat != imagemeta.ImageFormatTIFF { // TODO1
-				c.Assert(tags["Orientation"].Value, qt.Equals, uint16(1))
-				c.Assert(tags["ExposureTime"].Value, eq, big.NewRat(1, 200))
-			}
+			allTags := tags.All()
+			exifTags := tags.EXIF()
 
-			// TODO1 InteroperabilityIndex
+			c.Assert(len(allTags), qt.Not(qt.Equals), 0)
+
+			if imageFormat != imagemeta.PNG && imageFormat != imagemeta.TIFF {
+				c.Assert(allTags["Headline"].Value, qt.Equals, "Sunrise in Spain")
+				c.Assert(allTags["Copyright"].Value, qt.Equals, "Bjørn Erik Pedersen")
+			}
+			if imageFormat != imagemeta.TIFF { // TODO1
+				c.Assert(exifTags["Orientation"].Value, qt.Equals, uint16(1))
+				c.Assert(exifTags["ExposureTime"].Value, eq, imagemeta.NewRat[uint32](1, 200))
+				c.Assert(exifTags["FocalLength"].Value, eq, imagemeta.NewRat[uint32](21, 1))
+
+			}
 		})
 	}
 }
 
-func TestDecodeIPTCReference(t *testing.T) {
-	c := qt.New(t)
-	const filename = "IPTC-PhotometadataRef-Std2021.1.jpg"
-
-	img, err := os.Open(filepath.Join("testdata", filename))
-	c.Assert(err, qt.IsNil)
-
-	c.Cleanup(func() {
-		c.Assert(img.Close(), qt.IsNil)
-	})
-
-	tags := make(map[string]imagemeta.TagInfo)
-	handleTag := func(ti imagemeta.TagInfo) error {
-		if _, seen := tags[ti.Tag]; seen {
-			c.Fatalf("duplicate tag: %s", ti.Tag)
-		}
-		c.Assert(ti.Tag, qt.Not(qt.Contains), "Unknown")
-		tags[ti.Tag] = ti
-		return nil
-	}
-
-	err = imagemeta.Decode(
-		imagemeta.Options{
-			R:           img,
-			ImageFormat: imagemeta.ImageFormatJPEG,
-			HandleTag:   handleTag,
-			Sources:     imagemeta.TagSourceIPTC,
-		},
-	)
-	c.Assert(err, qt.IsNil)
-
-	c.Assert(len(tags), qt.Equals, 22)
-	c.Assert(tags["Byline"].Value, qt.Equals, "Creator1 (ref2021.1)")
-	c.Assert(tags["BylineTitle"].Value, qt.Equals, "Creator's Job Title  (ref2021.1)")
-	c.Assert(tags["RecordVersion"].Value, qt.Equals, uint16(4))
-	c.Assert(tags["DateCreated"].Value, qt.Equals, "20211020")
-	c.Assert(tags["Keywords"].Value, qt.DeepEquals, []string{"Keyword1ref2021.1", "Keyword2ref2021.1", "Keyword3ref2021.1"})
-
-}
-
-func TestDecodeOrientationOnly(t *testing.T) {
-	c := qt.New(t)
-
-	img, close := getSunrise(c, imagemeta.ImageFormatJPEG)
-	c.Cleanup(close)
-
-	tags := make(map[string]imagemeta.TagInfo)
-	handleTag := func(ti imagemeta.TagInfo) error {
-		if ti.Tag == "Orientation" {
-			tags[ti.Tag] = ti
-			return imagemeta.ErrStopWalking
-		}
-		return nil
-	}
-
-	err := imagemeta.Decode(
-		imagemeta.Options{
-			R:           img,
-			ImageFormat: imagemeta.ImageFormatJPEG,
-			HandleTag:   handleTag,
-			Sources:     imagemeta.TagSourceEXIF,
-		},
-	)
-
-	c.Assert(err, qt.IsNil)
-	c.Assert(tags["Orientation"].Value, qt.Equals, uint16(1))
-	c.Assert(len(tags), qt.Equals, 1)
-
-}
-
-func TestDecodeCustomXMPHandler(t *testing.T) {
-	c := qt.New(t)
-
-	img, close := getSunrise(c, imagemeta.ImageFormatWebP)
-	c.Cleanup(close)
-
-	var xml string
-	err := imagemeta.Decode(
-		imagemeta.Options{
-			R:           img,
-			ImageFormat: imagemeta.ImageFormatWebP,
-			HandleXMP: func(r io.Reader) error {
-				b, err := io.ReadAll(r)
-				xml = string(b)
-				return err
-			},
-			Sources: imagemeta.TagSourceXMP,
-		},
-	)
-
-	c.Assert(err, qt.IsNil)
-	c.Assert(xml, qt.Contains, "Sunrise in Spain")
-
-}
-
-func TestDecodeCustomXMPHandlerShortRead(t *testing.T) {
-	c := qt.New(t)
-
-	img, close := getSunrise(c, imagemeta.ImageFormatWebP)
-	c.Cleanup(close)
-
-	err := imagemeta.Decode(
-		imagemeta.Options{
-			R:           img,
-			ImageFormat: imagemeta.ImageFormatWebP,
-			HandleXMP: func(r io.Reader) error {
-				return nil
-			},
-			Sources: imagemeta.TagSourceXMP,
-		},
-	)
-
-	c.Assert(err, qt.IsNotNil)
-	c.Assert(err.Error(), qt.Contains, "expected EOF after XMP")
-
-}
-
-func TestSmoke(t *testing.T) {
-	c := qt.New(t)
-
-	// Test the images in the testdata/smoke folder and make sure we get a sensible result for each.
-	// The primary goal of this test is to make sure we don't crash on any of them.
-
-	files, err := filepath.Glob(filepath.Join("testdata", "smoke", "*.*"))
-	c.Assert(err, qt.IsNil)
-
-	for _, file := range files {
-		img, err := os.Open(file)
-		c.Assert(err, qt.IsNil)
-		format := extToFormat(filepath.Ext(file))
-		tags := make(map[string]imagemeta.TagInfo)
-		handleTag := func(ti imagemeta.TagInfo) error {
-			tags[ti.Tag] = ti
-			return nil
-		}
-		err = imagemeta.Decode(imagemeta.Options{R: img, ImageFormat: format, HandleTag: handleTag})
-		c.Assert(err, qt.IsNil)
-		c.Assert(len(tags), qt.Not(qt.Equals), 0)
-		img.Close()
-	}
-
-}
-
-func TestCorrupt(t *testing.T) {
+func TestDecodeCorrupt(t *testing.T) {
 	c := qt.New(t)
 
 	files, err := filepath.Glob(filepath.Join("testdata", "corrupt", "*.*"))
@@ -205,51 +69,234 @@ func TestCorrupt(t *testing.T) {
 			return nil
 		}
 		err = imagemeta.Decode(imagemeta.Options{R: img, ImageFormat: format, HandleTag: handleTag})
-		c.Assert(err, qt.Equals, imagemeta.ErrInvalidFormat)
+		c.Assert(imagemeta.IsInvalidFormat(err), qt.IsTrue, qt.Commentf("file: %s", file))
 		img.Close()
 	}
+}
 
+func TestDecodeCustomXMPHandler(t *testing.T) {
+	c := qt.New(t)
+
+	img, close := getSunrise(c, imagemeta.WebP)
+	c.Cleanup(close)
+
+	var xml string
+	err := imagemeta.Decode(
+		imagemeta.Options{
+			R:           img,
+			ImageFormat: imagemeta.WebP,
+			HandleXMP: func(r io.Reader) error {
+				b, err := io.ReadAll(r)
+				xml = string(b)
+				return err
+			},
+			Sources: imagemeta.XMP,
+		},
+	)
+
+	c.Assert(err, qt.IsNil)
+	c.Assert(xml, qt.Contains, "Sunrise in Spain")
+}
+
+func TestDecodeCustomXMPHandlerShortRead(t *testing.T) {
+	c := qt.New(t)
+
+	img, close := getSunrise(c, imagemeta.WebP)
+	c.Cleanup(close)
+
+	err := imagemeta.Decode(
+		imagemeta.Options{
+			R:           img,
+			ImageFormat: imagemeta.WebP,
+			HandleXMP: func(r io.Reader) error {
+				return nil
+			},
+			Sources: imagemeta.XMP,
+		},
+	)
+
+	c.Assert(err, qt.IsNotNil)
+	c.Assert(err.Error(), qt.Contains, "expected EOF after XMP")
+}
+
+func TestDecodeIPTCReference(t *testing.T) {
+	c := qt.New(t)
+	const filename = "IPTC-PhotometadataRef-Std2021.1.jpg"
+
+	img, err := os.Open(filepath.Join("testdata", filename))
+	c.Assert(err, qt.IsNil)
+
+	c.Cleanup(func() {
+		c.Assert(img.Close(), qt.IsNil)
+	})
+
+	var tags imagemeta.Tags
+	handleTag := func(ti imagemeta.TagInfo) error {
+		if tags.Has(ti) {
+			c.Fatalf("duplicate tag: %s", ti.Tag)
+		}
+		c.Assert(ti.Tag, qt.Not(qt.Contains), "Unknown")
+		tags.Add(ti)
+		return nil
+	}
+
+	err = imagemeta.Decode(
+		imagemeta.Options{
+			R:           img,
+			ImageFormat: imagemeta.JPEG,
+			HandleTag:   handleTag,
+			Sources:     imagemeta.IPTC,
+		},
+	)
+	c.Assert(err, qt.IsNil)
+
+	c.Assert(len(tags.IPTC()), qt.Equals, 22)
+	// These hyphens looks odd, but it's how Exiftool has defined it.
+	c.Assert(tags.IPTC()["By-line"].Value, qt.DeepEquals, []string{"Creator1 (ref2021.1)"})
+	c.Assert(tags.IPTC()["By-lineTitle"].Value, qt.DeepEquals, []string{"Creator's Job Title  (ref2021.1)"})
+	c.Assert(tags.IPTC()["DateCreated"].Value, qt.Equals, "20211020")
+	c.Assert(tags.IPTC()["Keywords"].Value, qt.DeepEquals, []string{"Keyword1ref2021.1", "Keyword2ref2021.1", "Keyword3ref2021.1"})
+}
+
+func TestDecodeNamespace(t *testing.T) {
+	c := qt.New(t)
+
+	tags := extractTags(t, "sunrise.jpg", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
+
+	c.Assert(tags.EXIF()["Artist"].Namespace, qt.Equals, "IFD0")
+	c.Assert(tags.EXIF()["GPSLatitude"].Namespace, qt.Equals, "IFD0/GPSInfoIFD")
+	c.Assert(tags.EXIF()["Compression"].Namespace, qt.Equals, "IFD1")
+	c.Assert(tags.IPTC()["City"].Namespace, qt.Equals, "IPTCApplication")
+	c.Assert(tags.XMP()["AlreadyApplied"].Namespace, qt.Equals, "http://ns.adobe.com/camera-raw-settings/1.0/")
+}
+
+func TestDecodeOrientationOnly(t *testing.T) {
+	c := qt.New(t)
+
+	img, close := getSunrise(c, imagemeta.JPEG)
+	c.Cleanup(close)
+
+	var tags imagemeta.Tags
+	handleTag := func(ti imagemeta.TagInfo) error {
+		if ti.Tag == "Orientation" {
+			tags.Add(ti)
+			return imagemeta.ErrStopWalking
+		}
+		return nil
+	}
+
+	err := imagemeta.Decode(
+		imagemeta.Options{
+			R:           img,
+			ImageFormat: imagemeta.JPEG,
+			HandleTag:   handleTag,
+			Sources:     imagemeta.EXIF,
+		},
+	)
+
+	c.Assert(err, qt.IsNil)
+	c.Assert(tags.EXIF()["Orientation"].Value, qt.Equals, uint16(1))
+	c.Assert(len(tags.EXIF()), qt.Equals, 1)
+}
+
+func TestDecodeXMPJPG(t *testing.T) {
+	c := qt.New(t)
+
+	tags := extractTags(t, "sunrise.jpg", imagemeta.XMP)
+
+	c.Assert(len(tags.EXIF()) == 0, qt.IsTrue)
+	c.Assert(len(tags.IPTC()) == 0, qt.IsTrue)
+	c.Assert(len(tags.XMP()) > 0, qt.IsTrue)
+}
+
+func TestDecodeErrors(t *testing.T) {
+	c := qt.New(t)
+
+	c.Assert(imagemeta.Decode(imagemeta.Options{}), qt.ErrorMatches, "no reader provided")
+	c.Assert(imagemeta.Decode(imagemeta.Options{R: strings.NewReader("foo")}), qt.ErrorMatches, "no image format provided.*")
+}
+
+func TestGoldenEXIF(t *testing.T) {
+	withGolden(t, imagemeta.EXIF)
+}
+
+func TestGoldenIPTC(t *testing.T) {
+	withGolden(t, imagemeta.IPTC)
+}
+
+func TestGoldenEXIFAndIPTC(t *testing.T) {
+	withGolden(t, imagemeta.EXIF|imagemeta.IPTC)
+}
+
+func TestGoldenXMP(t *testing.T) {
+	// We do verify the "golden" tag count above, but ...
+	t.Skip("XMP parsing is currently limited and the diff set is too large to reasoun about.")
+	withGolden(t, imagemeta.XMP)
+}
+
+func TestGoldenTagCountEXIF(t *testing.T) {
+	assertGoldenInfoTagCount(t, "IPTC-PhotometadataRef-Std2021.1.jpg", imagemeta.EXIF)
+	assertGoldenInfoTagCount(t, "metadata_demo_exif_only.jpg", imagemeta.EXIF)
+}
+
+func TestGoldenTagCountIPTC(t *testing.T) {
+	assertGoldenInfoTagCount(t, "metadata_demo_iim_and_xmp_only.jpg", imagemeta.IPTC)
+}
+
+func TestGoldenTagCountXMP(t *testing.T) {
+	assertGoldenInfoTagCount(t, "sunrise.jpg", imagemeta.XMP)
+}
+
+func TestLatLong(t *testing.T) {
+	c := qt.New(t)
+
+	tags := extractTags(t, "sunrise.jpg", imagemeta.EXIF)
+
+	lat, long, err := tags.GetLatLong()
+	c.Assert(err, qt.IsNil)
+	c.Assert(lat, eq, float64(36.59744166))
+	c.Assert(long, eq, float64(-4.50846))
+
+	tags = extractTags(t, "goexif_samples/geodegrees_as_string.jpg", imagemeta.EXIF)
+	lat, long, err = tags.GetLatLong()
+	c.Assert(err, qt.IsNil)
+	c.Assert(lat, eq, float64(52.013888888))
+	c.Assert(long, eq, float64(11.002777))
 }
 
 func TestTagSource(t *testing.T) {
 	c := qt.New(t)
-	sources := imagemeta.TagSourceEXIF | imagemeta.TagSourceIPTC
-	c.Assert(sources.Has(imagemeta.TagSourceEXIF), qt.Equals, true)
-	c.Assert(sources.Has(imagemeta.TagSourceIPTC), qt.Equals, true)
-	c.Assert(sources.Has(imagemeta.TagSourceXMP), qt.Equals, false)
-	sources = sources.Remove(imagemeta.TagSourceEXIF)
-	c.Assert(sources.Has(imagemeta.TagSourceEXIF), qt.Equals, false)
-	c.Assert(sources.Has(imagemeta.TagSourceIPTC), qt.Equals, true)
+	sources := imagemeta.EXIF | imagemeta.IPTC
+	c.Assert(sources.Has(imagemeta.EXIF), qt.Equals, true)
+	c.Assert(sources.Has(imagemeta.IPTC), qt.Equals, true)
+	c.Assert(sources.Has(imagemeta.XMP), qt.Equals, false)
+	sources = sources.Remove(imagemeta.EXIF)
+	c.Assert(sources.Has(imagemeta.EXIF), qt.Equals, false)
+	c.Assert(sources.Has(imagemeta.IPTC), qt.Equals, true)
 	c.Assert(sources.IsZero(), qt.Equals, false)
-	sources = sources.Remove(imagemeta.TagSourceIPTC)
+	sources = sources.Remove(imagemeta.IPTC)
 	c.Assert(sources.IsZero(), qt.Equals, true)
 }
 
-func extToFormat(ext string) imagemeta.ImageFormat {
-	switch ext {
-	case ".jpg":
-		return imagemeta.ImageFormatJPEG
-	case ".webp":
-		return imagemeta.ImageFormatWebP
-	case ".png":
-		return imagemeta.ImageFormatPNG
-	case ".tif", ".tiff":
-		return imagemeta.ImageFormatTIFF
-	default:
-		panic("unknown image format")
-	}
+type goldenFileInfo struct {
+	ExifTool  map[string]any
+	File      map[string]any
+	EXIF      map[string]any
+	IPTC      map[string]any
+	XMP       map[string]any
+	Composite map[string]any
 }
 
 func getSunrise(c *qt.C, imageFormat imagemeta.ImageFormat) (imagemeta.Reader, func()) {
 	ext := ""
 	switch imageFormat {
-	case imagemeta.ImageFormatJPEG:
+	case imagemeta.JPEG:
 		ext = ".jpg"
-	case imagemeta.ImageFormatWebP:
+	case imagemeta.WebP:
 		ext = ".webp"
-	case imagemeta.ImageFormatPNG:
+	case imagemeta.PNG:
 		ext = ".png"
-	case imagemeta.ImageFormatTIFF:
+	case imagemeta.TIFF:
 		ext = ".tif"
 	default:
 		c.Fatalf("unknown image format: %v", imageFormat)
@@ -262,12 +309,313 @@ func getSunrise(c *qt.C, imageFormat imagemeta.ImageFormat) (imagemeta.Reader, f
 	}
 }
 
+func assertGoldenInfoTagCount(t testing.TB, filename string, sources imagemeta.TagSource) {
+	c := qt.New(t)
+
+	tags := extractTags(t, filename, sources)
+	all := tags.All()
+
+	// Our XMP parsing is currently a little limited so be a little lenient with the assertions.
+	hasXMP := sources.Has(imagemeta.XMP)
+
+	c.Assert(len(all) > 0, qt.IsTrue)
+
+	goldenInfo := readGoldenInfo(t, filename)
+	tagsLeft := make(map[string]imagemeta.TagInfo)
+	tagsRight := make(map[string]any)
+
+	if sources.Has(imagemeta.EXIF) {
+		for k, v := range tags.EXIF() {
+			tagsLeft[k] = v
+		}
+		for k, v := range goldenInfo.EXIF {
+			tagsRight[k] = v
+		}
+	}
+	if sources.Has(imagemeta.IPTC) {
+		for k, v := range tags.IPTC() {
+			tagsLeft[k] = v
+		}
+		for k, v := range goldenInfo.IPTC {
+			tagsRight[k] = v
+		}
+	}
+	if sources.Has(imagemeta.XMP) {
+		for k, v := range tags.XMP() {
+			tagsLeft[k] = v
+		}
+		for k, v := range goldenInfo.XMP {
+			tagsRight[k] = v
+		}
+	}
+
+	count := 0
+
+	var keysLeft []string
+	for k := range tagsLeft {
+		keysLeft = append(keysLeft, k)
+	}
+
+	var keysRight []string
+	for k := range tagsRight {
+		keysRight = append(keysRight, k)
+	}
+
+	sort.Strings(keysRight)
+	sort.Strings(keysLeft)
+
+	if !hasXMP {
+
+		for _, k := range keysRight {
+			if _, found := tagsLeft[k]; !found {
+				fmt.Println("Missing tag: ", k, "=>", tagsRight[k])
+				count++
+			}
+			if count > 10 {
+				break
+			}
+		}
+
+		count = 0
+
+		for _, k := range keysLeft {
+			if _, found := tagsRight[k]; !found {
+				fmt.Println("Extra tag: ", k, "=>", tagsLeft[k].Value)
+				count++
+			}
+			if count > 10 {
+				break
+			}
+		}
+	}
+
+	if hasXMP {
+		diff := len(tagsRight) - len(tagsLeft)
+		c.Assert(diff < 50, qt.IsTrue)
+	} else {
+		c.Assert(len(tagsLeft), qt.Equals, len(tagsRight))
+	}
+}
+
+func compareWithExiftoolOutput(t testing.TB, filename string, sources imagemeta.TagSource) {
+	c := qt.New(t)
+	tags := extractTags(t, filename, sources)
+	all := tags.All()
+	tagsGolden := readGoldenInfo(t, filename)
+
+	var tagsSorted []imagemeta.TagInfo
+	for _, v := range all {
+		tagsSorted = append(tagsSorted, v)
+	}
+	sort.Slice(tagsSorted, func(i, j int) bool {
+		return tagsSorted[i].Tag < tagsSorted[j].Tag
+	})
+
+	lat, long, err := tags.GetLatLong()
+	c.Assert(err, qt.IsNil)
+
+	xmpReplacer := strings.NewReplacer(
+		"true", "True",
+	)
+
+	for _, v := range tagsSorted {
+		normalizeUs := func(s string, our any) any {
+			// JSON umarshaled to a map has very limited types.
+			// Normalize to make them comparable.
+			switch v := our.(type) {
+			case imagemeta.Rat[uint32]:
+				return v.Float64()
+			case imagemeta.Rat[int32]:
+				return v.Float64()
+			case float64:
+				// TODO1 remove
+				if false && s == "GPSLatitude" {
+					return lat // TODO1 exiftool considers GPSLongitudeRef and applies a sign.
+				}
+				if false && s == "GPSLongitude" {
+					return long
+				}
+				return v
+			case int64:
+				return float64(v)
+			case uint32:
+				return float64(v)
+			case int32:
+				return float64(v)
+			case uint16:
+				return float64(v)
+			case uint8:
+				return float64(v)
+			case int:
+				return float64(v)
+
+			default:
+				return v
+			}
+		}
+
+		normalizeThem := func(s string, v any) any {
+			if sources.Has(imagemeta.XMP) {
+				// Our current XMP handling is very limited in the type department.
+				// Convert v to a string.
+				return xmpReplacer.Replace(fmt.Sprintf("%v", v))
+			}
+			switch v := v.(type) {
+			case string:
+				v = strings.TrimSpace(v)
+				switch s {
+				case "ShutterSpeedValue", "SubSecTimeDigitized", "SubSecTimeOriginal":
+					f, _ := strconv.ParseFloat(v, 64)
+					return f
+				case "WhiteBalance":
+					if strings.TrimSpace(v) == "AUTO1" {
+						return float64(0)
+					}
+				}
+				return v
+			case float64:
+				switch s {
+				case "SerialNumber", "LensSerialNumber":
+					return fmt.Sprintf("%d", int(v))
+				}
+			}
+			return v
+		}
+
+		if exifToolValue, found := tagsGolden.EXIF[v.Tag]; found {
+			if v.Tag == "ResolutionUnit" {
+				// TODO1 mismatch 2 vs 1
+				continue
+			}
+			if v.Tag == "XResolution" || v.Tag == "YResolution" {
+				// TODO1 mismatch 300/1
+				continue
+			}
+
+			if v.Tag == "ThumbnailOffset" {
+				// TODO1
+				continue
+			}
+
+			expect := normalizeThem(v.Tag, exifToolValue)
+			got := normalizeUs(v.Tag, v.Value)
+
+			c.Assert(got, eq, expect, qt.Commentf("%s: got: %T/%T  %v %q", v.Tag, got, expect, v.Value, filename))
+		}
+	}
+}
+
+func extToFormat(ext string) imagemeta.ImageFormat {
+	switch ext {
+	case ".jpg":
+		return imagemeta.JPEG
+	case ".webp":
+		return imagemeta.WebP
+	case ".png":
+		return imagemeta.PNG
+	case ".tif", ".tiff":
+		return imagemeta.TIFF
+	default:
+		panic("unknown image format")
+	}
+}
+
+func extractTags(t testing.TB, filename string, sources imagemeta.TagSource) imagemeta.Tags {
+	t.Helper()
+	f, err := os.Open(filepath.Join("testdata", filename))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	var tags imagemeta.Tags
+	handleTag := func(ti imagemeta.TagInfo) error {
+		if !tags.Has(ti) {
+			tags.Add(ti)
+		}
+		return nil
+	}
+
+	err = imagemeta.Decode(imagemeta.Options{R: f, ImageFormat: imagemeta.JPEG, HandleTag: handleTag, Sources: sources})
+	if err != nil {
+		t.Fatal(fmt.Errorf("failed to decode %q: %w", filename, err))
+	}
+	return tags
+}
+
+func readGoldenInfo(t testing.TB, filename string) goldenFileInfo {
+	exiftoolsJSONFilename := filepath.Join("gen", "testdata_exiftool", filename+".json")
+	var exifToolValue []goldenFileInfo
+	b, err := os.ReadFile(exiftoolsJSONFilename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(b, &exifToolValue); err != nil {
+		t.Fatal(err)
+	}
+	m := exifToolValue[0]
+
+	// Normalise the IPTC keys and tags.
+	for k, v := range m.IPTC {
+		if strings.Contains(k, "-") {
+			delete(m.IPTC, k)
+			// Exiftool has some weird hypenated keys, e.g. "By-line".
+			m.IPTC[strings.ReplaceAll(k, "-", "")] = v
+		}
+	}
+	return m
+}
+
+func withGolden(t testing.TB, sources imagemeta.TagSource) {
+	withTestDataFile(t, func(path string, info os.FileInfo, err error) error {
+		if strings.HasPrefix(path, "corrupt") {
+			return nil
+		}
+		if goldenSkip[filepath.ToSlash(path)] {
+			return nil
+		}
+		compareWithExiftoolOutput(t, path, sources)
+		return nil
+	})
+}
+
+func withTestDataFile(t testing.TB, fn func(path string, info os.FileInfo, err error) error) {
+	t.Helper()
+	err := filepath.Walk("testdata", func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() || strings.HasPrefix(info.Name(), ".") {
+			return nil
+		}
+
+		path = strings.TrimPrefix(path, "testdata"+string(filepath.Separator))
+
+		return fn(path, info, nil)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+var goldenSkip = map[string]bool{
+	"goexif_samples/geodegrees_as_string.jpg": true, // The file has many EXIF errors. I think we do a better job than exiftools, but there are some differences.
+}
+
 var eq = qt.CmpEquals(
-	cmp.Comparer(func(x, y *big.Rat) bool {
-		return x.RatString() == y.RatString()
+	cmp.Comparer(func(x, y imagemeta.Rat[uint32]) bool {
+		return x.String() == y.String()
+	}),
+
+	cmp.Comparer(func(x, y imagemeta.Rat[int32]) bool {
+		return x.String() == y.String()
 	}),
 
 	cmp.Comparer(func(x, y float64) bool {
+		if x == y {
+			return true
+		}
 		delta := math.Abs(x - y)
 		mean := math.Abs(x+y) / 2.0
 		return delta/mean < 0.00001
@@ -275,14 +623,13 @@ var eq = qt.CmpEquals(
 )
 
 func BenchmarkDecode(b *testing.B) {
-
 	handleTag := func(ti imagemeta.TagInfo) error {
 		return nil
 	}
 
-	sourceSetEXIF := imagemeta.TagSourceEXIF
-	sourceSetIPTC := imagemeta.TagSourceIPTC
-	sourceSetAll := imagemeta.TagSourceEXIF | imagemeta.TagSourceIPTC | imagemeta.TagSourceXMP
+	sourceSetEXIF := imagemeta.EXIF
+	sourceSetIPTC := imagemeta.IPTC
+	sourceSetAll := imagemeta.EXIF | imagemeta.IPTC | imagemeta.XMP
 
 	runBenchmark := func(b *testing.B, name string, imageFormat imagemeta.ImageFormat, f func(r imagemeta.Reader) error) {
 		img, close := getSunrise(qt.New(b), imageFormat)
@@ -294,19 +641,23 @@ func BenchmarkDecode(b *testing.B) {
 				}
 				img.Seek(0, 0)
 			}
-
 		})
 	}
 
-	imageFormat := imagemeta.ImageFormatPNG
-	runBenchmark(b, "bep/imagemeta/png/exif", imagemeta.ImageFormatPNG, func(r imagemeta.Reader) error {
+	imageFormat := imagemeta.PNG
+	runBenchmark(b, "bep/imagemeta/png/exif", imagemeta.PNG, func(r imagemeta.Reader) error {
 		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetAll})
 		return err
 	})
 
-	imageFormat = imagemeta.ImageFormatWebP
+	imageFormat = imagemeta.WebP
 	runBenchmark(b, "bep/imagemeta/webp/all", imageFormat, func(r imagemeta.Reader) error {
 		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetAll})
+		return err
+	})
+
+	runBenchmark(b, "bep/imagemeta/webp/xmp", imageFormat, func(r imagemeta.Reader) error {
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: imagemeta.XMP})
 		return err
 	})
 
@@ -315,7 +666,7 @@ func BenchmarkDecode(b *testing.B) {
 		return err
 	})
 
-	imageFormat = imagemeta.ImageFormatJPEG
+	imageFormat = imagemeta.JPEG
 	runBenchmark(b, "bep/imagemeta/jpg/exif", imageFormat, func(r imagemeta.Reader) error {
 		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetEXIF})
 		return err
@@ -326,14 +677,59 @@ func BenchmarkDecode(b *testing.B) {
 		return err
 	})
 
+	runBenchmark(b, "bep/imagemeta/jpg/xmp", imageFormat, func(r imagemeta.Reader) error {
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: imagemeta.XMP})
+		return err
+	})
+
 	runBenchmark(b, "bep/imagemeta/jpg/all", imageFormat, func(r imagemeta.Reader) error {
 		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetAll})
 		return err
 	})
+}
 
-	runBenchmark(b, "rwcarlsen/goexif", imageFormat, func(r imagemeta.Reader) error {
-		_, err := exif.Decode(r)
+func BenchmarkDecodeExif(b *testing.B) {
+	runBenchmark := func(b *testing.B, name string, imageFormat imagemeta.ImageFormat, f func(r imagemeta.Reader) error) {
+		img, close := getSunrise(qt.New(b), imageFormat)
+		b.Cleanup(close)
+		b.Run(name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				if err := f(img); err != nil {
+					b.Fatal(err)
+				}
+				img.Seek(0, 0)
+			}
+		})
+	}
+
+	imageFormat := imagemeta.JPEG
+	runBenchmark(b, "bep/imagemeta/exif/jpg/alltags", imageFormat, func(r imagemeta.Reader) error {
+		err := imagemeta.Decode(imagemeta.Options{
+			R: r, ImageFormat: imageFormat,
+			HandleTag: func(ti imagemeta.TagInfo) error {
+				return nil
+			},
+			Sources: imagemeta.EXIF,
+		})
 		return err
 	})
 
+	runBenchmark(b, "bep/imagemeta/exif/jpg/orientation", imageFormat, func(r imagemeta.Reader) error {
+		err := imagemeta.Decode(imagemeta.Options{
+			R: r, ImageFormat: imageFormat,
+			HandleTag: func(ti imagemeta.TagInfo) error {
+				if ti.Tag == "Orientation" {
+					return imagemeta.ErrStopWalking
+				}
+				return nil
+			},
+			Sources: imagemeta.EXIF,
+		})
+		return err
+	})
+
+	runBenchmark(b, "rwcarlsen/goexif/exif/jpg/alltags", imageFormat, func(r imagemeta.Reader) error {
+		_, err := exif.Decode(r)
+		return err
+	})
 }

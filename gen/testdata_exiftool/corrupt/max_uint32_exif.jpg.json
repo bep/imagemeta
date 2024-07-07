@@ -1,0 +1,25 @@
+[{
+  "SourceFile": "../testdata/corrupt/max_uint32_exif.jpg",
+  "ExifTool": {
+    "ExifToolVersion": 12.76,
+    "Warning": "JPEG format error"
+  },
+  "File": {
+    "FileName": "max_uint32_exif.jpg",
+    "Directory": "../testdata/corrupt",
+    "FileSize": 65536,
+    "FileModifyDate": "2023:08:14 17:57:27+02:00",
+    "FileAccessDate": "2024:07:09 18:54:23+02:00",
+    "FileInodeChangeDate": "2023:08:14 17:57:27+02:00",
+    "FilePermissions": 100644,
+    "FileType": "JPEG",
+    "FileTypeExtension": "JPG",
+    "MIMEType": "image/jpeg"
+  },
+  "JFIF": {
+    "JFIFVersion": "1 1",
+    "ResolutionUnit": 1,
+    "XResolution": 72,
+    "YResolution": 72
+  }
+}]

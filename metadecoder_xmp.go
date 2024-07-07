@@ -3,8 +3,14 @@ package imagemeta
 import (
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"io"
 )
+
+var xmpSkipNamespaces = map[string]bool{
+	"xmlns": true,
+	"http://www.w3.org/1999/02/22-rdf-syntax-ns#": true,
+}
 
 type rdf struct {
 	Description rdfDescription `xml:"Description"`
@@ -33,15 +39,16 @@ func decodeXMP(r io.Reader, opts Options) error {
 
 	var meta xmpmeta
 	if err := xml.NewDecoder(r).Decode(&meta); err != nil {
-		return err
+		return fmt.Errorf("decoding XMP: %w", err)
 	}
 
 	for _, attr := range meta.RDF.Description.Attrs {
-		if attr.Name.Space == "xmlns" {
+		if xmpSkipNamespaces[attr.Name.Space] {
 			continue
 		}
+
 		tagInfo := TagInfo{
-			Source:    TagSourceXMP,
+			Source:    XMP,
 			Tag:       attr.Name.Local,
 			Namespace: attr.Name.Space,
 			Value:     attr.Value,
