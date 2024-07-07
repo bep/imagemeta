@@ -9,15 +9,15 @@ func _() {
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
 	_ = x[ImageFormatAuto-0]
-	_ = x[ImageFormatJPEG-1]
-	_ = x[ImageFormatTIFF-2]
-	_ = x[ImageFormatPNG-3]
-	_ = x[ImageFormatWebP-4]
+	_ = x[JPEG-1]
+	_ = x[TIFF-2]
+	_ = x[PNG-3]
+	_ = x[WebP-4]
 }
 
-const _ImageFormat_name = "ImageFormatAutoImageFormatJPEGImageFormatTIFFImageFormatPNGImageFormatWebP"
+const _ImageFormat_name = "ImageFormatAutoJPEGTIFFPNGWebP"
 
-var _ImageFormat_index = [...]uint8{0, 15, 30, 45, 59, 74}
+var _ImageFormat_index = [...]uint8{0, 15, 19, 23, 26, 30}
 
 func (i ImageFormat) String() string {
 	if i < 0 || i >= ImageFormat(len(_ImageFormat_index)-1) {

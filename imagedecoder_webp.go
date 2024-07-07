@@ -1,7 +1,7 @@
 package imagemeta
 
 import (
-	"fmt"
+	"errors"
 	"io"
 )
 
@@ -13,8 +13,22 @@ var (
 	fccXMP  = fourCC{'X', 'M', 'P', ' '}
 )
 
-// ErrInvalidFormat is returned when the format is not recognized.
-var ErrInvalidFormat = fmt.Errorf("imagemeta: invalid format")
+// errInvalidFormat is used when the format is invalid.
+var errInvalidFormat = &InvalidFormatError{errors.New("invalid format")}
+
+// IsInvalidFormat reports whether the error was an InvalidFormatError.
+func IsInvalidFormat(err error) bool {
+	return errors.Is(err, errInvalidFormat)
+}
+
+// InvalidFormatError is used when the format is invalid.
+type InvalidFormatError struct {
+	Err error
+}
+
+func (e *InvalidFormatError) Error() string {
+	return e.Err.Error()
+}
 
 type baseStreamingDecoder struct {
 	*streamReader
@@ -34,9 +48,8 @@ type decoderWebP struct {
 }
 
 func (e *decoderWebP) decode() error {
-
 	// These are the sources we currently support in WebP.
-	sourceSet := TagSourceEXIF | TagSourceXMP
+	sourceSet := EXIF | XMP
 	// Remove sources that are not requested.
 	sourceSet = sourceSet & e.opts.Sources
 
@@ -45,15 +58,13 @@ func (e *decoderWebP) decode() error {
 		return nil
 	}
 
-	var (
-		buf [10]byte
-	)
+	var buf [10]byte
 
 	var chunkID fourCC
 	// Read the RIFF header.
 	e.readBytes(chunkID[:])
 	if chunkID != fccRIFF {
-		return ErrInvalidFormat
+		return errInvalidFormat
 	}
 
 	// File size.
@@ -61,7 +72,7 @@ func (e *decoderWebP) decode() error {
 
 	e.readBytes(chunkID[:])
 	if chunkID != fccWEBP {
-		return ErrInvalidFormat
+		return errInvalidFormat
 	}
 
 	for {
@@ -79,7 +90,7 @@ func (e *decoderWebP) decode() error {
 		switch {
 		case chunkID == fccVP8X:
 			if chunkLen != 10 {
-				return ErrInvalidFormat
+				return errInvalidFormat
 			}
 
 			const (
@@ -93,24 +104,24 @@ func (e *decoderWebP) decode() error {
 			hasXMP := buf[0]&xmpMetadataBit != 0
 
 			if !hasEXIF {
-				sourceSet = sourceSet.Remove(TagSourceEXIF)
+				sourceSet = sourceSet.Remove(EXIF)
 			}
 			if !hasXMP {
-				sourceSet = sourceSet.Remove(TagSourceXMP)
+				sourceSet = sourceSet.Remove(XMP)
 			}
 
 			if !hasEXIF && !hasXMP {
 				return nil
 			}
-		case chunkID == fccEXIF && sourceSet.Has(TagSourceEXIF):
+		case chunkID == fccEXIF && sourceSet.Has(EXIF):
 			r := io.LimitReader(e.r, int64(chunkLen))
 			dec := newMetaDecoderEXIF(r, e.opts.HandleTag)
 			if err := dec.decode(); err != nil {
 				return err
 			}
-			sourceSet = sourceSet.Remove(TagSourceEXIF)
-		case chunkID == fccXMP && sourceSet.Has(TagSourceXMP):
-			sourceSet = sourceSet.Remove(TagSourceXMP)
+			sourceSet = sourceSet.Remove(EXIF)
+		case chunkID == fccXMP && sourceSet.Has(XMP):
+			sourceSet = sourceSet.Remove(XMP)
 			r := io.LimitReader(e.r, int64(chunkLen))
 			if err := decodeXMP(r, e.opts); err != nil {
 				return err

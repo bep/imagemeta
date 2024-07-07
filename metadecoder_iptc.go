@@ -1,9 +1,30 @@
 package imagemeta
 
 import (
+	_ "embed" // needed for the embedded IPTC fields JSON
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
+)
+
+// Source: https://exiftool.org/TagNames/IPTC.html
+//
+//go:embed metadecoder_iptc_fields.json
+var ipctTagsJSON []byte
+
+var (
+	iptcRecordFields = map[uint8]map[uint8]iptcField{}
+	iptcRerordNames  = map[uint8]string{
+		1:   "IPTCEnvelope",
+		2:   "IPTCApplication",
+		3:   "IPTCNewsPhoto",
+		7:   "IPTCPreObjectData",
+		8:   "IPTCObjectData",
+		9:   "IPTCPostObjectData",
+		240: "IPTCFotoStation",
+	}
 )
 
 func newMetaDecoderIPTC(r io.Reader, callback HandleTagFunc) *metaDecoderIPTC {
@@ -11,6 +32,16 @@ func newMetaDecoderIPTC(r io.Reader, callback HandleTagFunc) *metaDecoderIPTC {
 		streamReader: newStreamReader(r),
 		handleTag:    callback,
 	}
+}
+
+type iptcField struct {
+	Record     uint8  `json:"record"`
+	RecordName string `json:"record_name"`
+	ID         uint8  `json:"id"`
+	Name       string `json:"name"`
+	Format     string `json:"format"`
+	Repeatable bool   `json:"repeatable"`
+	Notes      string `json:"notes"`
 }
 
 type metaDecoderIPTC struct {
@@ -24,7 +55,7 @@ func (e *metaDecoderIPTC) decode() (err error) {
 
 	const iptcMetaDataBlockID = 0x0404
 
-	stringSlices := make(map[uint8][]string)
+	stringSlices := make(map[iptcField][]string)
 
 	decodeBlock := func() error {
 		blockType := e.readBytesVolatile(4)
@@ -73,40 +104,44 @@ func (e *metaDecoderIPTC) decode() (err error) {
 				return errStop
 			}
 
-			e.skip(1) // recordType
+			recordType := e.read1()
 			datasetNumber := e.read1()
 			recordSize := e.read2()
 
-			recordDef, ok := iptcFieldMap[datasetNumber]
+			recordDef, ok := getIptcRecordFieldDef(recordType, datasetNumber)
+
 			if !ok {
 				// Assume a non repeatable string.
 				recordDef = iptcField{
-					name:       fmt.Sprintf("%s%d", UnknownPrefix, datasetNumber),
-					format:     "string",
-					repeatable: false,
+					Name:       fmt.Sprintf("%s%d", UnknownPrefix, datasetNumber),
+					RecordName: "IPTCUnknownRecord",
+					Format:     "string",
+					Repeatable: false,
 				}
 			}
 
 			var v any
-			switch recordDef.format {
+			switch recordDef.Format {
 			case "string":
 				b := e.readBytesVolatile(int(recordSize))
 				v = string(b)
+				// TODO1 validate these against record size.
 			case "short":
 				v = e.read2()
 			case "byte":
 				v = e.read1()
 			default:
-				panic(fmt.Sprintf("unhandled format %q", recordDef.format))
+				panic(fmt.Sprintf("unhandled format %q", recordDef.Format))
 			}
 
-			if recordDef.repeatable {
-				stringSlices[datasetNumber] = append(stringSlices[datasetNumber], v.(string))
+			if recordDef.Repeatable {
+				stringSlices[recordDef] = append(stringSlices[recordDef], v.(string))
 			} else {
 				if err := e.handleTag(TagInfo{
-					Source: TagSourceIPTC,
-					Tag:    recordDef.name,
-					Value:  v,
+					Source:    IPTC,
+					Tag:       recordDef.Name,
+					Namespace: recordDef.RecordName,
+					Value:     v,
 				}); err != nil {
 					return err
 				}
@@ -124,70 +159,79 @@ func (e *metaDecoderIPTC) decode() (err error) {
 	}
 
 	if len(stringSlices) > 0 {
-		for datasetNumber, values := range stringSlices {
-			if err := e.handleTag(TagInfo{
-				Source: TagSourceIPTC,
-				Tag:    iptcFieldMap[datasetNumber].name,
-				Value:  values,
-			}); err != nil {
+		for fieldDef, values := range stringSlices {
+			if err := e.handleTag(
+				TagInfo{
+					Source:    IPTC,
+					Tag:       fieldDef.Name,
+					Namespace: fieldDef.RecordName,
+					Value:     values,
+				},
+			); err != nil {
 				return err
 			}
 		}
-
 	}
 
 	return nil
-
 }
 
-type iptcField struct {
-	name       string
-	repeatable bool
-	format     string
+func getIptcRecordFieldDef(record, id uint8) (iptcField, bool) {
+	recordFields, ok := iptcRecordFields[record]
+	if !ok {
+		return iptcField{}, false
+	}
+	field, ok := recordFields[id]
+	return field, ok
 }
 
-var iptcFieldMap = map[uint8]iptcField{
-	0:   {"RecordVersion", false, "short"},
-	4:   {"ObjectTypeReference", false, "string"},
-	5:   {"ObjectName", false, "string"},
-	7:   {"EditStatus", false, "string"},
-	10:  {"Urgency", false, "byte"},
-	12:  {"SubjectReference", true, "string"},
-	15:  {"Category", true, "string"},
-	20:  {"SupplementalCategory", true, "string"},
-	22:  {"FixtureIdentifier", false, "string"},
-	25:  {"Keywords", true, "string"},
-	26:  {"ContentLocationCode", false, "string"},
-	27:  {"ContentLocationName", false, "string"},
-	30:  {"ReleaseDate", false, "string"},
-	35:  {"ReleaseTime", false, "string"},
-	37:  {"ExpirationDate", false, "string"},
-	38:  {"ExpirationTime", false, "string"},
-	40:  {"SpecialInstructions", false, "string"},
-	42:  {"ActionAdvised", false, "B"},
-	45:  {"ReferenceService", false, "string"},
-	47:  {"ReferenceDate", false, "string"},
-	50:  {"ReferenceNumber", false, "string"},
-	55:  {"DateCreated", false, "string"},
-	60:  {"TimeCreated", false, "string"},
-	62:  {"DigitalCreationDate", false, "string"},
-	63:  {"DigitalCreationTime", false, "string"},
-	65:  {"OriginatingProgram", false, "string"},
-	70:  {"ProgramVersion", false, "string"},
-	75:  {"ObjectCycle", false, "string"},
-	80:  {"Byline", false, "string"},
-	85:  {"BylineTitle", false, "string"},
-	90:  {"City", false, "string"},
-	92:  {"SubLocation", false, "string"},
-	95:  {"ProvinceState", false, "string"},
-	100: {"CountryCode", false, "string"},
-	101: {"CountryName", false, "string"},
-	103: {"OriginalTransmissionReference", false, "string"},
-	105: {"Headline", false, "string"},
-	110: {"Credit", false, "string"},
-	115: {"Source", false, "string"},
-	116: {"Copyright", false, "string"},
-	118: {"Contact", false, "string"},
-	120: {"Caption", false, "string"},
-	122: {"LocalCaption", false, "string"},
+func getIptcRecordName(record uint8) string {
+	name, ok := iptcRerordNames[record]
+	if !ok {
+		return fmt.Sprintf("IPTCUnknownRecord%d", record)
+	}
+	return name
+}
+
+func init() {
+	var fields []map[string]interface{}
+	if err := json.Unmarshal(ipctTagsJSON, &fields); err != nil {
+		panic(err)
+	}
+
+	toUint8 := func(v any) uint8 {
+		s := v.(string)
+		i, err := strconv.Atoi(s)
+		if err != nil {
+			return 0
+		}
+		return uint8(i)
+	}
+
+	toString := func(v any) string {
+		if v == nil {
+			return ""
+		}
+		return v.(string)
+	}
+
+	for _, fieldv := range fields {
+		id := toUint8(fieldv["id"])
+		record := toUint8(fieldv["record"])
+		recordFields, ok := iptcRecordFields[record]
+		if !ok {
+			recordFields = map[uint8]iptcField{}
+			iptcRecordFields[record] = recordFields
+		}
+
+		recordFields[id] = iptcField{
+			Record:     record,
+			RecordName: getIptcRecordName(record),
+			ID:         id,
+			Name:       toString(fieldv["name"]),
+			Format:     toString(fieldv["format"]),
+			Notes:      toString(fieldv["notes"]),
+			Repeatable: fieldv["repeatable"] == "true",
+		}
+	}
 }

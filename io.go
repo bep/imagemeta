@@ -14,6 +14,8 @@ var bufferPool = &sync.Pool{
 	},
 }
 
+var errShortRead = errors.New("short read")
+
 func newStreamReader(r io.Reader) *streamReader {
 	var rr Reader
 	var ok bool
@@ -26,10 +28,12 @@ func newStreamReader(r io.Reader) *streamReader {
 		rr = bytes.NewReader(bb)
 	}
 
-	return &streamReader{
+	s := &streamReader{
 		r:         rr,
 		byteOrder: binary.BigEndian,
 	}
+
+	return s
 }
 
 type closerFunc func() error
@@ -61,8 +65,6 @@ type streamReader struct {
 	readErr      error
 	readerOffset int
 }
-
-var errShortRead = errors.New("short read")
 
 func (e *streamReader) bufferedReader(length int) (readerCloser, error) {
 	buff := getBuffer()
@@ -114,18 +116,18 @@ func (e *streamReader) read2() uint16 {
 	return e.read2r(e.r)
 }
 
-func (e *streamReader) read2r(r io.Reader) uint16 {
-	const n = 2
-	e.readNFromRIntoBuf(n, r)
-	return e.byteOrder.Uint16(e.buf[:n])
-}
-
 func (e *streamReader) read2E() (uint16, error) {
 	const n = 2
 	if err := e.readNIntoBufE(n); err != nil {
 		return 0, err
 	}
 	return e.byteOrder.Uint16(e.buf[:n]), nil
+}
+
+func (e *streamReader) read2r(r io.Reader) uint16 {
+	const n = 2
+	e.readNFromRIntoBuf(n, r)
+	return e.byteOrder.Uint16(e.buf[:n])
 }
 
 func (e *streamReader) read4() uint32 {
@@ -161,6 +163,27 @@ func (e *streamReader) readBytesVolatile(n int) []byte {
 	return e.buf[:n]
 }
 
+func (e *streamReader) readBytesVolatileE(n int) ([]byte, error) {
+	e.allocateBuf(n)
+	err := e.readNIntoBufE(n)
+	if err != nil {
+		return nil, err
+	}
+	return e.buf[:n], nil
+}
+
+func (e *streamReader) readBytesFromRVolatile(n int, r io.Reader) []byte {
+	e.allocateBuf(n)
+	e.readNFromRIntoBuf(n, r)
+	return e.buf[:n]
+}
+
+func (e *streamReader) readNFromRIntoBuf(n int, r io.Reader) {
+	if err := e.readNFromRIntoBufE(n, r); err != nil {
+		e.stop(err)
+	}
+}
+
 func (e *streamReader) readNFromRIntoBufE(n int, r io.Reader) error {
 	e.allocateBuf(n)
 	n2, err := io.ReadFull(r, e.buf[:n])
@@ -173,18 +196,12 @@ func (e *streamReader) readNFromRIntoBufE(n int, r io.Reader) error {
 	return nil
 }
 
-func (e *streamReader) readNFromRIntoBuf(n int, r io.Reader) {
-	if err := e.readNFromRIntoBufE(n, r); err != nil {
-		e.stop(err)
-	}
+func (e *streamReader) readNIntoBuf(n int) {
+	e.readNFromRIntoBuf(n, e.r)
 }
 
 func (e *streamReader) readNIntoBufE(n int) error {
 	return e.readNFromRIntoBufE(n, e.r)
-}
-
-func (e *streamReader) readNIntoBuf(n int) {
-	e.readNFromRIntoBuf(n, e.r)
 }
 
 func (e *streamReader) seek(pos int) {

@@ -1,0 +1,46 @@
+[{
+  "SourceFile": "../testdata/goexif_samples/f7-exif.jpg",
+  "ExifTool": {
+    "ExifToolVersion": 12.76
+  },
+  "File": {
+    "FileName": "f7-exif.jpg",
+    "Directory": "../testdata/goexif_samples",
+    "FileSize": 980,
+    "FileModifyDate": "2024:07:09 18:53:40+02:00",
+    "FileAccessDate": "2024:07:09 19:09:30+02:00",
+    "FileInodeChangeDate": "2024:07:09 18:53:40+02:00",
+    "FilePermissions": 100644,
+    "FileType": "JPEG",
+    "FileTypeExtension": "JPG",
+    "MIMEType": "image/jpeg",
+    "ExifByteOrder": "MM",
+    "Comment": "Created with GIMP",
+    "ImageWidth": 80,
+    "ImageHeight": 40,
+    "EncodingProcess": 0,
+    "BitsPerSample": 8,
+    "ColorComponents": 3,
+    "YCbCrSubSampling": "1 1"
+  },
+  "EXIF": {
+    "Orientation": 7,
+    "XResolution": 72,
+    "YResolution": 72,
+    "ResolutionUnit": 2,
+    "ModifyDate": "2012:11:04 05:42:32",
+    "YCbCrPositioning": 1,
+    "ExifVersion": "0210",
+    "ComponentsConfiguration": "1 2 3 0",
+    "FlashpixVersion": "0100",
+    "ColorSpace": 65535,
+    "ExifImageWidth": 0,
+    "ExifImageHeight": 0
+  },
+  "JFIF": {
+    "JFIFVersion": "1 1",
+    "ResolutionUnit": 1,
+    "XResolution": 72,
+    "YResolution": 72
+  }
+}]

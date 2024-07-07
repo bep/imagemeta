@@ -16,7 +16,7 @@ func (e *imageDecoderTIF) decode() error {
 	)
 
 	// These are the sources we currently support in TIFF.
-	sourceSet := TagSourceXMP
+	sourceSet := XMP
 	// Remove sources that are not requested.
 	sourceSet = sourceSet & e.opts.Sources
 
@@ -32,17 +32,17 @@ func (e *imageDecoderTIF) decode() error {
 	case byteOrderLittleEndian:
 		e.byteOrder = binary.LittleEndian
 	default:
-		return ErrInvalidFormat
+		return errInvalidFormat
 	}
 
 	if id := e.read2(); id != meaningOfLife {
-		return ErrInvalidFormat
+		return errInvalidFormat
 	}
 
 	ifdOffset := e.read4()
 
 	if ifdOffset < 8 {
-		return ErrInvalidFormat
+		return errInvalidFormat
 	}
 
 	e.skip(int64(ifdOffset - 8))
@@ -62,7 +62,7 @@ func (e *imageDecoderTIF) decode() error {
 			if err := decodeXMP(r, e.opts); err != nil {
 				return err
 			}
-			sourceSet = sourceSet.Remove(TagSourceXMP)
+			sourceSet = sourceSet.Remove(XMP)
 			if sourceSet.IsZero() {
 				return nil
 			}
@@ -71,5 +71,4 @@ func (e *imageDecoderTIF) decode() error {
 	}
 
 	return nil
-
 }

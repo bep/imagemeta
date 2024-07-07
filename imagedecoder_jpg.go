@@ -1,6 +1,7 @@
 package imagemeta
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
 )
@@ -21,7 +22,7 @@ func (e *imageDecoderJPEG) decode() error {
 	}
 
 	// These are the sources we support.
-	sourceSet := TagSourceEXIF | TagSourceIPTC | TagSourceXMP
+	sourceSet := EXIF | IPTC | XMP
 	// Remove sources that are not requested.
 	sourceSet = sourceSet & e.opts.Sources
 
@@ -48,55 +49,52 @@ func (e *imageDecoderJPEG) decode() error {
 		// length itself, so we subtract 2 to get the number of remaining bytes.
 		length := e.read2()
 		if length < 2 {
-			return ErrInvalidFormat
+			return errInvalidFormat
 		}
 		length -= 2
 
-		if marker == markerApp1EXIF && sourceSet.Has(TagSourceEXIF) {
-			sourceSet = sourceSet.Remove(TagSourceEXIF)
+		if marker == markerApp1EXIF && sourceSet.Has(EXIF) {
+			sourceSet = sourceSet.Remove(EXIF)
 			if err := e.handleEXIF(int(length)); err != nil {
 				return err
 			}
 			continue
 		}
 
-		if marker == markerApp13 && sourceSet.Has(TagSourceIPTC) {
-			sourceSet = sourceSet.Remove(TagSourceIPTC)
+		if marker == markerApp13 && sourceSet.Has(IPTC) {
+			sourceSet = sourceSet.Remove(IPTC)
 			if err := e.handleIPTC(int(length)); err != nil {
 				return err
 			}
 			continue
 		}
 
-		if marker == markerrApp1XMP && sourceSet.Has(TagSourceXMP) {
-			sourceSet = sourceSet.Remove(TagSourceXMP)
-			const xmpIDLen = 29
-			if length < xmpIDLen {
-				return ErrInvalidFormat
-			}
-			e.skip(int64(xmpIDLen))
-			length -= xmpIDLen
-			r := io.LimitReader(e.r, int64(length))
-			if err := decodeXMP(r, e.opts); err != nil {
+		if marker == markerrApp1XMP && sourceSet.Has(XMP) {
+			const xmpMarkerLen = 29
+			oldPos := e.pos()
+			b, err := e.readBytesVolatileE(xmpMarkerLen)
+
+			if err != nil && err != io.ErrUnexpectedEOF {
 				return err
 			}
-			continue
+
+			if err == nil && bytes.Equal(b, markerXMP) {
+				length -= xmpMarkerLen
+				sourceSet = sourceSet.Remove(XMP)
+				r := io.LimitReader(e.r, int64(length))
+				if err := decodeXMP(r, e.opts); err != nil {
+					return err
+				}
+				continue
+			} else {
+				// Not XMP, rewind.
+				e.seek(oldPos)
+			}
+
 		}
 
 		e.skip(int64(length))
 	}
-}
-
-func (e *imageDecoderJPEG) handleIPTC(length int) error {
-	// EXIF may be stored in a different order, but IPTC is always big-endian.
-	e.byteOrder = binary.BigEndian
-	r, err := e.bufferedReader(length)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-	dec := newMetaDecoderIPTC(r, e.opts.HandleTag)
-	return dec.decode()
 }
 
 func (e *imageDecoderJPEG) handleEXIF(length int) error {
@@ -116,5 +114,16 @@ func (e *imageDecoderJPEG) handleEXIF(length int) error {
 		return err
 	}
 	return nil
+}
 
+func (e *imageDecoderJPEG) handleIPTC(length int) error {
+	// EXIF may be stored in a different order, but IPTC is always big-endian.
+	e.byteOrder = binary.BigEndian
+	r, err := e.bufferedReader(length)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	dec := newMetaDecoderIPTC(r, e.opts.HandleTag)
+	return dec.decode()
 }
