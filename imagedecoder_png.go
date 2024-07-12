@@ -26,14 +26,12 @@ func (e *imageDecoderPNG) decode() error {
 					return err
 				}
 				defer r.Close()
-				exifr := newMetaDecoderEXIF(r, e.opts.HandleTag)
+				exifr := newMetaDecoderEXIF(r, e.opts)
 				return exifr.decode()
 			}()
-
 		}
 		e.skip(int64(chunkLength))
 		e.skip(4) // skip CRC
 
 	}
-
 }

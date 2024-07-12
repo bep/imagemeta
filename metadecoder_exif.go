@@ -97,11 +97,11 @@ var (
 	}
 )
 
-func newMetaDecoderEXIF(r io.Reader, handleTag HandleTagFunc) *metaDecoderEXIF {
+func newMetaDecoderEXIF(r io.Reader, opts Options) *metaDecoderEXIF {
 	s := newStreamReader(r)
 	return &metaDecoderEXIF{
 		streamReader: s,
-		handleTag:    handleTag,
+		opts:         opts,
 	}
 }
 
@@ -110,7 +110,7 @@ type exifType uint16
 
 type metaDecoderEXIF struct {
 	*streamReader
-	handleTag HandleTagFunc
+	opts Options
 }
 
 func (e *metaDecoderEXIF) convertValue(typ exifType, r io.Reader) any {
@@ -248,6 +248,17 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 		return nil
 	}
 
+	tagInfo := TagInfo{
+		Source:    EXIF,
+		Tag:       tagName,
+		Namespace: namespace,
+	}
+
+	if !e.opts.ShouldHandleTag(tagInfo) {
+		e.skip(4)
+		return nil
+	}
+
 	typ := exifType(dataType)
 
 	size, ok := exifTypeSize[typ]
@@ -287,14 +298,9 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 		val = ""
 	}
 
-	tagInfo := TagInfo{
-		Source:    EXIF,
-		Tag:       tagName,
-		Namespace: namespace,
-		Value:     val,
-	}
+	tagInfo.Value = val
 
-	if err := e.handleTag(tagInfo); err != nil {
+	if err := e.opts.HandleTag(tagInfo); err != nil {
 		return err
 	}
 

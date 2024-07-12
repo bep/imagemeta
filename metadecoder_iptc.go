@@ -27,10 +27,10 @@ var (
 	}
 )
 
-func newMetaDecoderIPTC(r io.Reader, callback HandleTagFunc) *metaDecoderIPTC {
+func newMetaDecoderIPTC(r io.Reader, opts Options) *metaDecoderIPTC {
 	return &metaDecoderIPTC{
 		streamReader: newStreamReader(r),
-		handleTag:    callback,
+		opts:         opts,
 	}
 }
 
@@ -46,7 +46,7 @@ type iptcField struct {
 
 type metaDecoderIPTC struct {
 	*streamReader
-	handleTag HandleTagFunc
+	opts Options
 }
 
 func (e *metaDecoderIPTC) decode() (err error) {
@@ -137,7 +137,7 @@ func (e *metaDecoderIPTC) decode() (err error) {
 			if recordDef.Repeatable {
 				stringSlices[recordDef] = append(stringSlices[recordDef], v.(string))
 			} else {
-				if err := e.handleTag(TagInfo{
+				if err := e.opts.HandleTag(TagInfo{
 					Source:    IPTC,
 					Tag:       recordDef.Name,
 					Namespace: recordDef.RecordName,
@@ -160,7 +160,7 @@ func (e *metaDecoderIPTC) decode() (err error) {
 
 	if len(stringSlices) > 0 {
 		for fieldDef, values := range stringSlices {
-			if err := e.handleTag(
+			if err := e.opts.HandleTag(
 				TagInfo{
 					Source:    IPTC,
 					Tag:       fieldDef.Name,
