@@ -248,13 +248,15 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 		return nil
 	}
 
+	ifd, isIFDPointer := exifIFDPointers[tagID]
+
 	tagInfo := TagInfo{
 		Source:    EXIF,
 		Tag:       tagName,
 		Namespace: namespace,
 	}
 
-	if !e.opts.ShouldHandleTag(tagInfo) {
+	if !isIFDPointer && !e.opts.ShouldHandleTag(tagInfo) {
 		e.skip(4)
 		return nil
 	}
@@ -282,7 +284,7 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 		}
 	}
 
-	if ifd, ok := exifIFDPointers[tagID]; ok {
+	if isIFDPointer {
 		offset := val.(uint32)
 		namespace := path.Join(namespace, ifd)
 		return e.decodeTagsAt(namespace, int(offset))

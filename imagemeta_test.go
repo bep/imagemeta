@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"sort"
@@ -117,6 +118,47 @@ func TestDecodeCustomXMPHandlerShortRead(t *testing.T) {
 
 	c.Assert(err, qt.IsNotNil)
 	c.Assert(err.Error(), qt.Contains, "expected EOF after XMP")
+}
+
+func TestDecodeShouldHandleTagEXIF(t *testing.T) {
+	c := qt.New(t)
+
+	img, close := getSunrise(c, imagemeta.JPEG)
+	c.Cleanup(close)
+
+	const numTagsTotal = 61
+
+	var tags imagemeta.Tags
+
+	handleTag := func(ti imagemeta.TagInfo) error {
+		tags.Add(ti)
+		return nil
+	}
+
+	// Drop a random tag.
+	drop := rand.Intn(numTagsTotal)
+	counter := 0
+	shouldHandle := func(ti imagemeta.TagInfo) bool {
+		if ti.Tag == "ExifOffset" {
+			t.Fatalf("IFD pointers should not be passed to ShouldHandleTag")
+		}
+		b := counter != drop
+		counter++
+		return b
+	}
+
+	err := imagemeta.Decode(
+		imagemeta.Options{
+			R:               img,
+			ImageFormat:     imagemeta.JPEG,
+			Sources:         imagemeta.EXIF,
+			HandleTag:       handleTag,
+			ShouldHandleTag: shouldHandle,
+		},
+	)
+
+	c.Assert(err, qt.IsNil)
+	c.Assert(len(tags.EXIF()), qt.Equals, numTagsTotal-1)
 }
 
 func TestDecodeIPTCReference(t *testing.T) {
