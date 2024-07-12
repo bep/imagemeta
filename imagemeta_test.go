@@ -261,6 +261,7 @@ func TestDecodeErrors(t *testing.T) {
 
 	c.Assert(imagemeta.Decode(imagemeta.Options{}), qt.ErrorMatches, "no reader provided")
 	c.Assert(imagemeta.Decode(imagemeta.Options{R: strings.NewReader("foo")}), qt.ErrorMatches, "no image format provided.*")
+	c.Assert(imagemeta.Decode(imagemeta.Options{R: strings.NewReader("foo"), ImageFormat: imagemeta.ImageFormat(1234)}), qt.ErrorMatches, "unsupported image format")
 }
 
 func TestGoldenEXIF(t *testing.T) {
@@ -309,6 +310,15 @@ func TestLatLong(t *testing.T) {
 	c.Assert(err, qt.IsNil)
 	c.Assert(lat, eq, float64(52.013888888))
 	c.Assert(long, eq, float64(11.002777))
+}
+
+func TestGetDateTime(t *testing.T) {
+	c := qt.New(t)
+
+	tags := extractTags(t, "sunrise.jpg", imagemeta.EXIF)
+	d, err := tags.GetDateTime()
+	c.Assert(err, qt.IsNil)
+	c.Assert(d.Format("2006-01-02"), qt.Equals, "2017-10-27")
 }
 
 func TestTagSource(t *testing.T) {
