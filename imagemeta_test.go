@@ -123,42 +123,47 @@ func TestDecodeCustomXMPHandlerShortRead(t *testing.T) {
 func TestDecodeShouldHandleTagEXIF(t *testing.T) {
 	c := qt.New(t)
 
-	img, close := getSunrise(c, imagemeta.JPEG)
-	c.Cleanup(close)
+	const numTagsTotal = 64
 
-	const numTagsTotal = 61
+	for i := 0; i < 30; i++ {
+		img, close := getSunrise(c, imagemeta.JPEG)
+		c.Cleanup(close)
 
-	var tags imagemeta.Tags
+		var added int
 
-	handleTag := func(ti imagemeta.TagInfo) error {
-		tags.Add(ti)
-		return nil
-	}
-
-	// Drop a random tag.
-	drop := rand.Intn(numTagsTotal)
-	counter := 0
-	shouldHandle := func(ti imagemeta.TagInfo) bool {
-		if ti.Tag == "ExifOffset" {
-			t.Fatalf("IFD pointers should not be passed to ShouldHandleTag")
+		handleTag := func(ti imagemeta.TagInfo) error {
+			added++
+			return nil
 		}
-		b := counter != drop
-		counter++
-		return b
+
+		// Drop a random tag.
+		drop := rand.Intn(numTagsTotal - 1)
+		counter := 0
+		shouldHandle := func(ti imagemeta.TagInfo) bool {
+			if ti.Tag == "ExifOffset" {
+				t.Fatalf("IFD pointers should not be passed to ShouldHandleTag")
+			}
+			b := counter != drop
+			counter++
+			return b
+		}
+
+		err := imagemeta.Decode(
+			imagemeta.Options{
+				R:               img,
+				ImageFormat:     imagemeta.JPEG,
+				Sources:         imagemeta.EXIF,
+				HandleTag:       handleTag,
+				ShouldHandleTag: shouldHandle,
+			},
+		)
+
+		c.Assert(err, qt.IsNil)
+		c.Assert(added, qt.Equals, numTagsTotal-1)
+
+		img.Seek(0, 0)
+
 	}
-
-	err := imagemeta.Decode(
-		imagemeta.Options{
-			R:               img,
-			ImageFormat:     imagemeta.JPEG,
-			Sources:         imagemeta.EXIF,
-			HandleTag:       handleTag,
-			ShouldHandleTag: shouldHandle,
-		},
-	)
-
-	c.Assert(err, qt.IsNil)
-	c.Assert(len(tags.EXIF()), qt.Equals, numTagsTotal-1)
 }
 
 func TestDecodeIPTCReference(t *testing.T) {
