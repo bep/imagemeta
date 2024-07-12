@@ -32,7 +32,7 @@ BenchmarkDecode/bep/imagemeta/jpg/xmp-10                    3115            3672
 BenchmarkDecode/bep/imagemeta/jpg/all-10                    3004            383872 ns/op          145157 B/op       2483 allocs/op
 ```
 
-## When in doubt, Exiftools is right
+## When in doubt, Exiftool is right
 
 The output of this library is tested against `exiftool -n -json`. This means, for example, that:
 
