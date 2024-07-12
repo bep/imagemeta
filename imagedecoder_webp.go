@@ -115,7 +115,7 @@ func (e *decoderWebP) decode() error {
 			}
 		case chunkID == fccEXIF && sourceSet.Has(EXIF):
 			r := io.LimitReader(e.r, int64(chunkLen))
-			dec := newMetaDecoderEXIF(r, e.opts.HandleTag)
+			dec := newMetaDecoderEXIF(r, e.opts)
 			if err := dec.decode(); err != nil {
 				return err
 			}

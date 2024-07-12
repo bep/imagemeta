@@ -368,7 +368,7 @@ func assertGoldenInfoTagCount(t testing.TB, filename string, sources imagemeta.T
 
 		for _, k := range keysRight {
 			if _, found := tagsLeft[k]; !found {
-				fmt.Println("Missing tag: ", k, "=>", tagsRight[k])
+				t.Log("Missing tag: ", k, "=>", tagsRight[k])
 				count++
 			}
 			if count > 10 {
@@ -380,7 +380,7 @@ func assertGoldenInfoTagCount(t testing.TB, filename string, sources imagemeta.T
 
 		for _, k := range keysLeft {
 			if _, found := tagsRight[k]; !found {
-				fmt.Println("Extra tag: ", k, "=>", tagsLeft[k].Value)
+				t.Log("Extra tag: ", k, "=>", tagsLeft[k].Value)
 				count++
 			}
 			if count > 10 {
@@ -536,7 +536,7 @@ func extractTags(t testing.TB, filename string, sources imagemeta.TagSource) ima
 		return nil
 	}
 
-	err = imagemeta.Decode(imagemeta.Options{R: f, ImageFormat: imagemeta.JPEG, HandleTag: handleTag, Sources: sources})
+	err = imagemeta.Decode(imagemeta.Options{R: f, ImageFormat: imagemeta.JPEG, ShouldHandleTag: func(imagemeta.TagInfo) bool { return true }, HandleTag: handleTag, Sources: sources})
 	if err != nil {
 		t.Fatal(fmt.Errorf("failed to decode %q: %w", filename, err))
 	}
@@ -646,7 +646,7 @@ func BenchmarkDecode(b *testing.B) {
 
 	imageFormat := imagemeta.PNG
 	runBenchmark(b, "bep/imagemeta/png/exif", imagemeta.PNG, func(r imagemeta.Reader) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetAll})
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetEXIF})
 		return err
 	})
 
@@ -706,6 +706,7 @@ func BenchmarkDecodeExif(b *testing.B) {
 	runBenchmark(b, "bep/imagemeta/exif/jpg/alltags", imageFormat, func(r imagemeta.Reader) error {
 		err := imagemeta.Decode(imagemeta.Options{
 			R: r, ImageFormat: imageFormat,
+
 			HandleTag: func(ti imagemeta.TagInfo) error {
 				return nil
 			},
@@ -717,6 +718,9 @@ func BenchmarkDecodeExif(b *testing.B) {
 	runBenchmark(b, "bep/imagemeta/exif/jpg/orientation", imageFormat, func(r imagemeta.Reader) error {
 		err := imagemeta.Decode(imagemeta.Options{
 			R: r, ImageFormat: imageFormat,
+			ShouldHandleTag: func(ti imagemeta.TagInfo) bool {
+				return ti.Tag == "Orientation"
+			},
 			HandleTag: func(ti imagemeta.TagInfo) error {
 				if ti.Tag == "Orientation" {
 					return imagemeta.ErrStopWalking

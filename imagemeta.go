@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -49,9 +50,20 @@ func Decode(opts Options) (err error) {
 	if opts.ImageFormat == ImageFormatAuto {
 		return fmt.Errorf("no image format provided; format detection not implemented yet")
 	}
+	if opts.ShouldHandleTag == nil {
+		opts.ShouldHandleTag = func(ti TagInfo) bool {
+			if ti.Source != EXIF {
+				return true
+			}
+			// Skip all tags in the thumbnails IFD (IFD1).
+			return strings.HasPrefix(ti.Namespace, "IFD0")
+		}
+	}
+
 	if opts.HandleTag == nil {
 		opts.HandleTag = func(TagInfo) error { return nil }
 	}
+
 	if opts.Sources == 0 {
 		opts.Sources = EXIF | IPTC | XMP
 	}
@@ -130,6 +142,10 @@ type Options struct {
 
 	// The image format in R.
 	ImageFormat ImageFormat
+
+	// If set, the decoder skip tags in which this function returns false.
+	// If not set, a default function is used that skips all EXIF tags except those in IFD0.
+	ShouldHandleTag func(tag TagInfo) bool
 
 	// The function to call for each tag.
 	HandleTag HandleTagFunc

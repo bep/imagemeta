@@ -54,6 +54,10 @@ func decodeXMP(r io.Reader, opts Options) error {
 			Value:     attr.Value,
 		}
 
+		if !opts.ShouldHandleTag(tagInfo) {
+			continue
+		}
+
 		if err := opts.HandleTag(tagInfo); err != nil {
 			return err
 		}

@@ -103,7 +103,7 @@ func (e *imageDecoderJPEG) handleEXIF(length int) error {
 		return err
 	}
 	defer r.Close()
-	exifr := newMetaDecoderEXIF(r, e.opts.HandleTag)
+	exifr := newMetaDecoderEXIF(r, e.opts)
 
 	header := exifr.read4()
 	if header != exifHeader {
@@ -124,6 +124,6 @@ func (e *imageDecoderJPEG) handleIPTC(length int) error {
 		return err
 	}
 	defer r.Close()
-	dec := newMetaDecoderIPTC(r, e.opts.HandleTag)
+	dec := newMetaDecoderIPTC(r, e.opts)
 	return dec.decode()
 }
