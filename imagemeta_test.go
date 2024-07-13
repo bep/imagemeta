@@ -56,6 +56,43 @@ func TestDecodeAllImageFormats(t *testing.T) {
 	}
 }
 
+func TestDecodeWebP(t *testing.T) {
+	c := qt.New(t)
+	tags := extractTags(t, "sunrise.webp", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
+
+	c.Assert(tags.EXIF()["Copyright"].Value, qt.Equals, "Bjørn Erik Pedersen")
+	c.Assert(tags.EXIF()["ApertureValue"].Value, eq, 5.6)
+	c.Assert(tags.XMP()["CreatorTool"].Value, qt.Equals, "Adobe Photoshop Lightroom Classic 12.4 (Macintosh)")
+	// No IPTC in this file, Exiftool stores the IPTC fields in XMP.
+	c.Assert(tags.XMP()["City"].Value, qt.Equals, "Benalmádena")
+}
+
+func TestDecodeJPEG(t *testing.T) {
+	c := qt.New(t)
+
+	tags := extractTags(t, "sunrise.jpg", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
+
+	c.Assert(tags.EXIF()["Copyright"].Value, qt.Equals, "Bjørn Erik Pedersen")
+	c.Assert(tags.EXIF()["ApertureValue"].Value, eq, 5.6)
+	// c.Assert(tags.EXIF()["ThumbnailOffset"].Value, eq, 1338)
+	c.Assert(tags.XMP()["CreatorTool"].Value, qt.Equals, "Adobe Photoshop Lightroom Classic 12.4 (Macintosh)")
+	c.Assert(tags.IPTC()["City"].Value, qt.Equals, "Benalmádena")
+}
+
+func TestDecodeTIFF(t *testing.T) {
+	c := qt.New(t)
+
+	tags := extractTags(t, "sunrise.tif", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
+
+	c.Assert(len(tags.XMP()), qt.Equals, 146)
+
+	// TODO(bep) currently only XMP implemented.
+	c.Assert(len(tags.EXIF()), qt.Equals, 0)
+	c.Assert(len(tags.IPTC()), qt.Equals, 0)
+
+	c.Assert(tags.XMP()["CreatorTool"].Value, qt.Equals, "Adobe Photoshop Lightroom Classic 12.4 (Macintosh)")
+}
+
 func TestDecodeCorrupt(t *testing.T) {
 	c := qt.New(t)
 
@@ -468,9 +505,6 @@ func compareWithExiftoolOutput(t testing.TB, filename string, sources imagemeta.
 		return tagsSorted[i].Tag < tagsSorted[j].Tag
 	})
 
-	lat, long, err := tags.GetLatLong()
-	c.Assert(err, qt.IsNil)
-
 	xmpReplacer := strings.NewReplacer(
 		"true", "True",
 	)
@@ -485,13 +519,6 @@ func compareWithExiftoolOutput(t testing.TB, filename string, sources imagemeta.
 			case imagemeta.Rat[int32]:
 				return v.Float64()
 			case float64:
-				// TODO1 remove
-				if false && s == "GPSLatitude" {
-					return lat // TODO1 exiftool considers GPSLongitudeRef and applies a sign.
-				}
-				if false && s == "GPSLongitude" {
-					return long
-				}
 				return v
 			case int64:
 				return float64(v)
@@ -540,20 +567,10 @@ func compareWithExiftoolOutput(t testing.TB, filename string, sources imagemeta.
 		}
 
 		if exifToolValue, found := tagsGolden.EXIF[v.Tag]; found {
-			if v.Tag == "ResolutionUnit" {
-				// TODO1 mismatch 2 vs 1
-				continue
-			}
-			if v.Tag == "XResolution" || v.Tag == "YResolution" {
-				// TODO1 mismatch 300/1
-				continue
-			}
-
+			// TODO1
 			if v.Tag == "ThumbnailOffset" {
-				// TODO1
 				continue
 			}
-
 			expect := normalizeThem(v.Tag, exifToolValue)
 			got := normalizeUs(v.Tag, v.Value)
 
@@ -592,8 +609,13 @@ func extractTags(t testing.TB, filename string, sources imagemeta.TagSource) ima
 		}
 		return nil
 	}
+	shouldHandle := func(ti imagemeta.TagInfo) bool {
+		return true
+	}
 
-	err = imagemeta.Decode(imagemeta.Options{R: f, ImageFormat: imagemeta.JPEG, ShouldHandleTag: func(imagemeta.TagInfo) bool { return true }, HandleTag: handleTag, Sources: sources})
+	imageFormat := extToFormat(filepath.Ext(filename))
+
+	err = imagemeta.Decode(imagemeta.Options{R: f, ImageFormat: imageFormat, ShouldHandleTag: shouldHandle, HandleTag: handleTag, Sources: sources})
 	if err != nil {
 		t.Fatal(fmt.Errorf("failed to decode %q: %w", filename, err))
 	}

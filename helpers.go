@@ -255,15 +255,12 @@ func (c vc) toDegrees(v any) (float64, error) {
 		if len(v) != 3 {
 			return 0.0, fmt.Errorf("expected 3 values, got %d", len(v))
 		}
-		deg := v[0].(float64Provider)
-		min := v[1].(float64Provider)
-		sec := v[2].(float64Provider)
 
-		degF := deg.Float64()
-		minF := min.Float64()
-		secF := sec.Float64()
+		deg := toFloat64(v[0])
+		min := toFloat64(v[1])
+		sec := toFloat64(v[2])
 
-		return degF + minF/60 + secF/3600, nil
+		return deg + min/60 + sec/3600, nil
 	case float64:
 		return v, nil
 	case string:
@@ -293,6 +290,17 @@ func toPrintableValue(v any) any {
 		return printableString(string(trimBytesNulls(vv)))
 	default:
 		return v
+	}
+}
+
+func toFloat64(v any) float64 {
+	switch vv := v.(type) {
+	case float64Provider:
+		return vv.Float64()
+	case float64:
+		return vv
+	default:
+		return 0
 	}
 }
 

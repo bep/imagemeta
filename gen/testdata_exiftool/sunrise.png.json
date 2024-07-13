@@ -1,16 +1,12 @@
 [{
   "SourceFile": "../testdata/sunrise.png",
   "ExifTool": {
-    "ExifToolVersion": 12.76,
-    "Warning": "[minor] Text/EXIF chunk(s) found after PNG IDAT (may be ignored by some readers)"
+    "ExifToolVersion": 12.76
   },
   "File": {
     "FileName": "sunrise.png",
     "Directory": "../testdata",
-    "FileSize": 385996,
-    "FileModifyDate": "2023:08:13 19:40:31+02:00",
-    "FileAccessDate": "2024:07:09 18:54:23+02:00",
-    "FileInodeChangeDate": "2023:08:15 18:10:51+02:00",
+    "FileSize": 386267,
     "FilePermissions": 100644,
     "FileType": "PNG",
     "FileTypeExtension": "PNG",
@@ -120,15 +116,15 @@
     "DateTimeOriginal": "2017:10:27 08:38:52",
     "CreateDate": "2017:10:27 08:38:52",
     "OffsetTime": "+02:00",
-    "ShutterSpeedValue": "0.00500000065770912",
-    "ApertureValue": 5.60000067086021,
+    "ShutterSpeedValue": "0.00500000015864311",
+    "ApertureValue": 5.60000000904325,
     "ExposureCompensation": 0,
     "MeteringMode": 5,
     "Flash": 16,
     "FocalLength": 21,
     "ColorSpace": 1,
-    "FocalPlaneXResolution": 2561.255585,
-    "FocalPlaneYResolution": 2561.255585,
+    "FocalPlaneXResolution": 2561.255583,
+    "FocalPlaneYResolution": 2561.255583,
     "FocalPlaneResolutionUnit": 3,
     "SensingMethod": 2,
     "ExposureMode": 0,
@@ -163,5 +159,21 @@
     "Compression": 6,
     "ThumbnailOffset": 1326,
     "ThumbnailLength": 5901
+  },
+  "IPTC": {
+    "ApplicationRecordVersion": 4,
+    "Category": "Sun",
+    "Keywords": ["Malaga","Torremolinos"],
+    "DateCreated": "2017:10:27",
+    "TimeCreated": "08:38:52+02:00",
+    "DigitalCreationDate": "2017:10:27",
+    "DigitalCreationTime": "08:38:52+02:00",
+    "By-line": "Bjørn Erik Pedersen",
+    "City": "Benalmádena",
+    "Province-State": "Andalucía",
+    "Country-PrimaryLocationCode": "ES ",
+    "Country-PrimaryLocationName": "Spain",
+    "Headline": "Sunrise in Spain",
+    "CopyrightNotice": "Bjørn Erik Pedersen"
   }
 }]

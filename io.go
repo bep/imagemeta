@@ -56,6 +56,7 @@ type readerCloser interface {
 // streamReader is a wrapper around a Reader that provides methods to read binary data.
 // Note that this is not thread safe.
 type streamReader struct {
+	// The current Reader.
 	r Reader
 
 	byteOrder binary.ByteOrder

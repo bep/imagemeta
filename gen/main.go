@@ -29,7 +29,11 @@ func main() {
 		basePath := strings.TrimPrefix(path, base)
 
 		var buf bytes.Buffer
-		cmd := exec.Command("exiftool", path, "-json", "-n", "-g", "-e")
+		cmd := exec.Command("exiftool", path,
+			"-json", "-n", "-g", "-e",
+			"-x", "FileModifyDate",
+			"-x", "FileAccessDate",
+			"-x", "FileInodeChangeDate")
 		cmd.Stdout = &buf
 		cmd.Stderr = os.Stderr
 

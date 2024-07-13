@@ -56,3 +56,9 @@ Note that you need a working `exiftool` and updated binary in your `PATH` for th
 exiftool -ver
 12.76
 ```
+
+Debuggin tips:
+
+```bash
+ exiftool testdata/goexif_samples/has-lens-info.jpg -htmldump > dump.html
+ ```

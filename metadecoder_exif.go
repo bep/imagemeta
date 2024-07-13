@@ -178,6 +178,7 @@ func (e *metaDecoderEXIF) convertValues(typ exifType, count, len int, r io.Reade
 }
 
 func (e *metaDecoderEXIF) decode() (err error) {
+	e.readerOffset = e.pos()
 	byteOrderTag := e.read2()
 
 	switch byteOrderTag {
@@ -199,7 +200,6 @@ func (e *metaDecoderEXIF) decode() (err error) {
 	}
 
 	e.skip(int64(ifd0Offset - 8))
-	e.readerOffset = e.pos() - 8
 
 	if err := e.decodeTags("IFD0"); err != nil {
 		return err
@@ -272,7 +272,8 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 	var r io.Reader = e.r
 
 	if valLen > 4 {
-		offset := e.read4() + uint32(e.readerOffset)
+		valueOffset := e.read4()
+		offset := valueOffset + uint32(e.readerOffset)
 		r = io.NewSectionReader(e.r, int64(offset), int64(valLen))
 	}
 
@@ -310,10 +311,6 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 }
 
 func (e *metaDecoderEXIF) decodeTags(namespace string) error {
-	if e.done() {
-		e.stop(nil)
-	}
-
 	numTags := e.read2()
 
 	for i := 0; i < int(numTags); i++ {
@@ -332,10 +329,6 @@ func (e *metaDecoderEXIF) decodeTagsAt(namespace string, offset int) error {
 	}()
 	e.seek(offset + e.readerOffset)
 	return e.decodeTags(namespace)
-}
-
-func (e *metaDecoderEXIF) done() bool {
-	return false // TODO1
 }
 
 type valueConverter func(binary.ByteOrder, any) any
