@@ -81,8 +81,6 @@ func (e *metaDecoderIPTC) decode() (err error) {
 			return nil
 		}
 
-		// TODO1 extended datasets.
-
 		if dataSize%2 != 0 {
 			defer func() {
 				// Skip padding byte.
