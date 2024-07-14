@@ -74,9 +74,23 @@ func TestDecodeJPEG(t *testing.T) {
 
 	c.Assert(tags.EXIF()["Copyright"].Value, qt.Equals, "Bjørn Erik Pedersen")
 	c.Assert(tags.EXIF()["ApertureValue"].Value, eq, 5.6)
-	// c.Assert(tags.EXIF()["ThumbnailOffset"].Value, eq, 1338)
+	c.Assert(tags.EXIF()["ThumbnailOffset"].Value, eq, uint32(1338))
 	c.Assert(tags.XMP()["CreatorTool"].Value, qt.Equals, "Adobe Photoshop Lightroom Classic 12.4 (Macintosh)")
 	c.Assert(tags.IPTC()["City"].Value, qt.Equals, "Benalmádena")
+}
+
+func TestThumbnailOffset(t *testing.T) {
+	c := qt.New(t)
+
+	offset := func(filename string) uint32 {
+		tags := extractTags(t, filename, imagemeta.EXIF)
+		return tags.EXIF()["ThumbnailOffset"].Value.(uint32)
+	}
+
+	c.Assert(offset("sunrise.webp"), eq, uint32(64160))
+	c.Assert(offset("sunrise.png"), eq, uint32(1326))
+	c.Assert(offset("sunrise.jpg"), eq, uint32(1338))
+	c.Assert(offset("goexif_samples/has-lens-info.jpg"), eq, uint32(1274))
 }
 
 func TestDecodeTIFF(t *testing.T) {
@@ -567,13 +581,8 @@ func compareWithExiftoolOutput(t testing.TB, filename string, sources imagemeta.
 		}
 
 		if exifToolValue, found := tagsGolden.EXIF[v.Tag]; found {
-			// TODO1
-			if v.Tag == "ThumbnailOffset" {
-				continue
-			}
 			expect := normalizeThem(v.Tag, exifToolValue)
 			got := normalizeUs(v.Tag, v.Value)
-
 			c.Assert(got, eq, expect, qt.Commentf("%s: got: %T/%T  %v %q", v.Tag, got, expect, v.Value, filename))
 		}
 	}

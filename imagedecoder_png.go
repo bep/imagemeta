@@ -26,7 +26,7 @@ func (e *imageDecoderPNG) decode() error {
 					return err
 				}
 				defer r.Close()
-				exifr := newMetaDecoderEXIF(r, e.opts)
+				exifr := newMetaDecoderEXIF(r, 0, e.opts)
 				return exifr.decode()
 			}()
 		}

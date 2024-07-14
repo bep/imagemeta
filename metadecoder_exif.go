@@ -22,6 +22,8 @@ const (
 	pngEXIFMarker         = 0x65584966
 	byteOrderBigEndian    = 0x4d4d
 	byteOrderLittleEndian = 0x4949
+
+	tagNameThumbnailOffset = "ThumbnailOffset"
 )
 
 //go:generate stringer -type=exifType
@@ -97,11 +99,12 @@ var (
 	}
 )
 
-func newMetaDecoderEXIF(r io.Reader, opts Options) *metaDecoderEXIF {
+func newMetaDecoderEXIF(r io.Reader, thumbnailOffset int, opts Options) *metaDecoderEXIF {
 	s := newStreamReader(r)
 	return &metaDecoderEXIF{
-		streamReader: s,
-		opts:         opts,
+		thumbnailOffset: thumbnailOffset,
+		streamReader:    s,
+		opts:            opts,
 	}
 }
 
@@ -110,6 +113,8 @@ type exifType uint16
 
 type metaDecoderEXIF struct {
 	*streamReader
+	thumbnailOffset int
+
 	opts Options
 }
 
@@ -299,6 +304,11 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 
 	if val == nil {
 		val = ""
+	}
+
+	if tagName == tagNameThumbnailOffset {
+		// When set, thumbnailOffset is set to the offset of the EXIF data in the original file.
+		val = val.(uint32) + uint32(e.readerOffset+e.thumbnailOffset)
 	}
 
 	tagInfo.Value = val
