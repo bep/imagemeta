@@ -98,18 +98,20 @@ func (e *imageDecoderJPEG) decode() error {
 }
 
 func (e *imageDecoderJPEG) handleEXIF(length int) error {
+	thumbnailOffset := e.pos()
 	r, err := e.bufferedReader(length)
 	if err != nil {
 		return err
 	}
 	defer r.Close()
-	exifr := newMetaDecoderEXIF(r, e.opts)
+	exifr := newMetaDecoderEXIF(r, thumbnailOffset, e.opts)
 
 	header := exifr.read4()
 	if header != exifHeader {
 		return err
 	}
 	exifr.skip(2)
+
 	if err := exifr.decode(); err != nil {
 		return err
 	}
