@@ -647,7 +647,7 @@ func readGoldenInfo(t testing.TB, filename string) goldenFileInfo {
 	for k, v := range m.IPTC {
 		if strings.Contains(k, "-") {
 			delete(m.IPTC, k)
-			// Exiftool has some weird hypenated keys, e.g. "By-line".
+			// Exiftool has some weird hyphenated keys, e.g. "By-line".
 			m.IPTC[strings.ReplaceAll(k, "-", "")] = v
 		}
 	}

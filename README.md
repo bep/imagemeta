@@ -57,7 +57,7 @@ exiftool -ver
 12.76
 ```
 
-Debuggin tips:
+Debugging tips:
 
 ```bash
  exiftool testdata/goexif_samples/has-lens-info.jpg -htmldump > dump.html

@@ -217,7 +217,7 @@ func (e *streamReader) skip(n int64) {
 }
 
 func (e *streamReader) stop(err error) {
-	// Alow one silent EOF.
+	// Allow one silent EOF.
 	// This allows the client to not having to check for EOF on every read.
 	if err == io.EOF && !e.isEOF {
 		e.isEOF = true

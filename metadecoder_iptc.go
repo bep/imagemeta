@@ -16,7 +16,7 @@ var ipctTagsJSON []byte
 
 var (
 	iptcRecordFields = map[uint8]map[uint8]iptcField{}
-	iptcRerordNames  = map[uint8]string{
+	iptcRecordNames  = map[uint8]string{
 		1:   "IPTCEnvelope",
 		2:   "IPTCApplication",
 		3:   "IPTCNewsPhoto",
@@ -184,7 +184,7 @@ func getIptcRecordFieldDef(record, id uint8) (iptcField, bool) {
 }
 
 func getIptcRecordName(record uint8) string {
-	name, ok := iptcRerordNames[record]
+	name, ok := iptcRecordNames[record]
 	if !ok {
 		return fmt.Sprintf("IPTCUnknownRecord%d", record)
 	}
