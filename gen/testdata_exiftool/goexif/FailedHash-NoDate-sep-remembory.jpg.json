@@ -1,0 +1,51 @@
+[{
+  "SourceFile": "../testdata/goexif/FailedHash-NoDate-sep-remembory.jpg",
+  "ExifTool": {
+    "ExifToolVersion": 12.76,
+    "Warning": "JPEG format error"
+  },
+  "File": {
+    "FileName": "FailedHash-NoDate-sep-remembory.jpg",
+    "Directory": "../testdata/goexif",
+    "FileSize": 935,
+    "FilePermissions": 100644,
+    "FileType": "JPEG",
+    "FileTypeExtension": "JPG",
+    "MIMEType": "image/jpeg"
+  },
+  "JFIF": {
+    "JFIFVersion": "1 1",
+    "ResolutionUnit": 1,
+    "XResolution": 150,
+    "YResolution": 150
+  },
+  "ICC_Profile": {
+    "ProfileCMMType": "appl",
+    "ProfileVersion": 512,
+    "ProfileClass": "scnr",
+    "ColorSpaceData": "RGB ",
+    "ProfileConnectionSpace": "XYZ ",
+    "ProfileDateTime": "1998:02:16 00:00:00",
+    "ProfileFileSignature": "acsp",
+    "PrimaryPlatform": "APPL",
+    "CMMFlags": 0,
+    "DeviceManufacturer": "",
+    "DeviceModel": "",
+    "DeviceAttributes": "0 0",
+    "RenderingIntent": 0,
+    "ConnectionSpaceIlluminant": "0.9642 1 0.82491",
+    "ProfileCreator": "",
+    "ProfileID": "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
+    "ProfileCopyright": "(C) BROTHER INDUSTRIES,LTD. 2002   ",
+    "MediaWhitePoint": "0.95045 1 1.08905",
+    "MediaBlackPoint": "0 0 0",
+    "RedTRC": "(Binary data 14 bytes, use -b option to extract)",
+    "GreenTRC": "(Binary data 14 bytes, use -b option to extract)",
+    "BlueTRC": "(Binary data 14 bytes, use -b option to extract)",
+    "RedMatrixColumn": "0.41835 0.21265 0.01465",
+    "GreenMatrixColumn": "0.36276 0.71516 0.09029",
+    "BlueMatrixColumn": "0.18309 0.07219 0.71997",
+    "VideoCardGamma": "(Binary data 48 bytes, use -b option to extract)",
+    "ProfileDescription": "Brother sRGB Scanner"
+  }
+}]

@@ -3,6 +3,9 @@
 [![codecov](https://codecov.io/gh/bep/imagemeta/branch/main/graph/badge.svg)](https://codecov.io/gh/bep/imagemeta)
 [![GoDoc](https://godoc.org/github.com/bep/imagemeta?status.svg)](https://godoc.org/github.com/bep/imagemeta)
 
+> [!CAUTION]
+> This library is still a work in progress, and I would wait until it's merged into Hugo before consider using it or open issues/PRs about it.
+
 ## This is about READING image metadata
 
 Writing is not supported, and never will.
@@ -41,6 +44,10 @@ The output of this library is tested against `exiftool -n -json`. This means, fo
 *  EXIF field definitions are fetched from this table:  https://exiftool.org/TagNames/EXIF.html
 *  IPTC field definitions are fetched from this table:  https://exiftool.org/TagNames/IPTC.html
 *  The XMP handling is currently very simple, you can supply your own XMP handler (see the `HandleXMP` option) if you need more.
+
+There are some subtle differences in output:
+
+* Exiftool prints rationale number arrays as space formatted strings with a format/precision that seems unnecessary hard to replicate, so we use `strconv.FormatFloat(f, 'f', -1, 64)` for these.
 
 ## Development
 

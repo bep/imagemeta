@@ -1,0 +1,44 @@
+[{
+  "SourceFile": "../testdata/metadata-extractor-images/png/Issue 204 (dotnet).png",
+  "ExifTool": {
+    "ExifToolVersion": 12.76,
+    "Warning": "[minor] Empty XMP"
+  },
+  "File": {
+    "FileName": "Issue 204 (dotnet).png",
+    "Directory": "../testdata/metadata-extractor-images/png",
+    "FileSize": 37747,
+    "FilePermissions": 100644,
+    "FileType": "PNG",
+    "FileTypeExtension": "PNG",
+    "MIMEType": "image/png"
+  },
+  "PNG": {
+    "ImageWidth": 500,
+    "ImageHeight": 500,
+    "BitDepth": 8,
+    "ColorType": 2,
+    "Compression": 0,
+    "Filter": 0,
+    "Interlace": 0,
+    "Gamma": 2.2,
+    "WhitePointX": 0.31269,
+    "WhitePointY": 0.32899,
+    "RedX": 0.63999,
+    "RedY": 0.33001,
+    "GreenX": 0.3,
+    "GreenY": 0.6,
+    "BlueX": 0.15,
+    "BlueY": 0.05999,
+    "BackgroundColor": "255 255 255",
+    "PixelsPerUnitX": 11811,
+    "PixelsPerUnitY": 11811,
+    "PixelUnits": 1,
+    "Datecreate": "2019-09-02T14:45:37+00:00",
+    "Datemodify": "2019-09-02T14:45:37+00:00",
+    "XmpCreateDate": "2019-09-02",
+    "XmpCreatorTool": "https://validoo.se",
+    "XmpMetadataDate": "2019-09-02",
+    "XmpModifyDate": "2019-09-02"
+  }
+}]

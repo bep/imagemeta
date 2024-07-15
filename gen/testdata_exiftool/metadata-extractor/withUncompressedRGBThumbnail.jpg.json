@@ -1,0 +1,62 @@
+[{
+  "SourceFile": "../testdata/metadata-extractor/withUncompressedRGBThumbnail.jpg",
+  "ExifTool": {
+    "ExifToolVersion": 12.76
+  },
+  "File": {
+    "FileName": "withUncompressedRGBThumbnail.jpg",
+    "Directory": "../testdata/metadata-extractor",
+    "FileSize": 79837,
+    "FilePermissions": 100644,
+    "FileType": "JPEG",
+    "FileTypeExtension": "JPG",
+    "MIMEType": "image/jpeg",
+    "ExifByteOrder": "MM",
+    "Comment": "Lovely smoke effect here, of which I'm secretly very proud.",
+    "ImageWidth": 640,
+    "ImageHeight": 480,
+    "EncodingProcess": 0,
+    "BitsPerSample": 8,
+    "ColorComponents": 3,
+    "YCbCrSubSampling": "2 2"
+  },
+  "EXIF": {
+    "ImageDescription": "",
+    "Make": "Eastman Kodak Company",
+    "Model": "DC210 Zoom (V05.00)",
+    "Orientation": 1,
+    "XResolution": 216,
+    "YResolution": 216,
+    "ResolutionUnit": 2,
+    "YCbCrPositioning": 1,
+    "Copyright": "",
+    "ExposureTime": 0.03333333333,
+    "FNumber": 4,
+    "ExifVersion": "0110",
+    "DateTimeOriginal": "2000:10:26 16:46:51",
+    "ComponentsConfiguration": "1 2 3 0",
+    "CompressedBitsPerPixel": "undef",
+    "ShutterSpeedValue": 0.03125,
+    "ApertureValue": 4,
+    "BrightnessValue": 1.5,
+    "ExposureCompensation": 0,
+    "MaxApertureValue": 4,
+    "SubjectDistance": "undef",
+    "MeteringMode": 2,
+    "LightSource": 0,
+    "Flash": 1,
+    "FocalLength": 4.4,
+    "ImageWidth": 96,
+    "ImageHeight": 72,
+    "BitsPerSample": "8 8 8",
+    "Compression": 1,
+    "PhotometricInterpretation": 2,
+    "StripOffsets": 940,
+    "SamplesPerPixel": 3,
+    "RowsPerStrip": 72,
+    "StripByteCounts": 20736
+  },
+  "MakerNotes": {
+    "OriginalFileName": "DCP01011.JPG"
+  }
+}]

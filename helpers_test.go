@@ -11,11 +11,11 @@ func TestStringer(t *testing.T) {
 	c := qt.New(t)
 	c.Assert(exitTypeUnsignedByte.String(), qt.Equals, "exitTypeUnsignedByte")
 
-	var source TagSource
+	var source Source
 	c.Assert(EXIF.String(), qt.Equals, "EXIF")
 	c.Assert(IPTC.String(), qt.Equals, "IPTC")
 	c.Assert(XMP.String(), qt.Equals, "XMP")
-	c.Assert(source.String(), qt.Equals, "TagSource(0)")
+	c.Assert(source.String(), qt.Equals, "Source(0)")
 
 	var imageFormatAuto ImageFormat
 	var imageFormat42 ImageFormat = 42

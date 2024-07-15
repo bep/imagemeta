@@ -162,6 +162,11 @@ func (vc) convertNumbersToSpaceLimited(byteOrder binary.ByteOrder, v any) any {
 	return sb.String()
 }
 
+func (c vc) convertBinaryData(byteOrder binary.ByteOrder, v any) any {
+	b := v.([]byte)
+	return fmt.Sprintf("(Binary data %d bytes)", len(b))
+}
+
 func (c vc) convertRatsToSpaceLimited(byteOrder binary.ByteOrder, v any) any {
 	nums := v.([]any)
 	var sb strings.Builder

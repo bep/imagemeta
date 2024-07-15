@@ -8,32 +8,41 @@ import (
 	"sync"
 )
 
-var bufferPool = &sync.Pool{
+type bytesAndReader struct {
+	b []byte
+	r *bytes.Reader
+}
+
+var bytesAndReaderPool = &sync.Pool{
 	New: func() any {
-		return &bytes.Buffer{}
+		return &bytesAndReader{
+			b: make([]byte, 1024),
+			r: bytes.NewReader(nil),
+		}
 	},
+}
+
+func getBytesAndReader(length int) *bytesAndReader {
+	b := bytesAndReaderPool.Get().(*bytesAndReader)
+	if cap(b.b) < length {
+		b.b = make([]byte, length)
+	}
+	b.b = b.b[:length]
+	return b
+}
+
+func putBytesAndReader(br *bytesAndReader) {
+	br.b = br.b[:0]
+	bytesAndReaderPool.Put(br)
 }
 
 var errShortRead = errors.New("short read")
 
-func newStreamReader(r io.Reader) *streamReader {
-	var rr Reader
-	var ok bool
-	rr, ok = r.(Reader)
-	if !ok {
-		bb, err := io.ReadAll(r)
-		if err != nil {
-			panic(err)
-		}
-		rr = bytes.NewReader(bb)
+func newStreamReader(r io.Reader, byteOrder binary.ByteOrder) *streamReader {
+	return &streamReader{
+		r:         r.(io.ReadSeeker),
+		byteOrder: byteOrder,
 	}
-
-	s := &streamReader{
-		r:         rr,
-		byteOrder: binary.BigEndian,
-	}
-
-	return s
 }
 
 type closerFunc func() error
@@ -49,7 +58,7 @@ type decoder interface {
 type fourCC [4]byte
 
 type readerCloser interface {
-	Reader
+	io.ReadSeeker
 	io.Closer
 }
 
@@ -57,37 +66,38 @@ type readerCloser interface {
 // Note that this is not thread safe.
 type streamReader struct {
 	// The current Reader.
-	r Reader
-
+	r         io.ReadSeeker
 	byteOrder binary.ByteOrder
-	buf       []byte
+
+	buf []byte
 
 	isEOF        bool
 	readErr      error
-	readerOffset int
+	readerOffset int64
 }
 
-func (e *streamReader) bufferedReader(length int) (readerCloser, error) {
-	buff := getBuffer()
-	n, err := io.CopyN(buff, e.r, int64(length))
+// bufferedReader reads length bytes from the stream and returns a ReaderCloser.
+// It's important to call Close on the ReaderCloser when done.
+func (e *streamReader) bufferedReader(length int64) (readerCloser, error) {
+	br := getBytesAndReader(int(length))
+
+	_, err := io.ReadFull(e.r, br.b)
 	if err != nil {
 		return nil, err
 	}
-	if n != int64(length) {
-		return nil, errShortRead
-	}
-	r := bytes.NewReader(buff.Bytes())
 
 	var closer closerFunc = func() error {
-		putBuffer(buff)
+		putBytesAndReader(br)
 		return nil
 	}
 
+	br.r.Reset(br.b)
+
 	return struct {
-		Reader
+		io.ReadSeeker
 		io.Closer
 	}{
-		r,
+		br.r,
 		closer,
 	}, nil
 }
@@ -98,9 +108,9 @@ func (e *streamReader) allocateBuf(length int) {
 	}
 }
 
-func (e *streamReader) pos() int {
+func (e *streamReader) pos() int64 {
 	n, _ := e.r.Seek(0, 1)
-	return int(n)
+	return n
 }
 
 func (e *streamReader) read1() uint8 {
@@ -159,13 +169,11 @@ func (e *streamReader) readBytes(b []byte) error {
 // readBytesVolatile reads a slice of bytes from the stream
 // which is not guaranteed to be valid after the next read.
 func (e *streamReader) readBytesVolatile(n int) []byte {
-	e.allocateBuf(n)
 	e.readNIntoBuf(n)
 	return e.buf[:n]
 }
 
 func (e *streamReader) readBytesVolatileE(n int) ([]byte, error) {
-	e.allocateBuf(n)
 	err := e.readNIntoBufE(n)
 	if err != nil {
 		return nil, err
@@ -174,7 +182,6 @@ func (e *streamReader) readBytesVolatileE(n int) ([]byte, error) {
 }
 
 func (e *streamReader) readBytesFromRVolatile(n int, r io.Reader) []byte {
-	e.allocateBuf(n)
 	e.readNFromRIntoBuf(n, r)
 	return e.buf[:n]
 }
@@ -205,8 +212,15 @@ func (e *streamReader) readNIntoBufE(n int) error {
 	return e.readNFromRIntoBufE(n, e.r)
 }
 
-func (e *streamReader) seek(pos int) {
-	_, err := e.r.Seek(int64(pos), io.SeekStart)
+func (e *streamReader) preservePos(f func() error) error {
+	pos := e.pos()
+	err := f()
+	e.seek(pos)
+	return err
+}
+
+func (e *streamReader) seek(pos int64) {
+	_, err := e.r.Seek(pos, io.SeekStart)
 	if err != nil {
 		e.stop(err)
 	}
@@ -227,13 +241,4 @@ func (e *streamReader) stop(err error) {
 		e.readErr = err
 	}
 	panic(errStop)
-}
-
-func getBuffer() (buf *bytes.Buffer) {
-	return bufferPool.Get().(*bytes.Buffer)
-}
-
-func putBuffer(buf *bytes.Buffer) {
-	buf.Reset()
-	bufferPool.Put(buf)
 }

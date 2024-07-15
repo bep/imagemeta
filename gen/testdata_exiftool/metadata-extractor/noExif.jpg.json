@@ -1,0 +1,28 @@
+[{
+  "SourceFile": "../testdata/metadata-extractor/noExif.jpg",
+  "ExifTool": {
+    "ExifToolVersion": 12.76
+  },
+  "File": {
+    "FileName": "noExif.jpg",
+    "Directory": "../testdata/metadata-extractor",
+    "FileSize": 16434,
+    "FilePermissions": 100644,
+    "FileType": "JPEG",
+    "FileTypeExtension": "JPG",
+    "MIMEType": "image/jpeg",
+    "Comment": "LEAD Technologies Inc. V1.01",
+    "ImageWidth": 240,
+    "ImageHeight": 320,
+    "EncodingProcess": 0,
+    "BitsPerSample": 8,
+    "ColorComponents": 3,
+    "YCbCrSubSampling": "2 2"
+  },
+  "JFIF": {
+    "JFIFVersion": "1 0",
+    "ResolutionUnit": 1,
+    "XResolution": 72,
+    "YResolution": 72
+  }
+}]

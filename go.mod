@@ -6,6 +6,7 @@ require (
 	github.com/frankban/quicktest v1.14.5
 	github.com/google/go-cmp v0.5.9
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
+	golang.org/x/text v0.16.0
 )
 
 require (
