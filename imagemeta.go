@@ -14,7 +14,7 @@ const UnknownPrefix = "UnknownTag_"
 
 const (
 	// EXIF is the EXIF tag source.
-	EXIF TagSource = 1 << iota
+	EXIF Source = 1 << iota
 	// IPTC is the IPTC tag source.
 	IPTC
 	// XMP is the XMP tag source.
@@ -68,6 +68,30 @@ func Decode(opts Options) (err error) {
 		opts.Sources = EXIF | IPTC | XMP
 	}
 
+	var sourceSet Source
+
+	// Remove sources not supported by the format.
+	switch opts.ImageFormat {
+	case JPEG:
+		sourceSet = EXIF | XMP | IPTC
+	case TIFF:
+		sourceSet = EXIF | XMP | IPTC
+	case WebP:
+		sourceSet = EXIF | XMP
+	case PNG:
+		sourceSet = EXIF | XMP | IPTC
+	default:
+		return fmt.Errorf("unsupported image format")
+
+	}
+	// Remove sources that are not requested.
+	sourceSet = sourceSet & opts.Sources
+	opts.Sources = sourceSet
+
+	if opts.Sources.IsZero() {
+		return nil
+	}
+
 	br := &streamReader{
 		r:         opts.R,
 		byteOrder: binary.BigEndian,
@@ -107,9 +131,6 @@ func Decode(opts Options) (err error) {
 		dec = &decoderWebP{baseStreamingDecoder: base}
 	case PNG:
 		dec = &imageDecoderPNG{baseStreamingDecoder: base}
-	default:
-		return fmt.Errorf("unsupported image format")
-
 	}
 
 	err = dec.decode()
@@ -138,7 +159,7 @@ type ImageFormat int
 // Options contains the options for the Decode function.
 type Options struct {
 	// The Reader (typically a *os.File) to read image metadata from.
-	R Reader
+	R io.ReadSeeker
 
 	// The image format in R.
 	ImageFormat ImageFormat
@@ -158,19 +179,13 @@ type Options struct {
 
 	// If set, the decoder will only read the given tag sources.
 	// Note that this is a bitmask and you may send multiple sources at once.
-	Sources TagSource
-}
-
-// Reader is the interface that wraps the basic Read and Seek methods.
-type Reader interface {
-	io.ReadSeeker
-	io.ReaderAt
+	Sources Source
 }
 
 // TagInfo contains information about a tag.
 type TagInfo struct {
 	// The tag source.
-	Source TagSource
+	Source Source
 	// The tag name.
 	Tag string
 	// The tag namespace.
@@ -182,24 +197,24 @@ type TagInfo struct {
 	Value any
 }
 
-// TagSource is a bitmask and you may send multiple sources at once.
+// Source is a bitmask and you may send multiple sources at once.
 //
-//go:generate stringer -type=TagSource
-type TagSource uint32
+//go:generate stringer -type=Source
+type Source uint32
 
 // Remove removes the given source.
-func (t TagSource) Remove(source TagSource) TagSource {
+func (t Source) Remove(source Source) Source {
 	t &= ^source
 	return t
 }
 
 // Has returns true if the given source is set.
-func (t TagSource) Has(source TagSource) bool {
+func (t Source) Has(source Source) bool {
 	return t&source != 0
 }
 
 // IsZero returns true if the source is zero.
-func (t TagSource) IsZero() bool {
+func (t Source) IsZero() bool {
 	return t == 0
 }
 
@@ -322,7 +337,7 @@ func (t Tags) GetLatLong() (lat float64, long float64, err error) {
 	return
 }
 
-func (t *Tags) getSourceMap(source TagSource) map[string]TagInfo {
+func (t *Tags) getSourceMap(source Source) map[string]TagInfo {
 	switch source {
 	case EXIF:
 		return t.EXIF()

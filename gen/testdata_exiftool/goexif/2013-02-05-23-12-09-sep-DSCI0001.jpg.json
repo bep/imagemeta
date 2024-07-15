@@ -1,0 +1,16 @@
+[{
+  "SourceFile": "../testdata/goexif/2013-02-05-23-12-09-sep-DSCI0001.jpg",
+  "ExifTool": {
+    "ExifToolVersion": 12.76,
+    "Warning": "JPEG format error"
+  },
+  "File": {
+    "FileName": "2013-02-05-23-12-09-sep-DSCI0001.jpg",
+    "Directory": "../testdata/goexif",
+    "FileSize": 10854,
+    "FilePermissions": 100644,
+    "FileType": "JPEG",
+    "FileTypeExtension": "JPG",
+    "MIMEType": "image/jpeg"
+  }
+}]

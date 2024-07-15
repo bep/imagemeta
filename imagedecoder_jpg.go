@@ -2,7 +2,6 @@ package imagemeta
 
 import (
 	"bytes"
-	"encoding/binary"
 	"io"
 )
 
@@ -55,7 +54,7 @@ func (e *imageDecoderJPEG) decode() error {
 
 		if marker == markerApp1EXIF && sourceSet.Has(EXIF) {
 			sourceSet = sourceSet.Remove(EXIF)
-			if err := e.handleEXIF(int(length)); err != nil {
+			if err := e.handleEXIF(int64(length)); err != nil {
 				return err
 			}
 			continue
@@ -97,14 +96,14 @@ func (e *imageDecoderJPEG) decode() error {
 	}
 }
 
-func (e *imageDecoderJPEG) handleEXIF(length int) error {
+func (e *imageDecoderJPEG) handleEXIF(length int64) error {
 	thumbnailOffset := e.pos()
 	r, err := e.bufferedReader(length)
 	if err != nil {
 		return err
 	}
 	defer r.Close()
-	exifr := newMetaDecoderEXIF(r, thumbnailOffset, e.opts)
+	exifr := newMetaDecoderEXIF(r, e.byteOrder, thumbnailOffset, e.opts)
 
 	header := exifr.read4()
 	if header != exifHeader {
@@ -119,13 +118,14 @@ func (e *imageDecoderJPEG) handleEXIF(length int) error {
 }
 
 func (e *imageDecoderJPEG) handleIPTC(length int) error {
-	// EXIF may be stored in a different order, but IPTC is always big-endian.
-	e.byteOrder = binary.BigEndian
-	r, err := e.bufferedReader(length)
+	const headerLength = 14
+	// Skip the IPTC header.
+	e.skip(headerLength)
+	r, err := e.bufferedReader(int64(length - headerLength))
 	if err != nil {
 		return err
 	}
 	defer r.Close()
 	dec := newMetaDecoderIPTC(r, e.opts)
-	return dec.decode()
+	return dec.decodeBlocks()
 }

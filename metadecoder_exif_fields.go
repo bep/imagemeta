@@ -1,5 +1,7 @@
 package imagemeta
 
+var maxEXIFField uint16
+
 // Source: https://exiftool.org/TagNames/EXIF.html
 var exifFields = map[uint16]string{
 	0x0001: "InteropIndex",

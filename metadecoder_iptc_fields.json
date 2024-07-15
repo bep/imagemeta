@@ -883,7 +883,7 @@
     "record": "7",
     "id": "10",
     "name": "SizeMode",
-    "format": "string",
+    "format": "byte",
     "repeatable": "false",
     "notes": "0 = Size Not Known 1 = Size Known"
   },
@@ -891,7 +891,7 @@
     "record": "7",
     "id": "20",
     "name": "MaxSubfileSize",
-    "format": "string",
+    "format": "uint32",
     "repeatable": "false",
     "notes": null
   },
@@ -899,7 +899,7 @@
     "record": "7",
     "id": "90",
     "name": "ObjectSizeAnnounced",
-    "format": "string",
+    "format": "uint32",
     "repeatable": "false",
     "notes": null
   },
@@ -907,7 +907,7 @@
     "record": "7",
     "id": "95",
     "name": "MaximumObjectSize",
-    "format": "string",
+    "format": "uint32",
     "repeatable": "false",
     "notes": null
   },

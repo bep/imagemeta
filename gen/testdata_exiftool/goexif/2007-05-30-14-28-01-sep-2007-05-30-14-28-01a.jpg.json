@@ -1,0 +1,16 @@
+[{
+  "SourceFile": "../testdata/goexif/2007-05-30-14-28-01-sep-2007-05-30-14-28-01a.jpg",
+  "ExifTool": {
+    "ExifToolVersion": 12.76,
+    "Warning": "JPEG format error"
+  },
+  "File": {
+    "FileName": "2007-05-30-14-28-01-sep-2007-05-30-14-28-01a.jpg",
+    "Directory": "../testdata/goexif",
+    "FileSize": 35406,
+    "FilePermissions": 100644,
+    "FileType": "JPEG",
+    "FileTypeExtension": "JPG",
+    "MIMEType": "image/jpeg"
+  }
+}]

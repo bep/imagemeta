@@ -2,7 +2,6 @@ package imagemeta
 
 import (
 	"errors"
-	"io"
 )
 
 var (
@@ -110,24 +109,39 @@ func (e *decoderWebP) decode() error {
 				sourceSet = sourceSet.Remove(XMP)
 			}
 
-			if !hasEXIF && !hasXMP {
+			if sourceSet.IsZero() {
 				return nil
 			}
 		case chunkID == fccEXIF && sourceSet.Has(EXIF):
+			sourceSet = sourceSet.Remove(EXIF)
 			thumbnailOffset := e.pos()
-			r := io.LimitReader(e.r, int64(chunkLen))
-			dec := newMetaDecoderEXIF(r, thumbnailOffset, e.opts)
-			if err := dec.decode(); err != nil {
+			if err := func() error {
+				r, err := e.bufferedReader(int64(chunkLen))
+				if err != nil {
+					return err
+				}
+				defer r.Close()
+				dec := newMetaDecoderEXIF(r, e.byteOrder, thumbnailOffset, e.opts)
+				return dec.decode()
+			}(); err != nil {
 				return err
 			}
-			sourceSet = sourceSet.Remove(EXIF)
+
 		case chunkID == fccXMP && sourceSet.Has(XMP):
 			sourceSet = sourceSet.Remove(XMP)
-			r := io.LimitReader(e.r, int64(chunkLen))
-			if err := decodeXMP(r, e.opts); err != nil {
+			if err := func() error {
+				r, err := e.bufferedReader(int64(chunkLen))
+				if err != nil {
+					return err
+				}
+				defer r.Close()
+				return decodeXMP(r, e.opts)
+			}(); err != nil {
 				return err
 			}
+
 		default:
+			// TODO1 check if we can return early if sourceSet is empty.
 			e.skip(int64(chunkLen))
 		}
 	}

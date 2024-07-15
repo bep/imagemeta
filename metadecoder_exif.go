@@ -17,13 +17,16 @@ const (
 	markerrApp1XMP        = 0xffe1
 	markerApp13           = 0xffed
 	markerSOS             = 0xffda
-	exifPointer           = 0x8769
 	exifHeader            = 0x45786966
-	pngEXIFMarker         = 0x65584966
 	byteOrderBigEndian    = 0x4d4d
 	byteOrderLittleEndian = 0x4949
 
 	tagNameThumbnailOffset = "ThumbnailOffset"
+)
+
+const (
+	xmpMarker  = 0x02bc // EXIF ApplicationNotes
+	iptcMarker = 0x83bb // EXIF IPTC-NAA
 )
 
 //go:generate stringer -type=exifType
@@ -80,11 +83,21 @@ var (
 		"SubSecTimeDigitized":     exifConverters.convertStringToInt,
 		"SubSecTimeOriginal":      exifConverters.convertStringToInt,
 		"SubSecTime":              exifConverters.convertStringToInt,
+		"GPSSatellites":           exifConverters.convertStringToInt,
 		"GPSTimeStamp":            exifConverters.convertToTimestampString,
 		"GPSVersionID":            exifConverters.convertBytesToStringSpaceDelim,
 		"SubjectArea":             exifConverters.convertNumbersToSpaceLimited,
+		"BitsPerSample":           exifConverters.convertNumbersToSpaceLimited,
+		"PageNumber":              exifConverters.convertNumbersToSpaceLimited,
+		"StripByteCounts":         exifConverters.convertNumbersToSpaceLimited,
+		"StripOffsets":            exifConverters.convertNumbersToSpaceLimited,
+		"PrimaryChromaticities":   exifConverters.convertRatsToSpaceLimited,
+		"WhitePoint":              exifConverters.convertRatsToSpaceLimited,
+		"ReferenceBlackWhite":     exifConverters.convertRatsToSpaceLimited,
+		"YCbCrCoefficients":       exifConverters.convertRatsToSpaceLimited,
 		"ComponentsConfiguration": exifConverters.convertBytesToStringSpaceDelim,
 		"LensInfo":                exifConverters.convertRatsToSpaceLimited,
+		"Padding":                 exifConverters.convertBinaryData,
 		"UserComment": func(byteOrder binary.ByteOrder, v any) any {
 			return strings.TrimPrefix(printableString(toString(v)), "ASCII")
 		},
@@ -99,8 +112,12 @@ var (
 	}
 )
 
-func newMetaDecoderEXIF(r io.Reader, thumbnailOffset int, opts Options) *metaDecoderEXIF {
-	s := newStreamReader(r)
+func newMetaDecoderEXIF(r io.Reader, byteOrder binary.ByteOrder, thumbnailOffset int64, opts Options) *metaDecoderEXIF {
+	s := newStreamReader(r, byteOrder)
+	return newMetaDecoderEXIFFromStreamReader(s, thumbnailOffset, opts)
+}
+
+func newMetaDecoderEXIFFromStreamReader(s *streamReader, thumbnailOffset int64, opts Options) *metaDecoderEXIF {
 	return &metaDecoderEXIF{
 		thumbnailOffset: thumbnailOffset,
 		streamReader:    s,
@@ -113,9 +130,8 @@ type exifType uint16
 
 type metaDecoderEXIF struct {
 	*streamReader
-	thumbnailOffset int
-
-	opts Options
+	thumbnailOffset int64
+	opts            Options
 }
 
 func (e *metaDecoderEXIF) convertValue(typ exifType, r io.Reader) any {
@@ -216,7 +232,7 @@ func (e *metaDecoderEXIF) decode() (err error) {
 		// No more.
 		return nil
 	}
-	e.seek(int(ifd1Offset) + e.readerOffset)
+	e.seek(int64(ifd1Offset) + e.readerOffset)
 
 	if err := e.decodeTags("IFD1"); err != nil {
 		return err
@@ -233,6 +249,12 @@ func (e *metaDecoderEXIF) decode() (err error) {
 //     this could be a pointer to the beginning of another IFD.
 func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 	tagID := e.read2()
+	dataType := e.read2()
+	count := e.read4()
+	if count > 0x10000 {
+		e.skip(4)
+		return nil
+	}
 
 	tagName := exifFieldsAll[tagID]
 	if tagName == "" {
@@ -246,14 +268,61 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 
 	}
 
-	dataType := e.read2()
-	count := e.read4()
-	if count > 0x10000 {
+	ifd, isIFDPointer := exifIFDPointers[tagID]
+
+	typ := exifType(dataType)
+
+	size, ok := exifTypeSize[typ]
+	if !ok {
+		return fmt.Errorf("%w: unknown EXIF type %d", errInvalidFormat, typ)
+	}
+	valLen := size * count
+
+	if tagID == xmpMarker {
+		if !e.opts.Sources.Has(XMP) {
+			e.skip(4)
+			return nil
+		}
+
+		valueOffset := e.read4()
+		return e.preservePos(func() error {
+			offset := valueOffset + uint32(e.readerOffset)
+			e.seek(int64(offset))
+			r, err := e.bufferedReader(int64(valLen))
+			if err != nil {
+				return err
+			}
+			defer r.Close()
+			return decodeXMP(r, e.opts)
+		})
+
+	}
+
+	if tagID == iptcMarker {
+		if !e.opts.Sources.Has(IPTC) {
+			e.skip(4)
+			return nil
+		}
+		valueOffset := e.read4()
+		return e.preservePos(func() error {
+			offset := valueOffset + uint32(e.readerOffset)
+			e.seek(int64(offset))
+			r, err := e.bufferedReader(int64(valLen))
+			if err != nil {
+				return err
+			}
+			defer r.Close()
+			iptcDec := newMetaDecoderIPTC(r, e.opts)
+			return iptcDec.decodeRecords()
+		})
+
+	}
+
+	// Below is EXIF
+	if !e.opts.Sources.Has(EXIF) {
 		e.skip(4)
 		return nil
 	}
-
-	ifd, isIFDPointer := exifIFDPointers[tagID]
 
 	tagInfo := TagInfo{
 		Source:    EXIF,
@@ -266,34 +335,41 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 		return nil
 	}
 
-	typ := exifType(dataType)
+	var val any
 
-	size, ok := exifTypeSize[typ]
-	if !ok {
-		return fmt.Errorf("%w: unknown EXIF type %d", errInvalidFormat, typ)
-	}
-	valLen := size * count
-
-	var r io.Reader = e.r
-
-	if valLen > 4 {
-		valueOffset := e.read4()
-		offset := valueOffset + uint32(e.readerOffset)
-		r = io.NewSectionReader(e.r, int64(offset), int64(valLen))
-	}
-
-	val := e.convertValues(typ, int(count), int(valLen), r)
-	if valLen <= 4 {
-		padding := 4 - valLen
-		if padding > 0 {
-			e.skip(int64(padding))
+	if err := func() error {
+		var r io.Reader = e.r
+		if valLen > 4 {
+			valueOffset := e.read4()
+			offset := valueOffset + uint32(e.readerOffset)
+			oldPos := e.pos()
+			defer e.seek(oldPos)
+			e.seek(int64(offset))
+			rc, err := e.bufferedReader(int64(valLen))
+			if err != nil {
+				return err
+			}
+			r = rc
+			defer rc.Close()
 		}
+
+		val = e.convertValues(typ, int(count), int(valLen), r)
+
+		if valLen <= 4 {
+			padding := 4 - valLen
+			if padding > 0 {
+				e.skip(int64(padding))
+			}
+		}
+		return nil
+	}(); err != nil {
+		return err
 	}
 
 	if isIFDPointer {
 		offset := val.(uint32)
 		namespace := path.Join(namespace, ifd)
-		return e.decodeTagsAt(namespace, int(offset))
+		return e.decodeTagsAt(namespace, int64(offset))
 	}
 
 	if convert, found := exifValueConverterMap[tagName]; found {
@@ -332,13 +408,12 @@ func (e *metaDecoderEXIF) decodeTags(namespace string) error {
 	return nil
 }
 
-func (e *metaDecoderEXIF) decodeTagsAt(namespace string, offset int) error {
-	oldPos := e.pos()
-	defer func() {
-		e.seek(oldPos)
-	}()
-	e.seek(offset + e.readerOffset)
-	return e.decodeTags(namespace)
+func (e *metaDecoderEXIF) decodeTagsAt(namespace string, offset int64) error {
+	return e.preservePos(
+		func() error {
+			e.seek(offset + e.readerOffset)
+			return e.decodeTags(namespace)
+		})
 }
 
 type valueConverter func(binary.ByteOrder, any) any
@@ -349,5 +424,11 @@ func init() {
 	}
 	for k, v := range exifFieldsGPS {
 		exifFieldsAll[k] = v
+	}
+
+	for k := range exifFieldsAll {
+		if k > maxEXIFField {
+			maxEXIFField = k
+		}
 	}
 }
