@@ -62,12 +62,15 @@ func (e *imageDecoderPNG) decode() error {
 			if bytes.Equal(keyword, pngRawProfileTypeIPTC) {
 				if sources.Has(IPTC) {
 					sources = sources.Remove(IPTC)
-					data := decompressZTXt(e.readBytesVolatile(int(chunkLength - zTXtKeywordLength)))
+					data, err := decompressZTXt(e.readBytesVolatile(int(chunkLength - zTXtKeywordLength)))
+					if err != nil {
+						return newInvalidFormatError(fmt.Errorf("decompressing zTXt: %w", err))
+					}
 					// ImageMagick has different headers, so make this smarter. TODO1
 					data = data[23:] // Skip the header bytes.
 					data = bytes.ReplaceAll(data, []byte("\n"), []byte(""))
 					d := make([]byte, hex.DecodedLen(len(data)))
-					_, err := hex.Decode(d, data)
+					_, err = hex.Decode(d, data)
 					if err != nil {
 						return fmt.Errorf("decoding hex: %w", err)
 					}
@@ -96,21 +99,18 @@ func (e *imageDecoderPNG) decode() error {
 }
 
 // TODO1 get rid of the panics.
-func decompressZTXt(data []byte) []byte {
+func decompressZTXt(data []byte) ([]byte, error) {
 	// The first byte after the null indicates the compression method, for which only deflate is currently defined (method zero).
 	compressionMethod := data[1]
 	if compressionMethod != 0 {
-		panic(fmt.Errorf("unknown PNG compression method %v", compressionMethod))
+		return nil, fmt.Errorf("unknown PNG compression method %v", compressionMethod)
 	}
 	b := bytes.NewReader(data[2:])
 	z, err := zlib.NewReader(b)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	defer z.Close()
 	p, err := io.ReadAll(z)
-	if err != nil {
-		panic(err)
-	}
-	return p
+	return p, err
 }

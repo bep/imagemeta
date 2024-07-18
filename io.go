@@ -24,7 +24,7 @@ var bytesAndReaderPool = &sync.Pool{
 
 func getBytesAndReader(length int) *bytesAndReader {
 	b := bytesAndReaderPool.Get().(*bytesAndReader)
-	if cap(b.b) < length {
+	if length > len(b.b) {
 		b.b = make([]byte, length)
 	}
 	b.b = b.b[:length]
@@ -76,9 +76,27 @@ type streamReader struct {
 	readerOffset int64
 }
 
+var noopCloser closerFunc = func() error {
+	return nil
+}
+
 // bufferedReader reads length bytes from the stream and returns a ReaderCloser.
 // It's important to call Close on the ReaderCloser when done.
 func (e *streamReader) bufferedReader(length int64) (readerCloser, error) {
+	if length == 0 {
+		return struct {
+			io.ReadSeeker
+			io.Closer
+		}{
+			bytes.NewReader(nil),
+			noopCloser,
+		}, nil
+	}
+
+	if length < 0 {
+		return nil, newInvalidFormatErrorFromString("negative length")
+	}
+
 	br := getBytesAndReader(int(length))
 
 	_, err := io.ReadFull(e.r, br.b)

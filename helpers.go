@@ -117,13 +117,19 @@ type float64Provider interface {
 }
 
 func (vc) convertAPEXToFNumber(byteOrder binary.ByteOrder, v any) any {
-	r := v.(float64Provider)
+	r, ok := v.(float64Provider)
+	if !ok {
+		return 0
+	}
 	f := r.Float64()
 	return math.Pow(2, f/2)
 }
 
 func (vc) convertAPEXToSeconds(byteOrder binary.ByteOrder, v any) any {
-	r := v.(float64Provider)
+	r, ok := v.(float64Provider)
+	if !ok {
+		return 0
+	}
 	f := r.Float64()
 	f = 1 / math.Pow(2, f)
 	return f
