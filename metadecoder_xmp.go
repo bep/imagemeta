@@ -40,7 +40,7 @@ func decodeXMP(r io.Reader, opts Options) error {
 
 	var meta xmpmeta
 	if err := xml.NewDecoder(r).Decode(&meta); err != nil {
-		return fmt.Errorf("decoding XMP: %w", err)
+		return newInvalidFormatError(fmt.Errorf("decoding XMP: %w", err))
 	}
 
 	for _, attr := range meta.RDF.Description.Attrs {

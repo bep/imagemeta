@@ -742,6 +742,9 @@ func withGolden(t testing.TB, sources imagemeta.Source) {
 		if strings.HasPrefix(path, "corrupt") {
 			return nil
 		}
+		if strings.HasPrefix(path, "fuzz") {
+			return nil
+		}
 		if goldenSkip[filepath.ToSlash(path)] {
 			return nil
 		}

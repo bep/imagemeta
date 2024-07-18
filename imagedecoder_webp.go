@@ -2,6 +2,7 @@ package imagemeta
 
 import (
 	"errors"
+	"strings"
 )
 
 var (
@@ -26,7 +27,36 @@ type InvalidFormatError struct {
 }
 
 func (e *InvalidFormatError) Error() string {
-	return e.Err.Error()
+	return "invalid format: " + e.Err.Error()
+}
+
+// Is reports whether the target error is an InvalidFormatError.
+func (e *InvalidFormatError) Is(target error) bool {
+	_, ok := target.(*InvalidFormatError)
+	return ok
+}
+
+func newInvalidFormatErrorFromString(s string) error {
+	return &InvalidFormatError{errors.New(s)}
+}
+
+func newInvalidFormatError(err error) error {
+	return &InvalidFormatError{err}
+}
+
+// These error situations comes from the Go Fuzz modifying the input data to trigger panics.
+// We want to separate panics that we can do something about and "invalid format" errors.
+var invalidFormatErrorStrings = []string{
+	"unexpected EOF",
+}
+
+func isInvalidFormatErrorCandidate(err error) bool {
+	for _, s := range invalidFormatErrorStrings {
+		if strings.Contains(err.Error(), s) {
+			return true
+		}
+	}
+	return false
 }
 
 type baseStreamingDecoder struct {

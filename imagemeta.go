@@ -44,6 +44,39 @@ const (
 
 // Decode reads EXIF and IPTC metadata from r and returns a Meta struct.
 func Decode(opts Options) (err error) {
+	var base *baseStreamingDecoder
+
+	defer func() {
+		if r := recover(); r != nil {
+			if errp := r.(error); errp != nil {
+				if isInvalidFormatErrorCandidate(errp) {
+					err = newInvalidFormatError(errp)
+				} else if errp != errStop {
+					panic(errp)
+				}
+			}
+		}
+
+		if err == nil {
+			if base != nil {
+				err = base.streamErr()
+			}
+		}
+
+		if err == nil {
+			return
+		}
+
+		if err == io.EOF {
+			err = nil
+			return
+		}
+
+		if isInvalidFormatErrorCandidate(err) {
+			err = newInvalidFormatError(err)
+		}
+	}()
+
 	if opts.R == nil {
 		return fmt.Errorf("no reader provided")
 	}
@@ -97,27 +130,10 @@ func Decode(opts Options) (err error) {
 		byteOrder: binary.BigEndian,
 	}
 
-	base := &baseStreamingDecoder{
+	base = &baseStreamingDecoder{
 		streamReader: br,
 		opts:         opts,
 	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			if r != errStop {
-				panic(r)
-			}
-
-			if err == nil {
-				err = base.streamErr()
-			}
-
-			if err == io.EOF {
-				err = nil
-			}
-
-		}
-	}()
 
 	var dec decoder
 
@@ -134,18 +150,12 @@ func Decode(opts Options) (err error) {
 	}
 
 	err = dec.decode()
-
-	if err == ErrStopWalking {
-		return nil
-	}
-
 	if err != nil {
-		if err == io.EOF {
+		if err == ErrStopWalking {
 			return nil
 		}
-		return err
 	}
-	return nil
+	return
 }
 
 // HandleTagFunc is the function that is called for each tag.

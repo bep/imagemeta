@@ -95,7 +95,7 @@ var (
 			b := v.([]byte)
 			s := resolveCodedCharacterSet(b)
 			if s == "" {
-				return UTF8
+				return characterSetUTF8
 			}
 			return s
 		},
@@ -273,7 +273,7 @@ func (e *metaDecoderIPTC) decodeRecord(stringSlices map[iptcField][]string) erro
 	switch recordDef.Format {
 	case "string":
 		v = e.readBytesVolatile(int(recordSize))
-		if e.charset == "" || e.charset == ISO88591 {
+		if e.charset == "" || e.charset == characterSetISO88591 {
 			v, _ = e.iso88591CharsetDecoder.Bytes(v.([]byte))
 		}
 	case "uint32":
@@ -375,8 +375,8 @@ func init() {
 }
 
 const (
-	UTF8     = "UTF-8"
-	ISO88591 = "ISO-8859-1"
+	characterSetUTF8     = "UTF-8"
+	characterSetISO88591 = "ISO-8859-1"
 )
 
 // resolveCodedCharacterSet resolves the coded character set from the IPTC data
@@ -392,19 +392,19 @@ func resolveCodedCharacterSet(b []byte) string {
 	)
 
 	if len(b) > 2 && b[0] == esc && b[1] == percent && b[2] == latinCapitalG {
-		return UTF8
+		return characterSetUTF8
 	}
 
 	if len(b) > 2 && b[0] == esc && b[1] == dot && b[2] == latinCapitalA {
-		return ISO88591
+		return characterSetISO88591
 	}
 
 	if len(b) > 3 && b[0] == esc && (b[1] == dot || b[2] == dot || b[3] == dot) && b[4] == latinCapitalA {
-		return ISO88591
+		return characterSetISO88591
 	}
 
 	if len(b) > 2 && b[0] == esc && b[1] == minus && b[2] == latinCapitalA {
-		return ISO88591
+		return characterSetISO88591
 	}
 
 	return ""
