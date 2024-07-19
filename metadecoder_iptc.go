@@ -108,8 +108,8 @@ func newMetaDecoderIPTC(r io.Reader, opts Options) *metaDecoderIPTC {
 		streamReader:           s,
 		iso88591CharsetDecoder: charmap.ISO8859_1.NewDecoder(),
 		valueConverterContext: valueConverterContext{
-			s:     s,
-			warnf: opts.Warnf,
+			s:         s,
+			warnfFunc: opts.Warnf,
 		},
 		opts: opts,
 	}
@@ -293,6 +293,7 @@ func (e *metaDecoderIPTC) decodeRecord(stringSlices map[TagInfo][]string) error 
 	}
 
 	if convert, found := iptcValueConverterMap[recordDef.Name]; found {
+		e.valueConverterContext.tagName = recordDef.Name
 		v = convert(e.valueConverterContext, v)
 	}
 

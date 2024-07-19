@@ -1,0 +1,53 @@
+[{
+  "SourceFile": "../testdata/images/metadata-extractor/withUncompressedYCbCrThumbnail.jpg",
+  "ExifTool": {
+    "ExifToolVersion": 12.76
+  },
+  "File": {
+    "FileName": "withUncompressedYCbCrThumbnail.jpg",
+    "Directory": "../testdata/images/metadata-extractor",
+    "FileSize": 31741,
+    "FilePermissions": 100644,
+    "FileType": "JPEG",
+    "FileTypeExtension": "JPG",
+    "MIMEType": "image/jpeg",
+    "ExifByteOrder": "II",
+    "ImageWidth": 320,
+    "ImageHeight": 240,
+    "EncodingProcess": 0,
+    "BitsPerSample": 8,
+    "ColorComponents": 3,
+    "YCbCrSubSampling": "2 1"
+  },
+  "EXIF": {
+    "ImageDescription": "000015",
+    "Make": "FUJIFILM",
+    "Model": "DS-7",
+    "Orientation": 1,
+    "XResolution": 72,
+    "YResolution": 72,
+    "ResolutionUnit": 2,
+    "WhitePoint": "0.3127 0.329",
+    "PrimaryChromaticities": "0.64 0.33 0.3 0.6 0.15 0.06",
+    "YCbCrCoefficients": "0.299 0.587 0.114",
+    "YCbCrPositioning": 2,
+    "ReferenceBlackWhite": "0 255 128 255 128 255",
+    "ExifVersion": "0100",
+    "ComponentsConfiguration": "1 2 3 0",
+    "CompressedBitsPerPixel": 2,
+    "ShutterSpeedValue": 0.015625,
+    "ApertureValue": 2.21913894413569,
+    "DateTimeOriginal": "1996:11:10 20:59:21",
+    "ImageWidth": 80,
+    "ImageHeight": 60,
+    "BitsPerSample": "8 8 8",
+    "Compression": 1,
+    "PhotometricInterpretation": 6,
+    "StripOffsets": 796,
+    "SamplesPerPixel": 3,
+    "RowsPerStrip": 60,
+    "StripByteCounts": 9600,
+    "PlanarConfiguration": 1,
+    "YCbCrSubSampling": "2 1"
+  }
+}]

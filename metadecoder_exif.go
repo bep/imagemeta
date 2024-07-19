@@ -123,8 +123,8 @@ func newMetaDecoderEXIFFromStreamReader(s *streamReader, thumbnailOffset int64, 
 		streamReader:    s,
 		opts:            opts,
 		valueConverterCtx: valueConverterContext{
-			s:     s,
-			warnf: opts.Warnf,
+			s:         s,
+			warnfFunc: opts.Warnf,
 		},
 	}
 }
@@ -152,12 +152,22 @@ func (e *metaDecoderEXIF) convertValue(typ exifType, r io.Reader) any {
 		if d == 0 {
 			return math.Inf(1)
 		}
-		return NewRat[uint32](n, d)
+		r, err := NewRat[uint32](n, d)
+		if err != nil {
+			e.opts.Warnf("failed to convert rational: %v", err)
+			return 0
+		}
+		return r
 	case exifTypeSignedLong4:
 		return e.read4sr(r)
 	case exifTypeSignedRat8:
 		n, d := e.read4sr(r), e.read4sr(r)
-		return NewRat[int32](n, d)
+		r, err := NewRat[int32](n, d)
+		if err != nil {
+			e.opts.Warnf("failed to convert signed rational: %v", err)
+			return 0
+		}
+		return r
 	case exifTypeSignedFloat4:
 		return math.Float32frombits(e.read4r(r))
 	case exifTypeSignedDouble8:
@@ -375,12 +385,16 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 	}
 
 	if isIFDPointer {
-		offset := val.(uint32)
+		offset, ok := val.(uint32)
+		if !ok {
+			return newInvalidFormatErrorf("invalid IFD pointer value: %v", val)
+		}
 		namespace := path.Join(namespace, ifd)
 		return e.decodeTagsAt(namespace, int64(offset))
 	}
 
 	if convert, found := exifValueConverterMap[tagName]; found {
+		e.valueConverterCtx.tagName = tagName
 		val = convert(e.valueConverterCtx, val)
 	} else {
 		val = toPrintableValue(val)
@@ -425,8 +439,14 @@ func (e *metaDecoderEXIF) decodeTagsAt(namespace string, offset int64) error {
 }
 
 type valueConverterContext struct {
-	s     *streamReader
-	warnf func(string, ...any)
+	tagName   string
+	s         *streamReader
+	warnfFunc func(string, ...any)
+}
+
+func (ctx valueConverterContext) warnf(format string, args ...any) {
+	format = ctx.tagName + ": " + format
+	ctx.warnfFunc(format, args...)
 }
 
 type valueConverter func(valueConverterContext, any) any

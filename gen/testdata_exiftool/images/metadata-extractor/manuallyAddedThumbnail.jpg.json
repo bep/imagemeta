@@ -1,0 +1,38 @@
+[{
+  "SourceFile": "../testdata/images/metadata-extractor/manuallyAddedThumbnail.jpg",
+  "ExifTool": {
+    "ExifToolVersion": 12.76
+  },
+  "File": {
+    "FileName": "manuallyAddedThumbnail.jpg",
+    "Directory": "../testdata/images/metadata-extractor",
+    "FileSize": 63573,
+    "FilePermissions": 100644,
+    "FileType": "JPEG",
+    "FileTypeExtension": "JPG",
+    "MIMEType": "image/jpeg",
+    "ExifByteOrder": "MM",
+    "Comment": "Here we have manually added a JPEG comment. ???2",
+    "ImageWidth": 800,
+    "ImageHeight": 600,
+    "EncodingProcess": 0,
+    "BitsPerSample": 8,
+    "ColorComponents": 3,
+    "YCbCrSubSampling": "2 2"
+  },
+  "EXIF": {
+    "ModifyDate": "2002:11:27 18:00:35",
+    "UserComment": "Here we add a EXIF comment",
+    "Compression": 6,
+    "XResolution": 72,
+    "YResolution": 72,
+    "ThumbnailOffset": 204,
+    "ThumbnailLength": 2970
+  },
+  "JFIF": {
+    "JFIFVersion": "1 1",
+    "ResolutionUnit": 0,
+    "XResolution": 1,
+    "YResolution": 1
+  }
+}]

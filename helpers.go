@@ -80,9 +80,9 @@ func (r rat[T]) MarshalText() (text []byte, err error) {
 }
 
 // NewRat returns a new Rat with the given numerator and denominator.
-func NewRat[T int32 | uint32](num, den T) Rat[T] {
+func NewRat[T int32 | uint32](num, den T) (Rat[T], error) {
 	if den == 0 {
-		panic("division by zero")
+		return nil, fmt.Errorf("denominator must be non-zero")
 	}
 
 	// Remove the greatest common divisor.
@@ -102,7 +102,7 @@ func NewRat[T int32 | uint32](num, den T) Rat[T] {
 		num, den = -num, -den
 	}
 
-	return &rat[T]{num: num, den: den}
+	return &rat[T]{num: num, den: den}, nil
 }
 
 type vc struct{}
@@ -134,8 +134,12 @@ func (vc) convertAPEXToSeconds(ctx valueConverterContext, v any) any {
 	return f
 }
 
-func (c vc) convertBytesToStringDelimBy(v any, delim string) any {
-	bb := v.([]byte)
+func (c vc) convertBytesToStringDelimBy(ctx valueConverterContext, v any, delim string) any {
+	bb, ok := v.([]byte)
+	if !ok {
+		ctx.warnf("expected []byte, got %T", v)
+		return ""
+	}
 	var buff bytes.Buffer
 	for i, b := range bb {
 		if i > 0 {
@@ -147,7 +151,7 @@ func (c vc) convertBytesToStringDelimBy(v any, delim string) any {
 }
 
 func (c vc) convertBytesToStringSpaceDelim(ctx valueConverterContext, v any) any {
-	return c.convertBytesToStringDelimBy(v, " ")
+	return c.convertBytesToStringDelimBy(ctx, v, " ")
 }
 
 func (c vc) convertDegreesToDecimal(ctx valueConverterContext, v any) any {
@@ -162,7 +166,11 @@ func (c vc) convertDegreesToDecimal(ctx valueConverterContext, v any) any {
 
 func (vc) convertNumbersToSpaceLimited(ctx valueConverterContext, v any) any {
 	var sb strings.Builder
-	nums := v.([]any)
+	nums, ok := v.([]any)
+	if !ok {
+		ctx.warnf("expected []any, got %T", v)
+		return ""
+	}
 	for i, n := range nums {
 		if i > 0 {
 			sb.WriteString(" ")
@@ -178,7 +186,11 @@ func (c vc) convertBinaryData(ctx valueConverterContext, v any) any {
 }
 
 func (c vc) convertRatsToSpaceLimited(ctx valueConverterContext, v any) any {
-	nums := v.([]any)
+	nums, ok := v.([]any)
+	if !ok {
+		ctx.warnf("expected []any, got %T", v)
+		return ""
+	}
 	var sb strings.Builder
 	for i, n := range nums {
 		if i > 0 {
