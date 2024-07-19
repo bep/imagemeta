@@ -9,7 +9,7 @@ import (
 
 func TestStringer(t *testing.T) {
 	c := qt.New(t)
-	c.Assert(exitTypeUnsignedByte.String(), qt.Equals, "exitTypeUnsignedByte")
+	c.Assert(exifTypeUnsignedByte1.String(), qt.Equals, "exifTypeUnsignedByte")
 
 	var source Source
 	c.Assert(EXIF.String(), qt.Equals, "EXIF")

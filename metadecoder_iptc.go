@@ -40,7 +40,7 @@ type vcIPTC struct {
 	//*vc
 }
 
-func (c *vcIPTC) convertDateString(b binary.ByteOrder, v any) any {
+func (c *vcIPTC) convertDateString(ctx valueConverterContext, v any) any {
 	s := toString(v)
 	// 20211020 => 2021:10:20
 	if len(s) == 8 {
@@ -53,7 +53,7 @@ func (c *vcIPTC) convertDateString(b binary.ByteOrder, v any) any {
 	return s
 }
 
-func (c *vcIPTC) convertTime(b binary.ByteOrder, v any) any {
+func (c *vcIPTC) convertTime(ctx valueConverterContext, v any) any {
 	s := toString(v)
 	// 111116 => 11:11:16
 	if len(s) == 6 {
@@ -74,7 +74,7 @@ var (
 		"DigitalCreationDate": iptcConverters.convertDateString,
 		"DigitalCreationTime": iptcConverters.convertTime,
 		"TimeSent":            iptcConverters.convertTime,
-		"TimeCreated": func(bo binary.ByteOrder, v any) any {
+		"TimeCreated": func(ctx valueConverterContext, v any) any {
 			s := toString(v)
 			if len(s) == 11 {
 				// 210101+0000 => 21:01:01+00:00
@@ -86,12 +86,12 @@ var (
 			}
 			return s
 		},
-		"ProgramVersion": func(bo binary.ByteOrder, v any) any {
+		"ProgramVersion": func(ctx valueConverterContext, v any) any {
 			s := toString(v)
 			s = strings.TrimSuffix(s, ".0")
 			return s
 		},
-		"CodedCharacterSet": func(bo binary.ByteOrder, v any) any {
+		"CodedCharacterSet": func(ctx valueConverterContext, v any) any {
 			b := v.([]byte)
 			s := resolveCodedCharacterSet(b)
 			if s == "" {
@@ -103,10 +103,15 @@ var (
 )
 
 func newMetaDecoderIPTC(r io.Reader, opts Options) *metaDecoderIPTC {
+	s := newStreamReader(r, binary.BigEndian)
 	return &metaDecoderIPTC{
-		streamReader:           newStreamReader(r, binary.BigEndian),
+		streamReader:           s,
 		iso88591CharsetDecoder: charmap.ISO8859_1.NewDecoder(),
-		opts:                   opts,
+		valueConverterContext: valueConverterContext{
+			s:     s,
+			warnf: opts.Warnf,
+		},
+		opts: opts,
 	}
 }
 
@@ -125,13 +130,14 @@ type metaDecoderIPTC struct {
 
 	charset                string
 	iso88591CharsetDecoder *encoding.Decoder
+	valueConverterContext  valueConverterContext
 
 	opts Options
 }
 
 // Decode decodes the IPTC records delimited by 0x1C.
 func (e *metaDecoderIPTC) decodeRecords() (err error) {
-	stringSlices := make(map[iptcField][]string)
+	stringSlices := make(map[TagInfo][]string)
 	for {
 		var marker uint8
 		if err := binary.Read(e.r, e.byteOrder, &marker); err != nil {
@@ -157,38 +163,27 @@ func (e *metaDecoderIPTC) decodeRecords() (err error) {
 	return nil
 }
 
-func (e *metaDecoderIPTC) handlestringSlices(m map[iptcField][]string) error {
+func (e *metaDecoderIPTC) handlestringSlices(m map[TagInfo][]string) error {
 	if len(m) == 0 {
 		return nil
 	}
-
-	for fieldDef, values := range m {
-		var v any
+	for ti, values := range m {
 		if len(values) == 0 || len(values) > 1 {
-			v = values
+			ti.Value = values
 		} else {
-			v = values[0]
+			ti.Value = values[0]
 		}
-		// TODO1 shouldHandle, re. repeatable
-		if err := e.opts.HandleTag(
-			TagInfo{
-				Source:    IPTC,
-				Tag:       fieldDef.Name,
-				Namespace: fieldDef.RecordName,
-				Value:     v,
-			},
-		); err != nil {
+		if err := e.opts.HandleTag(ti); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
 // decodeBlocks decodes the IPTC data from segments separated by 8BIM.
 // This assumes a reader that starts out at 8BIM (no headers)
 func (e *metaDecoderIPTC) decodeBlocks() (err error) {
-	stringSlices := make(map[iptcField][]string)
+	stringSlices := make(map[TagInfo][]string)
 
 	decodeBlock := func() error {
 		blockType := e.readBytesVolatile(4)
@@ -252,7 +247,7 @@ func (e *metaDecoderIPTC) decodeBlocks() (err error) {
 	return nil
 }
 
-func (e *metaDecoderIPTC) decodeRecord(stringSlices map[iptcField][]string) error {
+func (e *metaDecoderIPTC) decodeRecord(stringSlices map[TagInfo][]string) error {
 	recordType := e.read1()
 	datasetNumber := e.read1()
 	recordSize := e.read2()
@@ -269,6 +264,17 @@ func (e *metaDecoderIPTC) decodeRecord(stringSlices map[iptcField][]string) erro
 		}
 	}
 
+	ti := TagInfo{
+		Source:    IPTC,
+		Tag:       recordDef.Name,
+		Namespace: recordDef.RecordName,
+	}
+
+	if !e.opts.ShouldHandleTag(ti) {
+		e.skip(int64(recordSize))
+		return nil
+	}
+
 	var v any
 	switch recordDef.Format {
 	case "string":
@@ -283,11 +289,11 @@ func (e *metaDecoderIPTC) decodeRecord(stringSlices map[iptcField][]string) erro
 	case "byte":
 		v = e.read1()
 	default:
-		panic(fmt.Sprintf("unhandled format %q", recordDef.Format))
+		panic(fmt.Errorf("unsupported format %q", recordDef.Format))
 	}
 
 	if convert, found := iptcValueConverterMap[recordDef.Name]; found {
-		v = convert(e.byteOrder, v)
+		v = convert(e.valueConverterContext, v)
 	}
 
 	if recordType == 1 && datasetNumber == ipcCodedCharacterSet {
@@ -299,14 +305,10 @@ func (e *metaDecoderIPTC) decodeRecord(stringSlices map[iptcField][]string) erro
 	}
 
 	if recordDef.Repeatable {
-		stringSlices[recordDef] = append(stringSlices[recordDef], toString(v))
+		stringSlices[ti] = append(stringSlices[ti], toString(v))
 	} else {
-		if err := e.opts.HandleTag(TagInfo{
-			Source:    IPTC,
-			Tag:       recordDef.Name,
-			Namespace: recordDef.RecordName,
-			Value:     v,
-		}); err != nil {
+		ti.Value = v
+		if err := e.opts.HandleTag(ti); err != nil {
 			return err
 		}
 	}

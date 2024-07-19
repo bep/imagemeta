@@ -101,6 +101,10 @@ func Decode(opts Options) (err error) {
 		opts.Sources = EXIF | IPTC | XMP
 	}
 
+	if opts.Warnf == nil {
+		opts.Warnf = func(string, ...any) {}
+	}
+
 	var sourceSet Source
 
 	// Remove sources not supported by the format.
@@ -190,6 +194,9 @@ type Options struct {
 	// If set, the decoder will only read the given tag sources.
 	// Note that this is a bitmask and you may send multiple sources at once.
 	Sources Source
+
+	// Warnf will be called for each warning.
+	Warnf func(string, ...any)
 }
 
 // TagInfo contains information about a tag.
@@ -379,7 +386,6 @@ func (t Tags) location() *time.Location {
 	if !found {
 		return nil
 	}
-	// TODO1 test etc.
 	vals := timeInfo.Value.([]uint32)
 	if len(vals) < 2 {
 		return nil

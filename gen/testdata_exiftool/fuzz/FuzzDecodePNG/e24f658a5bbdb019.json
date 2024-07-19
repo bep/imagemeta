@@ -1,0 +1,19 @@
+[{
+  "SourceFile": "../testdata/fuzz/FuzzDecodePNG/e24f658a5bbdb019",
+  "ExifTool": {
+    "ExifToolVersion": 12.76
+  },
+  "File": {
+    "FileName": "e24f658a5bbdb019",
+    "Directory": "../testdata/fuzz/FuzzDecodePNG",
+    "FileSize": 320,
+    "FilePermissions": 100644,
+    "FileType": "TXT",
+    "FileTypeExtension": "TXT",
+    "MIMEType": "text/plain",
+    "MIMEEncoding": "us-ascii",
+    "Newlines": "\n",
+    "LineCount": 2,
+    "WordCount": 8
+  }
+}]
