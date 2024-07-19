@@ -17,28 +17,28 @@ I welcome PRs with fixes, but please raise an issue first if you want to add new
 Extracting `EXIF` performs well, ref. the benhcmark below. Note that you can get a significant boost if you only need a subset of the fields (e.g. only the `Orientation`). The last line is with the library that [Hugo](https://github.com/gohugoio/hugo) used before it was replaced with this.
 
 ```bash
-BenchmarkDecodeCompareWithGoexif/bep/imagemeta/exif/jpeg/alltags-10                52466             21733 ns/op           12944 B/op        219 allocs/op
-BenchmarkDecodeCompareWithGoexif/bep/imagemeta/exif/jpeg/orientation-10           253658              4861 ns/op            8548 B/op          9 allocs/op
-BenchmarkDecodeCompareWithGoexif/rwcarlsen/goexif/exif/jpg/alltags-10              23415             47897 ns/op          175549 B/op        812 allocs/op
+BenchmarkDecodeCompareWithGoexif/bep/imagemeta/exif/jpeg/alltags-10                62474             19054 ns/op            4218 B/op        188 allocs/op
+BenchmarkDecodeCompareWithGoexif/bep/imagemeta/exif/jpeg/orientation-10           309145              3723 ns/op             352 B/op          8 allocs/op
+BenchmarkDecodeCompareWithGoexif/rwcarlsen/goexif/exif/jpg/alltags-10              21987             50195 ns/op          175548 B/op        812 allocs/op
 ```
 
 Looking at some more extensive tests, testing different image formats and tag sources, we see that the current XMP implementation leaves a lot to be desired (you can provide your own XMP handler if you want). 
 
 ```bash
-BenchmarkDecode/png/exif-10                37803             31469 ns/op           12953 B/op        220 allocs/op
-BenchmarkDecode/png/all-10                  5628            203294 ns/op           57296 B/op        341 allocs/op
-BenchmarkDecode/webp/all-10                 3026            377070 ns/op          180064 B/op       2482 allocs/op
-BenchmarkDecode/webp/xmp-10                 3199            353637 ns/op          167224 B/op       2266 allocs/op
-BenchmarkDecode/webp/exif-10               45633             26524 ns/op           12977 B/op        222 allocs/op
-BenchmarkDecode/jpg/exif-10                56980             20971 ns/op           12946 B/op        219 allocs/op
-BenchmarkDecode/jpg/iptc-10               124027              9338 ns/op            8096 B/op         81 allocs/op
-BenchmarkDecode/jpg/iptc/category-10              193405              6391 ns/op            6987 B/op         16 allocs/op
-BenchmarkDecode/jpg/iptc/city-10                  170191              6757 ns/op            7083 B/op         18 allocs/op
-BenchmarkDecode/jpg/xmp-10                          3201            353794 ns/op          139864 B/op       2263 allocs/op
-BenchmarkDecode/jpg/all-10                          3032            381440 ns/op          160636 B/op       2555 allocs/op
-BenchmarkDecode/tiff/exif-10                        2096            554931 ns/op          223802 B/op        319 allocs/op
-BenchmarkDecode/tiff/iptc-10                       17203             69053 ns/op            2826 B/op        134 allocs/op
-BenchmarkDecode/tiff/all-10                         1280            916291 ns/op          393300 B/op       2707 allocs/op
+BenchmarkDecode/png/exif-10                39164             30783 ns/op            4231 B/op        189 allocs/op
+BenchmarkDecode/png/all-10                  5617            206111 ns/op           48611 B/op        310 allocs/op
+BenchmarkDecode/webp/all-10                 3069            379637 ns/op          144181 B/op       2450 allocs/op
+BenchmarkDecode/webp/xmp-10                 3291            359133 ns/op          139991 B/op       2265 allocs/op
+BenchmarkDecode/webp/exif-10               47028             25788 ns/op            4255 B/op        191 allocs/op
+BenchmarkDecode/jpg/exif-10                58701             20216 ns/op            4223 B/op        188 allocs/op
+BenchmarkDecode/jpg/iptc-10               135777              8725 ns/op            1562 B/op         80 allocs/op
+BenchmarkDecode/jpg/iptc/category-10      215674              5393 ns/op             456 B/op         15 allocs/op
+BenchmarkDecode/jpg/iptc/city-10          192067              6201 ns/op             553 B/op         17 allocs/op
+BenchmarkDecode/jpg/xmp-10                  3244            359436 ns/op          139861 B/op       2263 allocs/op
+BenchmarkDecode/jpg/all-10                  2874            389489 ns/op          145700 B/op       2523 allocs/op
+BenchmarkDecode/tiff/exif-10                2065            566786 ns/op          214089 B/op        282 allocs/op
+BenchmarkDecode/tiff/iptc-10               16761             71003 ns/op            2603 B/op        133 allocs/op
+BenchmarkDecode/tiff/all-10                 1267            933321 ns/op          356878 B/op       2668 allocs/op
 ```
 
 ## When in doubt, Exiftool is right
