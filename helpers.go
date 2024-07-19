@@ -3,7 +3,6 @@ package imagemeta
 import (
 	"bytes"
 	"encoding"
-	"encoding/binary"
 	"fmt"
 	"math"
 	"strconv"
@@ -116,7 +115,7 @@ type float64Provider interface {
 	Float64() float64
 }
 
-func (vc) convertAPEXToFNumber(byteOrder binary.ByteOrder, v any) any {
+func (vc) convertAPEXToFNumber(ctx valueConverterContext, v any) any {
 	r, ok := v.(float64Provider)
 	if !ok {
 		return 0
@@ -125,7 +124,7 @@ func (vc) convertAPEXToFNumber(byteOrder binary.ByteOrder, v any) any {
 	return math.Pow(2, f/2)
 }
 
-func (vc) convertAPEXToSeconds(byteOrder binary.ByteOrder, v any) any {
+func (vc) convertAPEXToSeconds(ctx valueConverterContext, v any) any {
 	r, ok := v.(float64Provider)
 	if !ok {
 		return 0
@@ -147,16 +146,21 @@ func (c vc) convertBytesToStringDelimBy(v any, delim string) any {
 	return buff.String()
 }
 
-func (c vc) convertBytesToStringSpaceDelim(byteOrder binary.ByteOrder, v any) any {
+func (c vc) convertBytesToStringSpaceDelim(ctx valueConverterContext, v any) any {
 	return c.convertBytesToStringDelimBy(v, " ")
 }
 
-func (c vc) convertDegreesToDecimal(byteOrder binary.ByteOrder, v any) any {
-	d, _ := c.toDegrees(v)
+func (c vc) convertDegreesToDecimal(ctx valueConverterContext, v any) any {
+	d, err := c.toDegrees(v)
+	if err != nil {
+		ctx.warnf("failed to convert degrees to decimal: %v", err)
+		return 0.0
+
+	}
 	return d
 }
 
-func (vc) convertNumbersToSpaceLimited(byteOrder binary.ByteOrder, v any) any {
+func (vc) convertNumbersToSpaceLimited(ctx valueConverterContext, v any) any {
 	var sb strings.Builder
 	nums := v.([]any)
 	for i, n := range nums {
@@ -168,12 +172,12 @@ func (vc) convertNumbersToSpaceLimited(byteOrder binary.ByteOrder, v any) any {
 	return sb.String()
 }
 
-func (c vc) convertBinaryData(byteOrder binary.ByteOrder, v any) any {
+func (c vc) convertBinaryData(ctx valueConverterContext, v any) any {
 	b := v.([]byte)
 	return fmt.Sprintf("(Binary data %d bytes)", len(b))
 }
 
-func (c vc) convertRatsToSpaceLimited(byteOrder binary.ByteOrder, v any) any {
+func (c vc) convertRatsToSpaceLimited(ctx valueConverterContext, v any) any {
 	nums := v.([]any)
 	var sb strings.Builder
 	for i, n := range nums {
@@ -199,7 +203,7 @@ func (c vc) convertRatsToSpaceLimited(byteOrder binary.ByteOrder, v any) any {
 	return sb.String()
 }
 
-func (vc) convertStringToInt(byteOrder binary.ByteOrder, v any) any {
+func (vc) convertStringToInt(ctx valueConverterContext, v any) any {
 	s := printableString(v.(string))
 	i, _ := strconv.Atoi(s)
 	return i
@@ -216,7 +220,7 @@ func (vc) ratNum(v any) any {
 	}
 }
 
-func (c vc) convertToTimestampString(byteOrder binary.ByteOrder, v any) any {
+func (c vc) convertToTimestampString(ctx valueConverterContext, v any) any {
 	switch vv := v.(type) {
 	case []any:
 		if len(vv) != 3 {
@@ -277,7 +281,6 @@ func (c vc) toDegrees(v any) (float64, error) {
 	case string:
 		return c.parseDegrees(v)
 	default:
-		// TODO1: Other types, test.
 		return 0.0, fmt.Errorf("unsupported degree type %T", v)
 	}
 }

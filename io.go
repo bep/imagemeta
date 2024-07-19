@@ -177,11 +177,34 @@ func (e *streamReader) read4sr(r io.Reader) int32 {
 	return int32(e.byteOrder.Uint32(e.buf[:n]))
 }
 
+func (e *streamReader) read8r(r io.Reader) uint64 {
+	const n = 8
+	e.readNFromRIntoBuf(n, r)
+	return e.byteOrder.Uint64(e.buf[:n])
+}
+
 func (e *streamReader) readBytes(b []byte) error {
 	if _, err := io.ReadFull(e.r, b); err != nil {
 		e.stop(err)
 	}
 	return nil
+}
+
+// readNullTerminatedBytes reads a slice of bytes from the stream
+// until a null byte is encountered.
+// It returns the slice of bytes read and the number of bytes read.
+// Note that max is the maximum number of bytes to read including the null byte.
+func (e *streamReader) readNullTerminatedBytes(max int) ([]byte, int64) {
+	var b []byte
+	var n int64
+	for i := 0; i < max; i++ {
+		b = append(b, e.read1())
+		n++
+		if b[i] == 0 {
+			return b[:i], n
+		}
+	}
+	return b, n
 }
 
 // readBytesVolatile reads a slice of bytes from the stream

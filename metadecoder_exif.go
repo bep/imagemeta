@@ -32,34 +32,34 @@ const (
 //go:generate stringer -type=exifType
 
 const (
-	exitTypeUnsignedByte  exifType = 1
-	exitTypeUnsignedASCII exifType = 2
-	exitTypeUnsignedShort exifType = 3
-	exitTypeUnsignedLong  exifType = 4
-	exitTypeUnsignedRat   exifType = 5
-	exitTypeSignedByte    exifType = 6
-	exitTypeUndef         exifType = 7
-	exitTypeSignedShort   exifType = 8
-	exitTypeSignedLong    exifType = 9
-	exitTypeSignedRat     exifType = 10
-	exitTypeSignedFloat   exifType = 11
-	exitTypeSignedDouble  exifType = 12
+	exifTypeUnsignedByte1  exifType = 1
+	exifTypeASCIIString1   exifType = 2
+	exifTypeUnsignedShort2 exifType = 3
+	exifTypeUnsignedLong4  exifType = 4
+	exifTypeUnsignedRat8   exifType = 5
+	exifTypeSignedByte1    exifType = 6
+	exifTypeUndef1         exifType = 7
+	exifTypeSignedShort2   exifType = 8
+	exifTypeSignedLong4    exifType = 9
+	exifTypeSignedRat8     exifType = 10
+	exifTypeSignedFloat4   exifType = 11
+	exifTypeSignedDouble8  exifType = 12
 )
 
 // Size in bytes of each type.
 var exifTypeSize = map[exifType]uint32{
-	exitTypeUnsignedByte:  1,
-	exitTypeUnsignedASCII: 1,
-	exitTypeUnsignedShort: 2,
-	exitTypeUnsignedLong:  4,
-	exitTypeUnsignedRat:   8,
-	exitTypeSignedByte:    1,
-	exitTypeUndef:         1,
-	exitTypeSignedShort:   2,
-	exitTypeSignedLong:    4,
-	exitTypeSignedRat:     8,
-	exitTypeSignedFloat:   4,
-	exitTypeSignedDouble:  8,
+	exifTypeUnsignedByte1:  1,
+	exifTypeASCIIString1:   1,
+	exifTypeUnsignedShort2: 2,
+	exifTypeUnsignedLong4:  4,
+	exifTypeUnsignedRat8:   8,
+	exifTypeSignedByte1:    1,
+	exifTypeUndef1:         1,
+	exifTypeSignedShort2:   2,
+	exifTypeSignedLong4:    4,
+	exifTypeSignedRat8:     8,
+	exifTypeSignedFloat4:   4,
+	exifTypeSignedDouble8:  8,
 }
 
 var (
@@ -98,16 +98,16 @@ var (
 		"ComponentsConfiguration": exifConverters.convertBytesToStringSpaceDelim,
 		"LensInfo":                exifConverters.convertRatsToSpaceLimited,
 		"Padding":                 exifConverters.convertBinaryData,
-		"UserComment": func(byteOrder binary.ByteOrder, v any) any {
+		"UserComment": func(ctx valueConverterContext, v any) any {
 			return strings.TrimPrefix(printableString(toString(v)), "ASCII")
 		},
-		"CFAPattern": func(byteOrder binary.ByteOrder, v any) any {
+		"CFAPattern": func(ctx valueConverterContext, v any) any {
 			b := v.([]byte)
-			horizontalRepeat := byteOrder.Uint16(b[:2])
-			verticalRepeat := byteOrder.Uint16(b[2:])
+			horizontalRepeat := ctx.s.byteOrder.Uint16(b[:2])
+			verticalRepeat := ctx.s.byteOrder.Uint16(b[2:])
 			len := int(horizontalRepeat) * int(verticalRepeat)
 			val := b[4 : 4+len]
-			return fmt.Sprintf("%d %d %s", horizontalRepeat, verticalRepeat, exifConverters.convertBytesToStringSpaceDelim(byteOrder, val))
+			return fmt.Sprintf("%d %d %s", horizontalRepeat, verticalRepeat, exifConverters.convertBytesToStringSpaceDelim(ctx, val))
 		},
 	}
 )
@@ -122,6 +122,10 @@ func newMetaDecoderEXIFFromStreamReader(s *streamReader, thumbnailOffset int64, 
 		thumbnailOffset: thumbnailOffset,
 		streamReader:    s,
 		opts:            opts,
+		valueConverterCtx: valueConverterContext{
+			s:     s,
+			warnf: opts.Warnf,
+		},
 	}
 }
 
@@ -130,32 +134,36 @@ type exifType uint16
 
 type metaDecoderEXIF struct {
 	*streamReader
-	thumbnailOffset int64
-	opts            Options
+	thumbnailOffset   int64
+	valueConverterCtx valueConverterContext
+	opts              Options
 }
 
 func (e *metaDecoderEXIF) convertValue(typ exifType, r io.Reader) any {
 	switch typ {
-	case exitTypeUnsignedByte, exitTypeUndef:
+	case exifTypeUnsignedByte1, exifTypeUndef1, exifTypeASCIIString1, exifTypeSignedByte1:
 		return e.read1r(r)
-	case exitTypeUnsignedShort:
+	case exifTypeUnsignedShort2, exifTypeSignedShort2:
 		return e.read2r(r)
-	case exitTypeUnsignedLong:
+	case exifTypeUnsignedLong4:
 		return e.read4r(r)
-	case exitTypeSignedLong:
-		return e.read4sr(r)
-	case exitTypeUnsignedRat:
+	case exifTypeUnsignedRat8:
 		n, d := e.read4r(r), e.read4r(r)
 		if d == 0 {
 			return math.Inf(1)
 		}
 		return NewRat[uint32](n, d)
-	case exitTypeSignedRat:
+	case exifTypeSignedLong4:
+		return e.read4sr(r)
+	case exifTypeSignedRat8:
 		n, d := e.read4sr(r), e.read4sr(r)
 		return NewRat[int32](n, d)
+	case exifTypeSignedFloat4:
+		return math.Float32frombits(e.read4r(r))
+	case exifTypeSignedDouble8:
+		return math.Float64frombits(e.read8r(r))
 	default:
-		// TODO1
-		panic(fmt.Errorf("exif type %d not implemented", typ))
+		return newInvalidFormatError(fmt.Errorf("unknown EXIF type %d", typ))
 	}
 }
 
@@ -164,7 +172,7 @@ func (e *metaDecoderEXIF) convertValues(typ exifType, count, len int, r io.Reade
 		return nil
 	}
 
-	if typ == exitTypeUnsignedASCII {
+	if typ == exifTypeASCIIString1 {
 		b := e.readBytesFromRVolatile(len, r)
 		return string(trimBytesNulls(b[:count]))
 	}
@@ -373,7 +381,7 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 	}
 
 	if convert, found := exifValueConverterMap[tagName]; found {
-		val = convert(e.byteOrder, val)
+		val = convert(e.valueConverterCtx, val)
 	} else {
 		val = toPrintableValue(val)
 	}
@@ -416,7 +424,12 @@ func (e *metaDecoderEXIF) decodeTagsAt(namespace string, offset int64) error {
 		})
 }
 
-type valueConverter func(binary.ByteOrder, any) any
+type valueConverterContext struct {
+	s     *streamReader
+	warnf func(string, ...any)
+}
+
+type valueConverter func(valueConverterContext, any) any
 
 func init() {
 	for k, v := range exifFields {

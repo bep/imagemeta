@@ -8,21 +8,21 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[exitTypeUnsignedByte-1]
-	_ = x[exitTypeUnsignedASCII-2]
-	_ = x[exitTypeUnsignedShort-3]
-	_ = x[exitTypeUnsignedLong-4]
-	_ = x[exitTypeUnsignedRat-5]
-	_ = x[exitTypeSignedByte-6]
-	_ = x[exitTypeUndef-7]
-	_ = x[exitTypeSignedShort-8]
-	_ = x[exitTypeSignedLong-9]
-	_ = x[exitTypeSignedRat-10]
-	_ = x[exitTypeSignedFloat-11]
-	_ = x[exitTypeSignedDouble-12]
+	_ = x[exifTypeUnsignedByte1-1]
+	_ = x[exifTypeASCIIString1-2]
+	_ = x[exifTypeUnsignedShort2-3]
+	_ = x[exifTypeUnsignedLong4-4]
+	_ = x[exifTypeUnsignedRat8-5]
+	_ = x[exifTypeSignedByte1-6]
+	_ = x[exifTypeUndef1-7]
+	_ = x[exifTypeSignedShort2-8]
+	_ = x[exifTypeSignedLong4-9]
+	_ = x[exifTypeSignedRat8-10]
+	_ = x[exifTypeSignedFloat4-11]
+	_ = x[exifTypeSignedDouble8-12]
 }
 
-const _exifType_name = "exitTypeUnsignedByteexitTypeUnsignedASCIIexitTypeUnsignedShortexitTypeUnsignedLongexitTypeUnsignedRatexitTypeSignedByteexitTypeUndefexitTypeSignedShortexitTypeSignedLongexitTypeSignedRatexitTypeSignedFloatexitTypeSignedDouble"
+const _exifType_name = "exifTypeUnsignedByteexifTypeUnsignedASCIIexifTypeUnsignedShortexifTypeUnsignedLongexifTypeUnsignedRatexifTypeSignedByteexifTypeUndefexifTypeSignedShortexifTypeSignedLongexifTypeSignedRatexifTypeSignedFloatexifTypeSignedDouble"
 
 var _exifType_index = [...]uint8{0, 20, 41, 62, 82, 101, 119, 132, 151, 169, 186, 205, 225}
 

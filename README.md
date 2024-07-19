@@ -17,22 +17,28 @@ I welcome PRs with fixes, but please raise an issue first if you want to add new
 Extracting `EXIF` performs well, ref. the benhcmark below. Note that you can get a significant boost if you only need a subset of the fields (e.g. only the `Orientation`). The last line is with the library that [Hugo](https://github.com/gohugoio/hugo) used before it was replaced with this.
 
 ```bash
-BenchmarkDecodeExif/bep/imagemeta/exif/jpg/alltags-10              64575             16883 ns/op            4288 B/op        161 allocs/op
-BenchmarkDecodeExif/bep/imagemeta/exif/jpg/orientation-10         333732              3391 ns/op             409 B/op         10 allocs/op
-BenchmarkDecodeExif/rwcarlsen/goexif/exif/jpg/alltags-10           24782             46589 ns/op          175552 B/op        812 allocs/op
+BenchmarkDecodeCompareWithGoexif/bep/imagemeta/exif/jpeg/alltags-10                52466             21733 ns/op           12944 B/op        219 allocs/op
+BenchmarkDecodeCompareWithGoexif/bep/imagemeta/exif/jpeg/orientation-10           253658              4861 ns/op            8548 B/op          9 allocs/op
+BenchmarkDecodeCompareWithGoexif/rwcarlsen/goexif/exif/jpg/alltags-10              23415             47897 ns/op          175549 B/op        812 allocs/op
 ```
 
 Looking at some more extensive tests, testing different image formats and tag sources, we see that the current XMP implementation leaves a lot to be desired (you can provide your own XMP handler if you want). 
 
 ```bash
-BenchmarkDecode/bep/imagemeta/png/exif-10                  23732             49936 ns/op            4300 B/op        162 allocs/op
-BenchmarkDecode/bep/imagemeta/webp/all-10                   2970            391278 ns/op          177787 B/op       2430 allocs/op
-BenchmarkDecode/bep/imagemeta/webp/xmp-10                   3183            369343 ns/op          139862 B/op       2265 allocs/op
-BenchmarkDecode/bep/imagemeta/webp/exif-10                 38940             31184 ns/op           38075 B/op        171 allocs/op
-BenchmarkDecode/bep/imagemeta/jpg/exif-10                  68695             17670 ns/op            4289 B/op        161 allocs/op
-BenchmarkDecode/bep/imagemeta/jpg/iptc-10                 158425              7476 ns/op            1011 B/op         66 allocs/op
-BenchmarkDecode/bep/imagemeta/jpg/xmp-10                    3115            367200 ns/op          139861 B/op       2264 allocs/op
-BenchmarkDecode/bep/imagemeta/jpg/all-10                    3004            383872 ns/op          145157 B/op       2483 allocs/op
+BenchmarkDecode/png/exif-10                37803             31469 ns/op           12953 B/op        220 allocs/op
+BenchmarkDecode/png/all-10                  5628            203294 ns/op           57296 B/op        341 allocs/op
+BenchmarkDecode/webp/all-10                 3026            377070 ns/op          180064 B/op       2482 allocs/op
+BenchmarkDecode/webp/xmp-10                 3199            353637 ns/op          167224 B/op       2266 allocs/op
+BenchmarkDecode/webp/exif-10               45633             26524 ns/op           12977 B/op        222 allocs/op
+BenchmarkDecode/jpg/exif-10                56980             20971 ns/op           12946 B/op        219 allocs/op
+BenchmarkDecode/jpg/iptc-10               124027              9338 ns/op            8096 B/op         81 allocs/op
+BenchmarkDecode/jpg/iptc/category-10              193405              6391 ns/op            6987 B/op         16 allocs/op
+BenchmarkDecode/jpg/iptc/city-10                  170191              6757 ns/op            7083 B/op         18 allocs/op
+BenchmarkDecode/jpg/xmp-10                          3201            353794 ns/op          139864 B/op       2263 allocs/op
+BenchmarkDecode/jpg/all-10                          3032            381440 ns/op          160636 B/op       2555 allocs/op
+BenchmarkDecode/tiff/exif-10                        2096            554931 ns/op          223802 B/op        319 allocs/op
+BenchmarkDecode/tiff/iptc-10                       17203             69053 ns/op            2826 B/op        134 allocs/op
+BenchmarkDecode/tiff/all-10                         1280            916291 ns/op          393300 B/op       2707 allocs/op
 ```
 
 ## When in doubt, Exiftool is right

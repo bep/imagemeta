@@ -171,7 +171,6 @@ func (e *decoderWebP) decode() error {
 			}
 
 		default:
-			// TODO1 check if we can return early if sourceSet is empty.
 			e.skip(int64(chunkLen))
 		}
 	}

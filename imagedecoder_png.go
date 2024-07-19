@@ -24,11 +24,6 @@ func (e *imageDecoderPNG) decode() error {
 	// Skip header.
 	e.skip(8)
 
-	// Keyword is 1-79 bytes, followed by the 1 byte null character,
-	// but we're only interested in a sub set, both 21 in length,
-	// so make it simple for now.
-	const zTXtKeywordLength = 21
-
 	sources := e.opts.Sources
 
 	skipTag := func(chunkLength uint32) {
@@ -56,18 +51,24 @@ func (e *imageDecoderPNG) decode() error {
 				return err
 			}
 			e.skip(4) // skip CRC
-		} else if chunkLength > zTXtKeywordLength && bytes.Equal(tagID, pngCompressedText) {
-			keyword := e.readBytesVolatile(zTXtKeywordLength)
+		} else if bytes.Equal(tagID, pngCompressedText) {
+			// Profile Name is 1-79 bytes, followed by the null character.
+			// Note that profileNameLength includes the null character.
+			profileName, profileNameLength := e.readNullTerminatedBytes(79 + 1)
+
 			// See https://exiftool.org/forum/index.php?topic=7988.msg40759#msg40759
-			if bytes.Equal(keyword, pngRawProfileTypeIPTC) {
+			if bytes.Equal(profileName, pngRawProfileTypeIPTC) {
 				if sources.Has(IPTC) {
 					sources = sources.Remove(IPTC)
-					data, err := decompressZTXt(e.readBytesVolatile(int(chunkLength - zTXtKeywordLength)))
+
+					// TODO(bep) According to the spec, this should always return Latin-1 encoded text.
+					// The image editors out there does not seem to care much about this.
+					// See https://github.com/bep/imagemeta/issues/19
+					data, err := decompressZTXt(e.readBytesVolatile(int(chunkLength) - int(profileNameLength)))
 					if err != nil {
 						return newInvalidFormatError(fmt.Errorf("decompressing zTXt: %w", err))
 					}
-					// ImageMagick has different headers, so make this smarter. TODO1
-					data = data[23:] // Skip the header bytes.
+					data = data[profileNameLength:] // Skip the header bytes.
 					data = bytes.ReplaceAll(data, []byte("\n"), []byte(""))
 					d := make([]byte, hex.DecodedLen(len(data)))
 					_, err = hex.Decode(d, data)
@@ -75,21 +76,19 @@ func (e *imageDecoderPNG) decode() error {
 						return fmt.Errorf("decoding hex: %w", err)
 					}
 					r := bytes.NewReader(d)
-					// TODO1 encoding (test), these are supposed to be ISO-8859-1.
+
 					iptcDec := newMetaDecoderIPTC(r, e.opts)
 					if err := iptcDec.decodeBlocks(); err != nil {
 						return err
 					}
-					if err := iptcDec.decodeRecords(); err != nil {
-						return err
-					}
+
 				} else {
-					e.skip(int64(chunkLength - zTXtKeywordLength))
+					e.skip(int64(chunkLength) - profileNameLength)
 				}
-			} else if bytes.Equal(keyword, pngRawProfileTypeEXIF) {
-				e.skip(int64(chunkLength - zTXtKeywordLength))
+			} else if bytes.Equal(profileName, pngRawProfileTypeEXIF) {
+				e.skip(int64(chunkLength) - profileNameLength)
 			} else {
-				e.skip(int64(chunkLength - zTXtKeywordLength))
+				e.skip(int64(chunkLength) - profileNameLength)
 			}
 			e.skip(4) // skip CRC
 		} else {
@@ -98,14 +97,13 @@ func (e *imageDecoderPNG) decode() error {
 	}
 }
 
-// TODO1 get rid of the panics.
 func decompressZTXt(data []byte) ([]byte, error) {
-	// The first byte after the null indicates the compression method, for which only deflate is currently defined (method zero).
-	compressionMethod := data[1]
+	// The first byte indicates the compression method, for which only deflate is currently defined (method zero).
+	compressionMethod := data[0]
 	if compressionMethod != 0 {
 		return nil, fmt.Errorf("unknown PNG compression method %v", compressionMethod)
 	}
-	b := bytes.NewReader(data[2:])
+	b := bytes.NewReader(data[1:])
 	z, err := zlib.NewReader(b)
 	if err != nil {
 		return nil, err
