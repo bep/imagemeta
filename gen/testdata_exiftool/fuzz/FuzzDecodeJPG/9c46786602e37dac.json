@@ -1,0 +1,20 @@
+[{
+  "SourceFile": "../testdata/fuzz/FuzzDecodeJPG/9c46786602e37dac",
+  "ExifTool": {
+    "ExifToolVersion": 12.76
+  },
+  "File": {
+    "FileName": "9c46786602e37dac",
+    "Directory": "../testdata/fuzz/FuzzDecodeJPG",
+    "FileSize": 172821,
+    "FilePermissions": 100644,
+    "FileType": "TXT",
+    "FileTypeExtension": "TXT",
+    "MIMEType": "text/plain",
+    "MIMEEncoding": "utf-8",
+    "ByteOrderMark": 0,
+    "Newlines": "\n",
+    "LineCount": 2,
+    "WordCount": 261
+  }
+}]

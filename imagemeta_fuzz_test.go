@@ -10,7 +10,12 @@ import (
 )
 
 func FuzzDecodeJPG(f *testing.F) {
-	filenames := []string{"sunrise.jpg", "goexif/geodegrees_as_string.jpg", "metadata_demo_exif_only.jpg", "metadata_demo_iim_and_xmp_only.jpg"}
+	filenames := []string{
+		"sunrise.jpg", "goexif/geodegrees_as_string.jpg",
+		"metadata_demo_exif_only.jpg", "metadata_demo_iim_and_xmp_only.jpg",
+		"corrupt/infinite_loop_exif.jpg",
+		"corrupt/max_uint32_exif.jpg",
+	}
 	for _, filename := range filenames {
 		f.Add(readTestDataFileAll(f, filename))
 	}
@@ -69,7 +74,7 @@ func fuzzDecodeBytes(t *testing.T, imageBytes []byte, f imagemeta.ImageFormat) e
 
 func readTestDataFileAll(t testing.TB, filename string) []byte {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join("testdata", filename))
+	b, err := os.ReadFile(filepath.Join("testdata", "images", filename))
 	if err != nil {
 		t.Fatalf("failed to read file %q: %v", filename, err)
 	}

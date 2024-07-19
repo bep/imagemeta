@@ -1,0 +1,22 @@
+[{
+  "SourceFile": "../testdata/images/goexif/2011-10-28-17-50-18-sep-2011-10-28-17-50-18a.jpg",
+  "ExifTool": {
+    "ExifToolVersion": 12.76,
+    "Warning": "JPEG format error"
+  },
+  "File": {
+    "FileName": "2011-10-28-17-50-18-sep-2011-10-28-17-50-18a.jpg",
+    "Directory": "../testdata/images/goexif",
+    "FileSize": 7487,
+    "FilePermissions": 100644,
+    "FileType": "JPEG",
+    "FileTypeExtension": "JPG",
+    "MIMEType": "image/jpeg"
+  },
+  "JFIF": {
+    "JFIFVersion": "1 2",
+    "ResolutionUnit": 1,
+    "XResolution": 72,
+    "YResolution": 72
+  }
+}]

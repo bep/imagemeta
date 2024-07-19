@@ -46,8 +46,10 @@ func TestDecodeAllImageFormats(t *testing.T) {
 			c.Assert(allTags["Headline"].Value, qt.Equals, "Sunrise in Spain")
 			c.Assert(allTags["Copyright"].Value, qt.Equals, "Bjørn Erik Pedersen")
 			c.Assert(exifTags["Orientation"].Value, qt.Equals, uint16(1))
-			c.Assert(exifTags["ExposureTime"].Value, eq, imagemeta.NewRat[uint32](1, 200))
-			c.Assert(exifTags["FocalLength"].Value, eq, imagemeta.NewRat[uint32](21, 1))
+			et, _ := imagemeta.NewRat[uint32](1, 200)
+			fl, _ := imagemeta.NewRat[uint32](21, 1)
+			c.Assert(exifTags["ExposureTime"].Value, eq, et)
+			c.Assert(exifTags["FocalLength"].Value, eq, fl)
 		})
 	}
 }
@@ -244,7 +246,7 @@ func TestDecodeIPTCReference(t *testing.T) {
 	c := qt.New(t)
 	const filename = "IPTC-PhotometadataRef-Std2021.1.jpg"
 
-	img, err := os.Open(filepath.Join("testdata", filename))
+	img, err := os.Open(filepath.Join("testdata", "images", filename))
 	c.Assert(err, qt.IsNil)
 
 	c.Cleanup(func() {
@@ -471,7 +473,7 @@ func getSunrise(c *qt.C, imageFormat imagemeta.ImageFormat) (io.ReadSeeker, func
 		c.Fatalf("unknown image format: %v", imageFormat)
 	}
 
-	img, err := os.Open(filepath.Join("testdata", "sunrise"+ext))
+	img, err := os.Open(filepath.Join("testdata", "images", "sunrise"+ext))
 	c.Assert(err, qt.IsNil)
 	return img, func() {
 		img.Close()
@@ -718,7 +720,7 @@ func extractTags(t testing.TB, filename string, sources imagemeta.Source) imagem
 
 func extractTagsWithFilter(t testing.TB, filename string, sources imagemeta.Source, shouldHandle func(ti imagemeta.TagInfo) bool) imagemeta.Tags {
 	t.Helper()
-	f, err := os.Open(filepath.Join("testdata", filename))
+	f, err := os.Open(filepath.Join("testdata", "images", filename))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -740,7 +742,7 @@ func extractTagsWithFilter(t testing.TB, filename string, sources imagemeta.Sour
 }
 
 func readGoldenInfo(t testing.TB, filename string) goldenFileInfo {
-	exiftoolsJSONFilename := filepath.Join("gen", "testdata_exiftool", filename+".json")
+	exiftoolsJSONFilename := filepath.Join("gen", "testdata_exiftool", "images", filename+".json")
 	var exifToolValue []goldenFileInfo
 	b, err := os.ReadFile(exiftoolsJSONFilename)
 	if err != nil {
@@ -767,9 +769,7 @@ func withGolden(t testing.TB, sources imagemeta.Source) {
 		if strings.HasPrefix(path, "corrupt") {
 			return nil
 		}
-		if strings.HasPrefix(path, "fuzz") {
-			return nil
-		}
+
 		if goldenSkip[filepath.ToSlash(path)] {
 			return nil
 		}
@@ -780,7 +780,7 @@ func withGolden(t testing.TB, sources imagemeta.Source) {
 
 func withTestDataFile(t testing.TB, fn func(path string, info os.FileInfo, err error) error) {
 	t.Helper()
-	err := filepath.Walk("testdata", func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(filepath.Join("testdata", "images"), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -789,7 +789,7 @@ func withTestDataFile(t testing.TB, fn func(path string, info os.FileInfo, err e
 			return nil
 		}
 
-		path = strings.TrimPrefix(path, "testdata"+string(filepath.Separator))
+		path = strings.TrimPrefix(path, filepath.Join("testdata", "images")+string(filepath.Separator))
 
 		return fn(path, info, nil)
 	})

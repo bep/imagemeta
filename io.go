@@ -94,7 +94,7 @@ func (e *streamReader) bufferedReader(length int64) (readerCloser, error) {
 	}
 
 	if length < 0 {
-		return nil, newInvalidFormatErrorFromString("negative length")
+		return nil, newInvalidFormatErrorf("negative length")
 	}
 
 	br := getBytesAndReader(int(length))

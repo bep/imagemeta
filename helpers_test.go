@@ -47,39 +47,45 @@ func TestRat(t *testing.T) {
 	c := qt.New(t)
 
 	c.Run("NewRat", func(c *qt.C) {
-		ru := NewRat[uint32](1, 2)
+		ru, err := NewRat[uint32](1, 2)
+		c.Assert(err, qt.Equals, nil)
 		c.Assert(ru.Num(), qt.Equals, uint32(1))
 		c.Assert(ru.Den(), qt.Equals, uint32(2))
 
-		ri := NewRat[int32](1, 2)
+		ri, err := NewRat[int32](1, 2)
+		c.Assert(err, qt.Equals, nil)
 		c.Assert(ri.Num(), qt.Equals, int32(1))
 		c.Assert(ri.Den(), qt.Equals, int32(2))
 
-		c.Assert(func() { NewRat[int32](10, 0) }, qt.PanicMatches, "division by zero")
+		_, err = NewRat[int32](10, 0)
+		c.Assert(err, qt.ErrorMatches, "denominator must be non-zero")
 
 		// Normalization
 		// Denominator must be positive.
-		ri = NewRat[int32](13, -3)
+		ri, err = NewRat[int32](13, -3)
+		c.Assert(err, qt.Equals, nil)
 		c.Assert(ri.Num(), qt.Equals, int32(-13))
 		c.Assert(ri.Den(), qt.Equals, int32(3))
 		// Remove the greatest common divisor.
-		ri = NewRat[int32](6, 9)
+		ri, err = NewRat[int32](6, 9)
+		c.Assert(err, qt.Equals, nil)
 		c.Assert(ri.Num(), qt.Equals, int32(2))
 		c.Assert(ri.Den(), qt.Equals, int32(3))
-		ri = NewRat[int32](90, 600)
+		ri, err = NewRat[int32](90, 600)
+		c.Assert(err, qt.Equals, nil)
 		c.Assert(ri.Num(), qt.Equals, int32(3))
 		c.Assert(ri.Den(), qt.Equals, int32(20))
 	})
 
 	c.Run("MarshalText", func(c *qt.C) {
-		ru := NewRat[uint32](1, 2)
+		ru, _ := NewRat[uint32](1, 2)
 		text, err := ru.(encoding.TextMarshaler).MarshalText()
 		c.Assert(err, qt.Equals, nil)
 		c.Assert(string(text), qt.Equals, "1/2")
 	})
 
 	c.Run("UnmarshalText", func(c *qt.C) {
-		ru := NewRat[uint32](1, 2)
+		ru, _ := NewRat[uint32](1, 2)
 		err := ru.(encoding.TextUnmarshaler).UnmarshalText([]byte("3/4"))
 		c.Assert(err, qt.Equals, nil)
 		c.Assert(ru.Num(), qt.Equals, uint32(3))
@@ -92,9 +98,9 @@ func TestRat(t *testing.T) {
 	})
 
 	c.Run("String", func(c *qt.C) {
-		ru := NewRat[uint32](1, 2)
+		ru, _ := NewRat[uint32](1, 2)
 		c.Assert(ru.String(), qt.Equals, "1/2")
-		ru = NewRat[uint32](4, 1)
+		ru, _ = NewRat[uint32](4, 1)
 		c.Assert(ru.String(), qt.Equals, "4")
 	})
 }

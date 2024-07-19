@@ -2,6 +2,7 @@ package imagemeta
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -36,8 +37,8 @@ func (e *InvalidFormatError) Is(target error) bool {
 	return ok
 }
 
-func newInvalidFormatErrorFromString(s string) error {
-	return &InvalidFormatError{errors.New(s)}
+func newInvalidFormatErrorf(format string, args ...any) error {
+	return &InvalidFormatError{fmt.Errorf(format, args...)}
 }
 
 func newInvalidFormatError(err error) error {
