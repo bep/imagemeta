@@ -24,7 +24,7 @@ var bytesAndReaderPool = &sync.Pool{
 
 func getBytesAndReader(length int) *bytesAndReader {
 	b := bytesAndReaderPool.Get().(*bytesAndReader)
-	if length > len(b.b) {
+	if length > cap(b.b) {
 		b.b = make([]byte, length)
 	}
 	b.b = b.b[:length]
@@ -121,7 +121,7 @@ func (e *streamReader) bufferedReader(length int64) (readerCloser, error) {
 }
 
 func (e *streamReader) allocateBuf(length int) {
-	if length > len(e.buf) {
+	if length > cap(e.buf) {
 		e.buf = make([]byte, length)
 	}
 }
