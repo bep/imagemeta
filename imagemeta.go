@@ -393,3 +393,20 @@ func (t Tags) location() *time.Location {
 
 	return time.FixedZone("", int(vals[1]*60))
 }
+
+type baseStreamingDecoder struct {
+	*streamReader
+	opts Options
+	err  error
+}
+
+func (d *baseStreamingDecoder) streamErr() error {
+	if d.err != nil {
+		return d.err
+	}
+	return d.readErr
+}
+
+type decoderWebP struct {
+	*baseStreamingDecoder
+}

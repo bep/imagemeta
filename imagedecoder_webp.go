@@ -8,23 +8,6 @@ var (
 	fccXMP  = fourCC{'X', 'M', 'P', ' '}
 )
 
-type baseStreamingDecoder struct {
-	*streamReader
-	opts Options
-	err  error
-}
-
-func (d *baseStreamingDecoder) streamErr() error {
-	if d.err != nil {
-		return d.err
-	}
-	return d.readErr
-}
-
-type decoderWebP struct {
-	*baseStreamingDecoder
-}
-
 func (e *decoderWebP) decode() error {
 	// These are the sources we currently support in WebP.
 	sourceSet := EXIF | XMP
