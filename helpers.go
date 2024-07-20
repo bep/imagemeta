@@ -3,6 +3,7 @@ package imagemeta
 import (
 	"bytes"
 	"encoding"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -10,6 +11,52 @@ import (
 	"time"
 	"unicode"
 )
+
+// errInvalidFormat is used when the format is invalid.
+var errInvalidFormat = &InvalidFormatError{errors.New("invalid format")}
+
+// IsInvalidFormat reports whether the error was an InvalidFormatError.
+func IsInvalidFormat(err error) bool {
+	return errors.Is(err, errInvalidFormat)
+}
+
+// InvalidFormatError is used when the format is invalid.
+type InvalidFormatError struct {
+	Err error
+}
+
+func (e *InvalidFormatError) Error() string {
+	return "invalid format: " + e.Err.Error()
+}
+
+// Is reports whether the target error is an InvalidFormatError.
+func (e *InvalidFormatError) Is(target error) bool {
+	_, ok := target.(*InvalidFormatError)
+	return ok
+}
+
+func newInvalidFormatErrorf(format string, args ...any) error {
+	return &InvalidFormatError{fmt.Errorf(format, args...)}
+}
+
+func newInvalidFormatError(err error) error {
+	return &InvalidFormatError{err}
+}
+
+// These error situations comes from the Go Fuzz modifying the input data to trigger panics.
+// We want to separate panics that we can do something about and "invalid format" errors.
+var invalidFormatErrorStrings = []string{
+	"unexpected EOF",
+}
+
+func isInvalidFormatErrorCandidate(err error) bool {
+	for _, s := range invalidFormatErrorStrings {
+		if strings.Contains(err.Error(), s) {
+			return true
+		}
+	}
+	return false
+}
 
 // Rat is a rational number.
 type Rat[T int32 | uint32] interface {
