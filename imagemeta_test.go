@@ -2,6 +2,7 @@ package imagemeta_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -35,7 +36,7 @@ func TestDecodeAllImageFormats(t *testing.T) {
 				return nil
 			}
 
-			err := imagemeta.Decode(imagemeta.Options{R: img, ImageFormat: imageFormat, HandleTag: handleTag})
+			err := imagemeta.Decode(imagemeta.Options{R: img, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf})
 			c.Assert(err, qt.IsNil)
 
 			allTags := tags.All()
@@ -145,7 +146,7 @@ func TestDecodeCorrupt(t *testing.T) {
 		handleTag := func(ti imagemeta.TagInfo) error {
 			return nil
 		}
-		err = imagemeta.Decode(imagemeta.Options{R: img, ImageFormat: format, HandleTag: handleTag})
+		err = imagemeta.Decode(imagemeta.Options{R: img, ImageFormat: format, HandleTag: handleTag, Warnf: panicWarnf})
 		c.Assert(imagemeta.IsInvalidFormat(err), qt.IsTrue, qt.Commentf("file: %s", file))
 		img.Close()
 	}
@@ -168,6 +169,7 @@ func TestDecodeCustomXMPHandler(t *testing.T) {
 				return err
 			},
 			Sources: imagemeta.XMP,
+			Warnf:   panicWarnf,
 		},
 	)
 
@@ -189,6 +191,7 @@ func TestDecodeCustomXMPHandlerShortRead(t *testing.T) {
 				return nil
 			},
 			Sources: imagemeta.XMP,
+			Warnf:   panicWarnf,
 		},
 	)
 
@@ -231,6 +234,7 @@ func TestDecodeShouldHandleTagEXIF(t *testing.T) {
 				Sources:         imagemeta.EXIF,
 				HandleTag:       handleTag,
 				ShouldHandleTag: shouldHandle,
+				Warnf:           panicWarnf,
 			},
 		)
 
@@ -269,6 +273,7 @@ func TestDecodeIPTCReference(t *testing.T) {
 			ImageFormat: imagemeta.JPEG,
 			HandleTag:   handleTag,
 			Sources:     imagemeta.IPTC,
+			Warnf:       panicWarnf,
 		},
 	)
 	c.Assert(err, qt.IsNil)
@@ -322,6 +327,7 @@ func TestDecodeEXIFOrientationOnly(t *testing.T) {
 			ImageFormat: imagemeta.JPEG,
 			HandleTag:   handleTag,
 			Sources:     imagemeta.EXIF,
+			Warnf:       panicWarnf,
 		},
 	)
 
@@ -351,6 +357,7 @@ func TestDecodeIPTCOrientationOnly(t *testing.T) {
 			ImageFormat: imagemeta.JPEG,
 			HandleTag:   handleTag,
 			Sources:     imagemeta.IPTC,
+			Warnf:       panicWarnf,
 		},
 	)
 
@@ -734,7 +741,21 @@ func extractTagsWithFilter(t testing.TB, filename string, sources imagemeta.Sour
 
 	imageFormat := extToFormat(filepath.Ext(filename))
 
-	err = imagemeta.Decode(imagemeta.Options{R: f, ImageFormat: imageFormat, ShouldHandleTag: shouldHandle, HandleTag: handleTag, Sources: sources})
+	knownWarnings := []*regexp.Regexp{
+		regexp.MustCompile("GPSLatitude.*0100"),
+	}
+
+	warnf := func(format string, args ...any) {
+		s := fmt.Sprintf(format, args...)
+		for _, re := range knownWarnings {
+			if re.MatchString(s) {
+				return
+			}
+		}
+		panic(errors.New(s))
+	}
+
+	err = imagemeta.Decode(imagemeta.Options{R: f, ImageFormat: imageFormat, ShouldHandleTag: shouldHandle, HandleTag: handleTag, Warnf: warnf, Sources: sources})
 	if err != nil {
 		t.Fatal(fmt.Errorf("failed to decode %q: %w", filename, err))
 	}
@@ -879,39 +900,39 @@ func BenchmarkDecode(b *testing.B) {
 
 	imageFormat := imagemeta.PNG
 	runBenchmark(b, "png/exif", imagemeta.PNG, func(r io.ReadSeeker) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetEXIF})
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetEXIF})
 		return err
 	})
 
 	runBenchmark(b, "png/all", imagemeta.PNG, func(r io.ReadSeeker) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetAll})
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetAll})
 		return err
 	})
 
 	imageFormat = imagemeta.WebP
 	runBenchmark(b, "webp/all", imageFormat, func(r io.ReadSeeker) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetAll})
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetAll})
 		return err
 	})
 
 	runBenchmark(b, "webp/xmp", imageFormat, func(r io.ReadSeeker) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: imagemeta.XMP})
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: imagemeta.XMP})
 		return err
 	})
 
 	runBenchmark(b, "webp/exif", imageFormat, func(r io.ReadSeeker) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetEXIF})
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetEXIF})
 		return err
 	})
 
 	imageFormat = imagemeta.JPEG
 	runBenchmark(b, "jpg/exif", imageFormat, func(r io.ReadSeeker) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetEXIF})
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetEXIF})
 		return err
 	})
 
 	runBenchmark(b, "jpg/iptc", imageFormat, func(r io.ReadSeeker) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetIPTC})
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetIPTC})
 		return err
 	})
 
@@ -925,7 +946,7 @@ func BenchmarkDecode(b *testing.B) {
 			}
 			return nil
 		}
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, ShouldHandleTag: shouldHandle, HandleTag: handleTag, Sources: sourceSetIPTC})
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, ShouldHandleTag: shouldHandle, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetIPTC})
 		return err
 	})
 
@@ -939,31 +960,31 @@ func BenchmarkDecode(b *testing.B) {
 			}
 			return nil
 		}
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, ShouldHandleTag: shouldHandle, HandleTag: handleTag, Sources: sourceSetIPTC})
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, ShouldHandleTag: shouldHandle, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetIPTC})
 		return err
 	})
 
 	runBenchmark(b, "jpg/xmp", imageFormat, func(r io.ReadSeeker) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: imagemeta.XMP})
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: imagemeta.XMP})
 		return err
 	})
 
 	runBenchmark(b, "jpg/all", imageFormat, func(r io.ReadSeeker) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetAll})
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetAll})
 		return err
 	})
 
 	imageFormat = imagemeta.TIFF
 	runBenchmark(b, "tiff/exif", imageFormat, func(r io.ReadSeeker) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetEXIF})
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetEXIF})
 		return err
 	})
 	runBenchmark(b, "tiff/iptc", imageFormat, func(r io.ReadSeeker) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetIPTC})
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetIPTC})
 		return err
 	})
 	runBenchmark(b, "tiff/all", imageFormat, func(r io.ReadSeeker) error {
-		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Sources: sourceSetAll})
+		err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetAll})
 		return err
 	})
 }
@@ -1019,4 +1040,8 @@ func BenchmarkDecodeCompareWithGoexif(b *testing.B) {
 		_, err := exif.Decode(r)
 		return err
 	})
+}
+
+func panicWarnf(format string, args ...interface{}) {
+	panic(fmt.Errorf(format, args...))
 }

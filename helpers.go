@@ -268,6 +268,9 @@ func (c vc) convertToTimestampString(ctx valueConverterContext, v any) any {
 }
 
 func (vc) parseDegrees(s string) (float64, error) {
+	if s == "" {
+		return 0, nil
+	}
 	var deg, min, sec float64
 	_, err := fmt.Sscanf(s, "%f,%f,%f", &deg, &min, &sec)
 	if err != nil {
@@ -292,6 +295,8 @@ func (c vc) toDegrees(v any) (float64, error) {
 		return v, nil
 	case string:
 		return c.parseDegrees(v)
+	case []byte:
+		return c.parseDegrees(string(v))
 	default:
 		return 0.0, fmt.Errorf("unsupported degree type %T", v)
 	}
