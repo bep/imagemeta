@@ -49,12 +49,18 @@ func Decode(opts Options) (err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			if errp := r.(error); errp != nil {
+			if errp, ok := r.(error); ok {
 				if isInvalidFormatErrorCandidate(errp) {
 					err = newInvalidFormatError(errp)
 				} else {
 					err = errp
+					if err != errStop {
+						printStackTrace(os.Stderr)
+					}
 				}
+			} else {
+				err = fmt.Errorf("unknown panic: %v", r)
+				printStackTrace(os.Stderr)
 			}
 		}
 
@@ -168,8 +174,14 @@ func Decode(opts Options) (err error) {
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
-					if errp := r.(error); errp != nil {
+					if errp, ok := r.(error); ok {
+						if errp != errStop {
+							printStackTrace(os.Stderr)
+						}
 						errc <- errp
+					} else {
+						errc <- fmt.Errorf("unknown panic: %v", r)
+						printStackTrace(os.Stderr)
 					}
 				}
 			}()
