@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"strings"
 	"time"
 )
@@ -51,10 +52,19 @@ func Decode(opts Options) (err error) {
 			if errp := r.(error); errp != nil {
 				if isInvalidFormatErrorCandidate(errp) {
 					err = newInvalidFormatError(errp)
-				} else if errp != errStop {
-					panic(errp)
+				} else {
+					err = errp
 				}
 			}
+		}
+
+		if err == ErrStopWalking {
+			err = nil
+			return
+		}
+
+		if err == errStop {
+			err = nil
 		}
 
 		if err == nil {
@@ -153,12 +163,30 @@ func Decode(opts Options) (err error) {
 		dec = &imageDecoderPNG{baseStreamingDecoder: base}
 	}
 
-	err = dec.decode()
-	if err != nil {
-		if err == ErrStopWalking {
-			return nil
-		}
+	if opts.Timeout > 0 {
+		errc := make(chan error, 1)
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					if errp := r.(error); errp != nil {
+						errc <- errp
+					}
+				}
+			}()
+			select {
+			case <-time.After(opts.Timeout):
+				printStackTrace(os.Stderr)
+				errc <- fmt.Errorf("timed out after %s", opts.Timeout)
+			case errc <- dec.decode():
+			}
+		}()
+
+		err = <-errc
+
+	} else {
+		err = dec.decode()
 	}
+
 	return
 }
 
@@ -197,6 +225,11 @@ type Options struct {
 
 	// Warnf will be called for each warning.
 	Warnf func(string, ...any)
+
+	// Timeout is the maximum time the decoder will spend on reading metadata.
+	// Mostly useful for testing.
+	// If set to 0, the decoder will not time out.
+	Timeout time.Duration
 }
 
 // TagInfo contains information about a tag.
