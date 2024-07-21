@@ -120,6 +120,7 @@ func newMetaDecoderEXIF(r io.Reader, byteOrder binary.ByteOrder, thumbnailOffset
 func newMetaDecoderEXIFFromStreamReader(s *streamReader, thumbnailOffset int64, opts Options) *metaDecoderEXIF {
 	return &metaDecoderEXIF{
 		thumbnailOffset: thumbnailOffset,
+		seenIFDs:        map[string]struct{}{},
 		streamReader:    s,
 		opts:            opts,
 		valueConverterCtx: valueConverterContext{
@@ -135,6 +136,7 @@ type exifType uint16
 type metaDecoderEXIF struct {
 	*streamReader
 	thumbnailOffset   int64
+	seenIFDs          map[string]struct{}
 	valueConverterCtx valueConverterContext
 	opts              Options
 }
@@ -287,6 +289,12 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 	}
 
 	ifd, isIFDPointer := exifIFDPointers[tagID]
+	if isIFDPointer {
+		if _, ok := e.seenIFDs[ifd]; ok {
+			return nil
+		}
+		e.seenIFDs[ifd] = struct{}{}
+	}
 
 	typ := exifType(dataType)
 

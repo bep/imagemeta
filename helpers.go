@@ -5,7 +5,9 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
+	"io"
 	"math"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -182,9 +184,8 @@ func (vc) convertAPEXToSeconds(ctx valueConverterContext, v any) any {
 }
 
 func (c vc) convertBytesToStringDelimBy(ctx valueConverterContext, v any, delim string) any {
-	bb, ok := v.([]byte)
+	bb, ok := typeAssert[[]byte](ctx, v)
 	if !ok {
-		ctx.warnf("expected []byte, got %T", v)
 		return ""
 	}
 	var buff bytes.Buffer
@@ -212,12 +213,12 @@ func (c vc) convertDegreesToDecimal(ctx valueConverterContext, v any) any {
 }
 
 func (vc) convertNumbersToSpaceLimited(ctx valueConverterContext, v any) any {
-	var sb strings.Builder
-	nums, ok := v.([]any)
+	nums, ok := typeAssert[[]any](ctx, v)
 	if !ok {
-		ctx.warnf("expected []any, got %T", v)
 		return ""
 	}
+
+	var sb strings.Builder
 	for i, n := range nums {
 		if i > 0 {
 			sb.WriteString(" ")
@@ -228,16 +229,19 @@ func (vc) convertNumbersToSpaceLimited(ctx valueConverterContext, v any) any {
 }
 
 func (c vc) convertBinaryData(ctx valueConverterContext, v any) any {
-	b := v.([]byte)
+	b, ok := typeAssert[[]byte](ctx, v)
+	if !ok {
+		return ""
+	}
 	return fmt.Sprintf("(Binary data %d bytes)", len(b))
 }
 
 func (c vc) convertRatsToSpaceLimited(ctx valueConverterContext, v any) any {
-	nums, ok := v.([]any)
+	nums, ok := typeAssert[[]any](ctx, v)
 	if !ok {
-		ctx.warnf("expected []any, got %T", v)
 		return ""
 	}
+
 	var sb strings.Builder
 	for i, n := range nums {
 		if i > 0 {
@@ -263,7 +267,11 @@ func (c vc) convertRatsToSpaceLimited(ctx valueConverterContext, v any) any {
 }
 
 func (vc) convertStringToInt(ctx valueConverterContext, v any) any {
-	s := printableString(v.(string))
+	s, ok := typeAssert[string](ctx, v)
+	if !ok {
+		return 0
+	}
+	s = printableString(s)
 	i, _ := strconv.Atoi(s)
 	return i
 }
@@ -403,4 +411,19 @@ func trimBytesNulls(b []byte) []byte {
 		return nil
 	}
 	return b[lo : hi+1]
+}
+
+func printStackTrace(w io.Writer) {
+	buf := make([]byte, 1<<16)
+	runtime.Stack(buf, true)
+	fmt.Fprintf(w, "%s", buf)
+}
+
+func typeAssert[T any](ctx valueConverterContext, v any) (T, bool) {
+	vv, ok := v.(T)
+	if !ok {
+		ctx.warnf("expected %T, got %T", vv, v)
+		return vv, false
+	}
+	return vv, true
 }
