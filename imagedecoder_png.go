@@ -61,10 +61,15 @@ func (e *imageDecoderPNG) decode() error {
 				if sources.Has(IPTC) {
 					sources = sources.Remove(IPTC)
 
+					dataLen := int(chunkLength) - int(profileNameLength)
+					if dataLen < 0 {
+						return newInvalidFormatErrorf("invalid data length %d", dataLen)
+					}
+
 					// TODO(bep) According to the spec, this should always return Latin-1 encoded text.
 					// The image editors out there does not seem to care much about this.
 					// See https://github.com/bep/imagemeta/issues/19
-					data, err := decompressZTXt(e.readBytesVolatile(int(chunkLength) - int(profileNameLength)))
+					data, err := decompressZTXt(e.readBytesVolatile(dataLen))
 					if err != nil {
 						return newInvalidFormatError(fmt.Errorf("decompressing zTXt: %w", err))
 					}
