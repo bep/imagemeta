@@ -18,7 +18,7 @@ func main() {
 	}
 	base := "../testdata"
 
-	if err := filepath.Walk(base, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(filepath.Join(base, "images"), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
