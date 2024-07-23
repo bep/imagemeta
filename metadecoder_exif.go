@@ -98,9 +98,7 @@ var (
 		"ComponentsConfiguration": exifConverters.convertBytesToStringSpaceDelim,
 		"LensInfo":                exifConverters.convertRatsToSpaceLimited,
 		"Padding":                 exifConverters.convertBinaryData,
-		"UserComment": func(ctx valueConverterContext, v any) any {
-			return strings.TrimPrefix(printableString(toString(v)), "ASCII")
-		},
+		"UserComment":             exifConverters.convertUserComment,
 		"CFAPattern": func(ctx valueConverterContext, v any) any {
 			b := v.([]byte)
 			horizontalRepeat := ctx.s.byteOrder.Uint16(b[:2])

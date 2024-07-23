@@ -276,6 +276,31 @@ func (vc) convertStringToInt(ctx valueConverterContext, v any) any {
 	return i
 }
 
+func (c vc) convertUserComment(ctx valueConverterContext, v any) any {
+	// UserComment tag is identified based on an ID code in a fixed 8-byte area at the start of the tag data area.
+	b, ok := typeAssert[[]byte](ctx, v)
+	if !ok {
+		return ""
+	}
+	if len(b) < 8 {
+		return ""
+	}
+	id := string(b[:8])
+
+	switch id {
+	case "ASCII\x00\x00\x00":
+		s := printableString(string(trimBytesNulls(b[8:])))
+		if !isASCII(s) {
+			return ""
+		}
+		return s
+	case "UNICODE\x00":
+		return printableString(string(trimBytesNulls(b[8:])))
+	default:
+		return ""
+	}
+}
+
 func (vc) ratNum(v any) any {
 	switch vv := v.(type) {
 	case Rat[uint32]:
@@ -355,6 +380,15 @@ func (c vc) toDegrees(v any) (float64, error) {
 	default:
 		return 0.0, fmt.Errorf("unsupported degree type %T", v)
 	}
+}
+
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] > unicode.MaxASCII {
+			return false
+		}
+	}
+	return true
 }
 
 func printableString(s string) string {

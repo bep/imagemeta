@@ -384,6 +384,10 @@ func TestDecodeErrors(t *testing.T) {
 	c.Assert(imagemeta.Decode(imagemeta.Options{R: strings.NewReader("foo"), ImageFormat: imagemeta.ImageFormat(1234)}), qt.ErrorMatches, "unsupported image format")
 }
 
+func TestGoldenEXIFHugoIssue12669(t *testing.T) {
+	compareWithExiftoolOutput(t, "hugo-issue-12669.jpg", imagemeta.EXIF)
+}
+
 func TestGoldenEXIF(t *testing.T) {
 	withGolden(t, imagemeta.EXIF)
 }
