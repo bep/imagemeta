@@ -745,9 +745,7 @@ func extractTagsWithFilter(t testing.TB, filename string, sources imagemeta.Sour
 
 	imageFormat := extToFormat(filepath.Ext(filename))
 
-	knownWarnings := []*regexp.Regexp{
-		regexp.MustCompile("GPSLatitude.*0100"),
-	}
+	knownWarnings := []*regexp.Regexp{}
 
 	warnf := func(format string, args ...any) {
 		s := fmt.Sprintf(format, args...)
