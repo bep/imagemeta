@@ -184,7 +184,7 @@ func (vc) convertAPEXToSeconds(ctx valueConverterContext, v any) any {
 }
 
 func (c vc) convertBytesToStringDelimBy(ctx valueConverterContext, v any, delim string) any {
-	bb, ok := typeAssert[[]byte](ctx, v)
+	bb, ok := typeAssertSlice[byte](ctx, v)
 	if !ok {
 		return ""
 	}
@@ -213,7 +213,7 @@ func (c vc) convertDegreesToDecimal(ctx valueConverterContext, v any) any {
 }
 
 func (vc) convertNumbersToSpaceLimited(ctx valueConverterContext, v any) any {
-	nums, ok := typeAssert[[]any](ctx, v)
+	nums, ok := typeAssertSlice[any](ctx, v)
 	if !ok {
 		return ""
 	}
@@ -348,7 +348,7 @@ func (c vc) convertToTimestampString(ctx valueConverterContext, v any) any {
 }
 
 func (vc) parseDegrees(s string) (float64, error) {
-	if s == "" {
+	if s == "" || s == "0100" {
 		return 0, nil
 	}
 	var deg, min, sec float64
@@ -451,6 +451,22 @@ func printStackTrace(w io.Writer) {
 	buf := make([]byte, 1<<16)
 	runtime.Stack(buf, true)
 	fmt.Fprintf(w, "%s", buf)
+}
+
+func typeAssertSlice[T any](ctx valueConverterContext, v any) ([]T, bool) {
+	vv, ok := v.([]T)
+	if ok {
+		return vv, true
+	}
+
+	vvv, ok := v.(T)
+	if ok {
+		return []T{vvv}, true
+	}
+
+	ctx.warnf("expected %T or %T, got %T", vv, vvv, v)
+
+	return vv, false
 }
 
 func typeAssert[T any](ctx valueConverterContext, v any) (T, bool) {
