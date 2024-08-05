@@ -112,6 +112,7 @@ func TestRat(t *testing.T) {
 		ru, _ := NewRat[uint32](1, 3)
 		s := fmt.Sprintf("%.2f", ru)
 		c.Assert(s, qt.Equals, "0.333333")
+		//lint:ignore S1025 fmt.Sprintf call is used for testing.
 		s = fmt.Sprintf("%s", ru)
 		c.Assert(s, qt.Equals, "1/3")
 	})
