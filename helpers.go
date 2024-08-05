@@ -110,6 +110,15 @@ func (r rat[T]) String() string {
 	return fmt.Sprintf("%d/%d", r.num, r.den)
 }
 
+func (r rat[T]) Format(w fmt.State, v rune) {
+	switch v {
+	case 'f':
+		fmt.Fprintf(w, "%f", r.Float64())
+	default:
+		fmt.Fprintf(w, "%s", r.String())
+	}
+}
+
 func (r *rat[T]) UnmarshalText(text []byte) error {
 	s := string(text)
 	if !strings.Contains(s, "/") {

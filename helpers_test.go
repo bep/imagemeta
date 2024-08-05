@@ -5,6 +5,7 @@ package imagemeta
 
 import (
 	"encoding"
+	"fmt"
 	"testing"
 
 	qt "github.com/frankban/quicktest"
@@ -105,5 +106,13 @@ func TestRat(t *testing.T) {
 		c.Assert(ru.String(), qt.Equals, "1/2")
 		ru, _ = NewRat[uint32](4, 1)
 		c.Assert(ru.String(), qt.Equals, "4")
+	})
+
+	c.Run("Format", func(c *qt.C) {
+		ru, _ := NewRat[uint32](1, 3)
+		s := fmt.Sprintf("%.2f", ru)
+		c.Assert(s, qt.Equals, "0.333333")
+		s = fmt.Sprintf("%s", ru)
+		c.Assert(s, qt.Equals, "1/3")
 	})
 }
