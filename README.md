@@ -3,9 +3,6 @@
 [![codecov](https://codecov.io/gh/bep/imagemeta/branch/main/graph/badge.svg)](https://codecov.io/gh/bep/imagemeta)
 [![GoDoc](https://godoc.org/github.com/bep/imagemeta?status.svg)](https://godoc.org/github.com/bep/imagemeta)
 
-> [!CAUTION]
-> This library is still a work in progress, and I would wait until it's merged into Hugo before consider using it or open issues/PRs about it.
-
 ## This is about READING image metadata
 
 Writing is not supported, and never will.
