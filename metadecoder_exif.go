@@ -49,6 +49,9 @@ const (
 	exifTypeSignedDouble8  exifType = 12
 )
 
+// Used for +inf/-inf/nan. This is in line with Exiftool.
+const undef = "undef"
+
 // Size in bytes of each type.
 var exifTypeSize = map[exifType]uint32{
 	exifTypeUnsignedByte1:  1,
@@ -143,6 +146,23 @@ type metaDecoderEXIF struct {
 }
 
 func (e *metaDecoderEXIF) convertValue(typ exifType, r io.Reader) any {
+	v := e.doConvertValue(typ, r)
+
+	switch v := v.(type) {
+	case float64:
+		if isUndefined(v) {
+			return undef
+		}
+	case float32:
+		if isUndefined(float64(v)) {
+			return undef
+		}
+	}
+
+	return v
+}
+
+func (e *metaDecoderEXIF) doConvertValue(typ exifType, r io.Reader) any {
 	switch typ {
 	case exifTypeUnsignedByte1, exifTypeUndef1, exifTypeASCIIString1, exifTypeSignedByte1:
 		return e.read1r(r)
@@ -153,7 +173,7 @@ func (e *metaDecoderEXIF) convertValue(typ exifType, r io.Reader) any {
 	case exifTypeUnsignedRat8:
 		n, d := e.read4r(r), e.read4r(r)
 		if d == 0 {
-			return math.Inf(1)
+			return undef
 		}
 		r, err := NewRat[uint32](n, d)
 		if err != nil {
