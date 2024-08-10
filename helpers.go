@@ -168,7 +168,7 @@ func NewRat[T int32 | uint32](num, den T) (Rat[T], error) {
 
 type vc struct{}
 
-func (vc) isUndefined(f float64) bool {
+func isUndefined(f float64) bool {
 	return math.IsNaN(f) || math.IsInf(f, 0)
 }
 
@@ -259,18 +259,23 @@ func (c vc) convertRatsToSpaceLimited(ctx valueConverterContext, v any) any {
 		if i > 0 {
 			sb.WriteString(" ")
 		}
+		var s string
 		var f float64
 		switch n := n.(type) {
+		case string:
+			s = n
 		case float64Provider:
 			f = n.Float64()
 		case float64:
 			f = n
 		}
-		var s string
-		if c.isUndefined(f) {
-			s = "undef"
-		} else {
-			s = strconv.FormatFloat(f, 'f', -1, 64)
+
+		if s == "" {
+			if isUndefined(f) {
+				s = undef
+			} else {
+				s = strconv.FormatFloat(f, 'f', -1, 64)
+			}
 		}
 
 		sb.WriteString(s)

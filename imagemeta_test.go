@@ -616,7 +616,13 @@ func compareWithExiftoolOutput(t testing.TB, filename string, sources imagemeta.
 				return v.Float64()
 			case float64:
 				if math.IsInf(v, 1) {
-					return "undef"
+					panic(fmt.Errorf("inf: %s", s))
+				}
+				if math.IsInf(v, -1) {
+					panic(fmt.Errorf("-inf: %s", s))
+				}
+				if math.IsNaN(v) {
+					panic(fmt.Errorf("nan: %s", s))
 				}
 				return v
 			case int64:
@@ -764,6 +770,14 @@ func extractTagsWithFilter(t testing.TB, filename string, sources imagemeta.Sour
 	if err != nil {
 		t.Fatal(fmt.Errorf("failed to decode %q: %w", filename, err))
 	}
+
+	// See https://github.com/gohugoio/hugo/issues/12741 and https://github.com/golang/go/issues/59627
+	// Verify that it can be marshaled to JSON.
+	_, err = json.Marshal(tags.All())
+	if err != nil {
+		t.Fatal(fmt.Errorf("failed to marshal tags in %q to JSON: %w", filename, err))
+	}
+
 	return tags
 }
 
