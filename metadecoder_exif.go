@@ -157,6 +157,7 @@ func (e *metaDecoderEXIF) convertValue(typ exifType, r io.Reader) any {
 		if isUndefined(float64(v)) {
 			return undef
 		}
+
 	}
 
 	return v
@@ -425,6 +426,9 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 	if convert, found := exifValueConverterMap[tagName]; found {
 		e.valueConverterCtx.tagName = tagName
 		val = convert(e.valueConverterCtx, val)
+		if f, ok := val.(float64); ok && isUndefined(f) {
+			val = undef
+		}
 	} else {
 		val = toPrintableValue(val)
 	}

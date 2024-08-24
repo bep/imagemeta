@@ -69,6 +69,12 @@ func TestDecodeWebP(t *testing.T) {
 	c.Assert(tags.XMP()["City"].Value, qt.Equals, "Benalmádena")
 }
 
+// For development.
+func TestDecodeAdhoc(t *testing.T) {
+	t.Skip("used in development")
+	extractTags(t, "/Users/bep/dump/summer.webp", imagemeta.EXIF)
+}
+
 func TestDecodeJPEG(t *testing.T) {
 	c := qt.New(t)
 
@@ -615,15 +621,6 @@ func compareWithExiftoolOutput(t testing.TB, filename string, sources imagemeta.
 			case imagemeta.Rat[int32]:
 				return v.Float64()
 			case float64:
-				if math.IsInf(v, 1) {
-					panic(fmt.Errorf("inf: %s", s))
-				}
-				if math.IsInf(v, -1) {
-					panic(fmt.Errorf("-inf: %s", s))
-				}
-				if math.IsNaN(v) {
-					panic(fmt.Errorf("nan: %s", s))
-				}
 				return v
 			case int64:
 				return float64(v)
@@ -710,6 +707,17 @@ func compareWithExiftoolOutput(t testing.TB, filename string, sources imagemeta.
 		if found {
 			expect := normalizeThem(v.Tag, exifToolValue, v.Source)
 			got := normalizeUs(v.Tag, v.Value, v.Source)
+			if v, ok := got.(float64); ok {
+				if math.IsInf(v, 1) {
+					panic(fmt.Errorf("inf: %v", v))
+				}
+				if math.IsInf(v, -1) {
+					panic(fmt.Errorf("-inf: %v", v))
+				}
+				if math.IsNaN(v) {
+					panic(fmt.Errorf("nan: %v", v))
+				}
+			}
 			c.Assert(got, eq, expect, qt.Commentf("%s (%s): got: %T/%T %v %q\n\n%s\n\n%s", v.Tag, v.Source, got, expect, v.Value, filename, got, expect))
 		}
 	}
@@ -740,7 +748,10 @@ func extractTags(t testing.TB, filename string, sources imagemeta.Source) imagem
 
 func extractTagsWithFilter(t testing.TB, filename string, sources imagemeta.Source, shouldHandle func(ti imagemeta.TagInfo) bool) imagemeta.Tags {
 	t.Helper()
-	f, err := os.Open(filepath.Join("testdata", "images", filename))
+	if !filepath.IsAbs(filename) {
+		filename = filepath.Join("testdata", "images", filename)
+	}
+	f, err := os.Open(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -775,6 +786,12 @@ func extractTagsWithFilter(t testing.TB, filename string, sources imagemeta.Sour
 	// Verify that it can be marshaled to JSON.
 	_, err = json.Marshal(tags.All())
 	if err != nil {
+		for tag, ti := range tags.All() {
+			_, err2 := json.Marshal(ti.Value)
+			if err2 != nil {
+				t.Fatal(fmt.Errorf("failed to marshal tag %q in source %s with value %v/%T to JSON: %w", tag, ti.Source, ti.Value, ti.Value, err2))
+			}
+		}
 		t.Fatal(fmt.Errorf("failed to marshal tags in %q to JSON: %w", filename, err))
 	}
 
