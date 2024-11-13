@@ -83,6 +83,13 @@ var noopCloser closerFunc = func() error {
 	return nil
 }
 
+func (e *streamReader) otherByteOrder() binary.ByteOrder {
+	if e.byteOrder == binary.BigEndian {
+		return binary.LittleEndian
+	}
+	return binary.BigEndian
+}
+
 // bufferedReader reads length bytes from the stream and returns a ReaderCloser.
 // It's important to call Close on the ReaderCloser when done.
 func (e *streamReader) bufferedReader(length int64) (readerCloser, error) {
