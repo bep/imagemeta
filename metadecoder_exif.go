@@ -109,8 +109,14 @@ var (
 			b := v.([]byte)
 			horizontalRepeat := ctx.s.byteOrder.Uint16(b[:2])
 			verticalRepeat := ctx.s.byteOrder.Uint16(b[2:])
-			len := int(horizontalRepeat) * int(verticalRepeat)
-			val := b[4 : 4+len]
+			repeatLen := int(horizontalRepeat) * int(verticalRepeat)
+			hi := 4 + repeatLen
+			// Check for out of bounds.
+			if hi > len(b) {
+				return fmt.Sprintf("%d %d", horizontalRepeat, verticalRepeat)
+			}
+
+			val := b[4:hi]
 			return fmt.Sprintf("%d %d %s", horizontalRepeat, verticalRepeat, exifConverters.convertBytesToStringSpaceDelim(ctx, val))
 		},
 	}
