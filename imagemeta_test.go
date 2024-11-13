@@ -397,6 +397,10 @@ func TestGoldenEXIFHugoIssue12669(t *testing.T) {
 	compareWithExiftoolOutput(t, "hugo-issue-12669.jpg", imagemeta.EXIF)
 }
 
+func TestGoldenEXIFIssue34(t *testing.T) {
+	compareWithExiftoolOutput(t, "outofbounds-issue-34.jpg", imagemeta.EXIF)
+}
+
 func TestGoldenEXIF(t *testing.T) {
 	withGolden(t, imagemeta.EXIF)
 }

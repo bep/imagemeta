@@ -111,9 +111,18 @@ var (
 			verticalRepeat := ctx.s.byteOrder.Uint16(b[2:])
 			repeatLen := int(horizontalRepeat) * int(verticalRepeat)
 			hi := 4 + repeatLen
-			// Check for out of bounds.
 			if hi > len(b) {
-				return fmt.Sprintf("%d %d", horizontalRepeat, verticalRepeat)
+				// See issue 34.
+				// There are cameras that writes CFAPattern with a byte order that's not the one specified in the EXIF header.
+				order := ctx.s.otherByteOrder()
+				horizontalRepeat = order.Uint16(b[:2])
+				verticalRepeat = order.Uint16(b[2:])
+				repeatLen := int(horizontalRepeat) * int(verticalRepeat)
+				hi = 4 + repeatLen
+				if hi > len(b) {
+					// Just return the raw bytes.
+					return trimBytesNulls(b)
+				}
 			}
 
 			val := b[4:hi]
