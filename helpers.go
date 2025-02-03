@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 )
 
 // errInvalidFormat is used when the format is invalid.
@@ -313,6 +314,12 @@ func (c vc) convertUserComment(ctx valueConverterContext, v any) any {
 		return s
 	case "UNICODE\x00":
 		return printableString(string(trimBytesNulls(b[8:])))
+	case "\x00\x00\x00\x00\x00\x00\x00\x00":
+		s := string(trimBytesNulls(b[8:]))
+		if !utf8.ValidString(s) {
+			return ""
+		}
+		return strings.TrimRight(s, " ")
 	default:
 		return ""
 	}
