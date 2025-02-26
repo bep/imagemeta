@@ -407,7 +407,7 @@ func (c vc) toDegrees(v any) (float64, error) {
 }
 
 func isASCII(s string) bool {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] > unicode.MaxASCII {
 			return false
 		}

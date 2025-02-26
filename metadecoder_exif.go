@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"path"
 	"strings"
@@ -232,7 +233,7 @@ func (e *metaDecoderEXIF) convertValues(typ exifType, count, len int, r io.Reade
 
 	values := make([]any, count)
 	allBytes := true
-	for i := 0; i < count; i++ {
+	for i := range count {
 		v := e.convertValue(typ, r)
 		values[i] = v
 		if allBytes {
@@ -469,7 +470,7 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 func (e *metaDecoderEXIF) decodeTags(namespace string) error {
 	numTags := e.read2()
 
-	for i := 0; i < int(numTags); i++ {
+	for range int(numTags) {
 		if err := e.decodeTag(namespace); err != nil {
 			return err
 		}
@@ -500,12 +501,8 @@ func (ctx valueConverterContext) warnf(format string, args ...any) {
 type valueConverter func(valueConverterContext, any) any
 
 func init() {
-	for k, v := range exifFields {
-		exifFieldsAll[k] = v
-	}
-	for k, v := range exifFieldsGPS {
-		exifFieldsAll[k] = v
-	}
+	maps.Copy(exifFieldsAll, exifFields)
+	maps.Copy(exifFieldsAll, exifFieldsGPS)
 
 	for k := range exifFieldsAll {
 		if k > maxEXIFField {

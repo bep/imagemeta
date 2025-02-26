@@ -338,7 +338,7 @@ func getIptcRecordName(record uint8) string {
 }
 
 func init() {
-	var fields []map[string]interface{}
+	var fields []map[string]any
 	if err := json.Unmarshal(ipctTagsJSON, &fields); err != nil {
 		panic(err)
 	}

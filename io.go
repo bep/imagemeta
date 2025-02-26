@@ -207,7 +207,7 @@ func (e *streamReader) readBytes(b []byte) error {
 func (e *streamReader) readNullTerminatedBytes(max int) ([]byte, int64) {
 	var b []byte
 	var n int64
-	for i := 0; i < max; i++ {
+	for i := range max {
 		b = append(b, e.read1())
 		n++
 		if b[i] == 0 {
