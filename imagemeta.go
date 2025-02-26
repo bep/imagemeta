@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"os"
 	"strings"
@@ -328,15 +329,9 @@ func (t *Tags) XMP() map[string]TagInfo {
 // All returns all tags in a map.
 func (t Tags) All() map[string]TagInfo {
 	all := make(map[string]TagInfo)
-	for k, v := range t.EXIF() {
-		all[k] = v
-	}
-	for k, v := range t.IPTC() {
-		all[k] = v
-	}
-	for k, v := range t.XMP() {
-		all[k] = v
-	}
+	maps.Copy(all, t.EXIF())
+	maps.Copy(all, t.IPTC())
+	maps.Copy(all, t.XMP())
 	return all
 }
 

@@ -23,6 +23,7 @@ import (
 
 	qt "github.com/frankban/quicktest"
 	"github.com/google/go-cmp/cmp"
+	"maps"
 )
 
 func TestDecodeAllImageFormats(t *testing.T) {
@@ -213,7 +214,7 @@ func TestDecodeShouldHandleTagEXIF(t *testing.T) {
 
 	const numTagsTotal = 64
 
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		img, close := getSunrise(c, imagemeta.JPEG)
 		c.Cleanup(close)
 
@@ -524,28 +525,16 @@ func assertGoldenInfoTagCount(t testing.TB, filename string, sources imagemeta.S
 	tagsRight := make(map[string]any)
 
 	if sources.Has(imagemeta.EXIF) {
-		for k, v := range tags.EXIF() {
-			tagsLeft[k] = v
-		}
-		for k, v := range goldenInfo.EXIF {
-			tagsRight[k] = v
-		}
+		maps.Copy(tagsLeft, tags.EXIF())
+		maps.Copy(tagsRight, goldenInfo.EXIF)
 	}
 	if sources.Has(imagemeta.IPTC) {
-		for k, v := range tags.IPTC() {
-			tagsLeft[k] = v
-		}
-		for k, v := range goldenInfo.IPTC {
-			tagsRight[k] = v
-		}
+		maps.Copy(tagsLeft, tags.IPTC())
+		maps.Copy(tagsRight, goldenInfo.IPTC)
 	}
 	if sources.Has(imagemeta.XMP) {
-		for k, v := range tags.XMP() {
-			tagsLeft[k] = v
-		}
-		for k, v := range goldenInfo.XMP {
-			tagsRight[k] = v
-		}
+		maps.Copy(tagsLeft, tags.XMP())
+		maps.Copy(tagsRight, goldenInfo.XMP)
 	}
 
 	count := 0
@@ -897,7 +886,7 @@ var eq = qt.CmpEquals(
 			if len(floatStringLeft) != len(floatStringRight) {
 				return false
 			}
-			for i := 0; i < len(floatStringLeft); i++ {
+			for i := range floatStringLeft {
 				left, err := strconv.ParseFloat(floatStringLeft[i], 64)
 				if err != nil {
 					return false
@@ -1082,6 +1071,6 @@ func BenchmarkDecodeCompareWithGoexif(b *testing.B) {
 	})
 }
 
-func panicWarnf(format string, args ...interface{}) {
+func panicWarnf(format string, args ...any) {
 	panic(fmt.Errorf(format, args...))
 }
