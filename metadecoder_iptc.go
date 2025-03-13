@@ -273,7 +273,7 @@ func (e *metaDecoderIPTC) decodeRecord(stringSlices map[TagInfo][]string) error 
 		Namespace: recordDef.RecordName,
 	}
 
-	if !e.opts.ShouldHandleTag(ti) {
+	if recordSize > uint16(e.opts.LimitTagSize) || !e.opts.ShouldHandleTag(ti) {
 		e.skip(int64(recordSize))
 		return nil
 	}
