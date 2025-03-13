@@ -113,6 +113,28 @@ func Decode(opts Options) (err error) {
 		}
 	}
 
+	const (
+		defaultLimitNumTags = 5000
+		defaultLimitTagSize = 10000
+	)
+
+	if opts.LimitNumTags == 0 {
+		opts.LimitNumTags = defaultLimitNumTags
+	}
+	if opts.LimitTagSize == 0 {
+		opts.LimitTagSize = defaultLimitTagSize
+	}
+
+	var tagCount uint32
+	shouldHandleTag := opts.ShouldHandleTag
+	opts.ShouldHandleTag = func(ti TagInfo) bool {
+		tagCount++
+		if tagCount > opts.LimitNumTags {
+			panic(ErrStopWalking)
+		}
+		return shouldHandleTag(ti)
+	}
+
 	if opts.HandleTag == nil {
 		opts.HandleTag = func(TagInfo) error { return nil }
 	}
@@ -246,6 +268,16 @@ type Options struct {
 	// Mostly useful for testing.
 	// If set to 0, the decoder will not time out.
 	Timeout time.Duration
+
+	// LimitNumTags is the maximum number of tags to read.
+	// Default value is 5000.
+	LimitNumTags uint32
+
+	// LimitTagSize is the maximum size in bytes of a tag value to read.
+	// Tag values larger than this will be skipped without notice.
+	// Note that this limit is not relevant for the XMP source.
+	// Default value is 10000.
+	LimitTagSize uint16
 }
 
 // TagInfo contains information about a tag.

@@ -383,7 +383,7 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 	}
 
 	// Below is EXIF
-	if !e.opts.Sources.Has(EXIF) {
+	if !e.opts.Sources.Has(EXIF) || valLen > uint32(e.opts.LimitTagSize) {
 		e.skip(4)
 		return nil
 	}
