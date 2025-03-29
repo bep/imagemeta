@@ -70,6 +70,16 @@ func TestDecodeWebP(t *testing.T) {
 	c.Assert(tags.XMP()["City"].Value, qt.Equals, "Benalmádena")
 }
 
+func TestDecodeXmpChildElements(t *testing.T) {
+	c := qt.New(t)
+	tags := extractTags(t, "mushroom.jpg", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
+
+	c.Assert(tags.XMP()["subject"].Value, qt.Equals, "autumn, closeup, forest, forestPhotography, mushroom, nature, naturePhotography, photo, photography")
+	c.Assert(tags.XMP()["rights"].Value, qt.Equals, "Creative Commons Attribution-ShareAlike (CC BY-SA)")
+	c.Assert(tags.XMP()["creator"].Value, qt.Equals, "Lukas Nagel")
+	c.Assert(tags.XMP()["publisher"].Value, qt.Equals, "LNA-DEV")
+}
+
 // For development.
 func TestDecodeAdhoc(t *testing.T) {
 	t.Skip("used in development")
@@ -135,7 +145,7 @@ func TestDecodeTIFF(t *testing.T) {
 	tags := extractTags(t, "sunrise.tif", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
 
 	c.Assert(len(tags.EXIF()), qt.Equals, 76)
-	c.Assert(len(tags.XMP()), qt.Equals, 146)
+	c.Assert(len(tags.XMP()), qt.Equals, 149)
 	c.Assert(len(tags.IPTC()), qt.Equals, 14)
 
 	c.Assert(tags.EXIF()["ShutterSpeedValue"].Value, eq, 0.005000000)
