@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 )
 
 var xmpSkipNamespaces = map[string]bool{
@@ -17,15 +18,44 @@ var xmpSkipNamespaces = map[string]bool{
 }
 
 type rdf struct {
+	XMLName     xml.Name
 	Description rdfDescription `xml:"Description"`
 }
 
 type rdfDescription struct {
-	Attrs []xml.Attr `xml:",any,attr"`
+	XMLName   xml.Name
+	Attrs     []xml.Attr `xml:",any,attr"`
+	Creator   seqList    `xml:"creator"`
+	Publisher bagList    `xml:"publisher"`
+	Subject   bagList    `xml:"subject"`
+	Rights    altList    `xml:"rights"`
+}
+
+type altList struct {
+	XMLName xml.Name
+	Alt     struct {
+		Items []string `xml:"li"`
+	} `xml:"Alt"`
+}
+
+type seqList struct {
+	XMLName xml.Name
+	Seq     struct {
+		Items []string `xml:"li"`
+	} `xml:"Seq"`
+}
+
+type bagList struct {
+	XMLName xml.Name
+	Bag     struct {
+		XMLName xml.Name
+		Items   []string `xml:"li"`
+	} `xml:"Bag"`
 }
 
 type xmpmeta struct {
-	RDF rdf `xml:"RDF"`
+	XMLName xml.Name
+	RDF     rdf `xml:"RDF"`
 }
 
 func decodeXMP(r io.Reader, opts Options) error {
@@ -66,5 +96,39 @@ func decodeXMP(r io.Reader, opts Options) error {
 			return err
 		}
 	}
+
+	if err := processChildElements("creator", meta.RDF.Description.Creator.Seq.Items, opts, meta.RDF.Description.Creator.XMLName.Space); err != nil {
+		return err
+	}
+
+	if err := processChildElements("publisher", meta.RDF.Description.Publisher.Bag.Items, opts, meta.RDF.Description.Publisher.XMLName.Space); err != nil {
+		return err
+	}
+
+	if err := processChildElements("subject", meta.RDF.Description.Subject.Bag.Items, opts, meta.RDF.Description.Subject.XMLName.Space); err != nil {
+		return err
+	}
+
+	if err := processChildElements("rights", meta.RDF.Description.Rights.Alt.Items, opts, meta.RDF.Description.Rights.XMLName.Space); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func processChildElements(tag string, items []string, opts Options, namespace string) error {
+	if len(items) == 0 {
+		return nil
+	}
+	joined := strings.Join(items, ", ")
+	tagInfo := TagInfo{
+		Source:    XMP,
+		Tag:       tag,
+		Namespace: namespace,
+		Value:     joined,
+	}
+	if !opts.ShouldHandleTag(tagInfo) {
+		return nil
+	}
+	return opts.HandleTag(tagInfo)
 }
