@@ -8,7 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 var xmpSkipNamespaces = map[string]bool{
@@ -22,6 +23,8 @@ type rdf struct {
 	Description rdfDescription `xml:"Description"`
 }
 
+// Note: We currently only handle a subset of XMP tags,
+// but a very common subset.
 type rdfDescription struct {
 	XMLName   xml.Name
 	Attrs     []xml.Attr `xml:",any,attr"`
@@ -48,8 +51,7 @@ type seqList struct {
 type bagList struct {
 	XMLName xml.Name
 	Bag     struct {
-		XMLName xml.Name
-		Items   []string `xml:"li"`
+		Items []string `xml:"li"`
 	} `xml:"Bag"`
 }
 
@@ -83,7 +85,7 @@ func decodeXMP(r io.Reader, opts Options) error {
 
 		tagInfo := TagInfo{
 			Source:    XMP,
-			Tag:       attr.Name.Local,
+			Tag:       firstUpper(attr.Name.Local),
 			Namespace: attr.Name.Space,
 			Value:     attr.Value,
 		}
@@ -97,38 +99,57 @@ func decodeXMP(r io.Reader, opts Options) error {
 		}
 	}
 
-	if err := processChildElements("creator", meta.RDF.Description.Creator.Seq.Items, opts, meta.RDF.Description.Creator.XMLName.Space); err != nil {
+	if err := processChildElements(meta.RDF.Description.Creator.XMLName, meta.RDF.Description.Creator.Seq.Items, opts); err != nil {
 		return err
 	}
 
-	if err := processChildElements("publisher", meta.RDF.Description.Publisher.Bag.Items, opts, meta.RDF.Description.Publisher.XMLName.Space); err != nil {
+	if err := processChildElements(meta.RDF.Description.Publisher.XMLName, meta.RDF.Description.Publisher.Bag.Items, opts); err != nil {
 		return err
 	}
 
-	if err := processChildElements("subject", meta.RDF.Description.Subject.Bag.Items, opts, meta.RDF.Description.Subject.XMLName.Space); err != nil {
+	if err := processChildElements(meta.RDF.Description.Subject.XMLName, meta.RDF.Description.Subject.Bag.Items, opts); err != nil {
 		return err
 	}
 
-	if err := processChildElements("rights", meta.RDF.Description.Rights.Alt.Items, opts, meta.RDF.Description.Rights.XMLName.Space); err != nil {
+	if err := processChildElements(meta.RDF.Description.Rights.XMLName, meta.RDF.Description.Rights.Alt.Items, opts); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func processChildElements(tag string, items []string, opts Options, namespace string) error {
+func processChildElements(name xml.Name, items []string, opts Options) error {
 	if len(items) == 0 {
 		return nil
 	}
-	joined := strings.Join(items, ", ")
+	if name.Local == "" {
+		return nil
+	}
+	var v any
+
+	// This is how ExifTool does it:
+	if len(items) == 1 {
+		v = items[0]
+	} else {
+		v = items
+	}
+
 	tagInfo := TagInfo{
 		Source:    XMP,
-		Tag:       tag,
-		Namespace: namespace,
-		Value:     joined,
+		Tag:       firstUpper(name.Local),
+		Namespace: name.Space,
+		Value:     v,
 	}
 	if !opts.ShouldHandleTag(tagInfo) {
 		return nil
 	}
 	return opts.HandleTag(tagInfo)
+}
+
+func firstUpper(s string) string {
+	if s == "" {
+		return ""
+	}
+	r, n := utf8.DecodeRuneInString(s)
+	return string(unicode.ToUpper(r)) + s[n:]
 }
