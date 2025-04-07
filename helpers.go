@@ -8,9 +8,7 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
-	"io"
 	"math"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -469,12 +467,6 @@ func trimBytesNulls(b []byte) []byte {
 		return nil
 	}
 	return b[lo : hi+1]
-}
-
-func printStackTrace(w io.Writer) {
-	buf := make([]byte, 1<<16)
-	runtime.Stack(buf, true)
-	fmt.Fprintf(w, "%s", buf)
 }
 
 func typeAssertSlice[T any](ctx valueConverterContext, v any) ([]T, bool) {

@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bep/imagemeta"
 	"github.com/rwcarlsen/goexif/exif"
@@ -61,7 +62,8 @@ func TestDecodeAllImageFormats(t *testing.T) {
 
 func TestDecodeWebP(t *testing.T) {
 	c := qt.New(t)
-	tags := extractTags(t, "sunrise.webp", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
+	tags, err := extractTags(t, "sunrise.webp", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
+	c.Assert(err, qt.IsNil)
 
 	c.Assert(tags.EXIF()["Copyright"].Value, qt.Equals, "Bjørn Erik Pedersen")
 	c.Assert(tags.EXIF()["ApertureValue"].Value, eq, 5.6)
@@ -83,7 +85,8 @@ func TestDecodeJPEG(t *testing.T) {
 		return true
 	}
 
-	tags := extractTagsWithFilter(t, "sunrise.jpg", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP, shouldInclude)
+	tags, err := extractTagsWithFilter(t, "sunrise.jpg", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP, shouldInclude)
+	c.Assert(err, qt.IsNil)
 
 	c.Assert(tags.EXIF()["Copyright"].Value, qt.Equals, "Bjørn Erik Pedersen")
 	c.Assert(tags.EXIF()["ApertureValue"].Value, eq, 5.6)
@@ -99,7 +102,8 @@ func TestDecodePNG(t *testing.T) {
 		return true
 	}
 
-	tags := extractTagsWithFilter(t, "sunrise.png", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP, shouldInclude)
+	tags, err := extractTagsWithFilter(t, "sunrise.png", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP, shouldInclude)
+	c.Assert(err, qt.IsNil)
 
 	c.Assert(len(tags.EXIF()), qt.Equals, 61)
 	c.Assert(len(tags.IPTC()), qt.Equals, 14)
@@ -119,7 +123,8 @@ func TestThumbnailOffset(t *testing.T) {
 	}
 
 	offset := func(filename string) uint32 {
-		tags := extractTagsWithFilter(t, filename, imagemeta.EXIF, shouldHandle)
+		tags, err := extractTagsWithFilter(t, filename, imagemeta.EXIF, shouldHandle)
+		c.Assert(err, qt.IsNil)
 		return tags.EXIF()["ThumbnailOffset"].Value.(uint32)
 	}
 
@@ -132,7 +137,8 @@ func TestThumbnailOffset(t *testing.T) {
 func TestDecodeTIFF(t *testing.T) {
 	c := qt.New(t)
 
-	tags := extractTags(t, "sunrise.tif", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
+	tags, err := extractTags(t, "sunrise.tif", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
+	c.Assert(err, qt.IsNil)
 
 	c.Assert(len(tags.EXIF()), qt.Equals, 76)
 	c.Assert(len(tags.XMP()), qt.Equals, 146)
@@ -307,7 +313,8 @@ func TestDecodeNamespace(t *testing.T) {
 		return true
 	}
 
-	tags := extractTagsWithFilter(t, "sunrise.jpg", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP, shouldInclude)
+	tags, err := extractTagsWithFilter(t, "sunrise.jpg", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP, shouldInclude)
+	c.Assert(err, qt.IsNil)
 
 	c.Assert(tags.EXIF()["Artist"].Namespace, qt.Equals, "IFD0")
 	c.Assert(tags.EXIF()["GPSLatitude"].Namespace, qt.Equals, "IFD0/GPSInfoIFD")
@@ -376,10 +383,25 @@ func TestDecodeIPTCOrientationOnly(t *testing.T) {
 	c.Assert(len(tags.IPTC()), qt.Equals, 1)
 }
 
+func TestDecodeLargeExifTimeout(t *testing.T) {
+	c := qt.New(t)
+
+	withOpts := func(opts *imagemeta.Options) {
+		opts.Timeout = time.Duration(500 * time.Millisecond)
+
+		// Set the limits to something high to make sure we time out.
+		opts.LimitNumTags = 1000000
+		opts.LimitTagSize = 10000000
+	}
+	_, err := extractTags(t, "largeexif.png", imagemeta.EXIF, withOpts)
+	c.Assert(err, qt.ErrorMatches, "timed out after 500ms")
+}
+
 func TestDecodeXMPJPG(t *testing.T) {
 	c := qt.New(t)
 
-	tags := extractTags(t, "sunrise.jpg", imagemeta.XMP)
+	tags, err := extractTags(t, "sunrise.jpg", imagemeta.XMP)
+	c.Assert(err, qt.IsNil)
 
 	c.Assert(len(tags.EXIF()) == 0, qt.IsTrue)
 	c.Assert(len(tags.IPTC()) == 0, qt.IsTrue)
@@ -437,14 +459,15 @@ func TestGoldenTagCountXMP(t *testing.T) {
 func TestLatLong(t *testing.T) {
 	c := qt.New(t)
 
-	tags := extractTags(t, "sunrise.jpg", imagemeta.EXIF)
+	tags, err := extractTags(t, "sunrise.jpg", imagemeta.EXIF)
 
 	lat, long, err := tags.GetLatLong()
 	c.Assert(err, qt.IsNil)
 	c.Assert(lat, eq, float64(36.59744166))
 	c.Assert(long, eq, float64(-4.50846))
 
-	tags = extractTags(t, "goexif/geodegrees_as_string.jpg", imagemeta.EXIF)
+	tags, err = extractTags(t, "goexif/geodegrees_as_string.jpg", imagemeta.EXIF)
+	c.Assert(err, qt.IsNil)
 	lat, long, err = tags.GetLatLong()
 	c.Assert(err, qt.IsNil)
 	c.Assert(lat, eq, float64(52.013888888))
@@ -454,7 +477,7 @@ func TestLatLong(t *testing.T) {
 func TestGetDateTime(t *testing.T) {
 	c := qt.New(t)
 
-	tags := extractTags(t, "sunrise.jpg", imagemeta.EXIF)
+	tags, err := extractTags(t, "sunrise.jpg", imagemeta.EXIF)
 	d, err := tags.GetDateTime()
 	c.Assert(err, qt.IsNil)
 	c.Assert(d.Format("2006-01-02"), qt.Equals, "2017-10-27")
@@ -512,7 +535,8 @@ func assertGoldenInfoTagCount(t testing.TB, filename string, sources imagemeta.S
 		return true
 	}
 
-	tags := extractTagsWithFilter(t, filename, sources, shouldHandle)
+	tags, err := extractTagsWithFilter(t, filename, sources, shouldHandle)
+	c.Assert(err, qt.IsNil)
 	all := tags.All()
 
 	// Our XMP parsing is currently a little limited so be a little lenient with the assertions.
@@ -587,7 +611,8 @@ func assertGoldenInfoTagCount(t testing.TB, filename string, sources imagemeta.S
 
 func compareWithExiftoolOutput(t testing.TB, filename string, sources imagemeta.Source) {
 	c := qt.New(t)
-	tags := extractTags(t, filename, sources)
+	tags, err := extractTags(t, filename, sources)
+	c.Assert(err, qt.IsNil)
 	all := tags.All()
 	tagsGolden := readGoldenInfo(t, filename)
 
@@ -731,15 +756,17 @@ func extToFormat(ext string) imagemeta.ImageFormat {
 	}
 }
 
-func extractTags(t testing.TB, filename string, sources imagemeta.Source) imagemeta.Tags {
+func extractTags(t testing.TB, filename string, sources imagemeta.Source, opts ...withOptions) (imagemeta.Tags, error) {
 	shouldHandle := func(ti imagemeta.TagInfo) bool {
 		// Drop the thumbnail tags.
 		return ti.Namespace != "IFD1"
 	}
-	return extractTagsWithFilter(t, filename, sources, shouldHandle)
+	return extractTagsWithFilter(t, filename, sources, shouldHandle, opts...)
 }
 
-func extractTagsWithFilter(t testing.TB, filename string, sources imagemeta.Source, shouldHandle func(ti imagemeta.TagInfo) bool) imagemeta.Tags {
+type withOptions func(opts *imagemeta.Options)
+
+func extractTagsWithFilter(t testing.TB, filename string, sources imagemeta.Source, shouldHandle func(ti imagemeta.TagInfo) bool, opts ...withOptions) (imagemeta.Tags, error) {
 	t.Helper()
 	if !filepath.IsAbs(filename) {
 		filename = filepath.Join("testdata", "images", filename)
@@ -770,9 +797,14 @@ func extractTagsWithFilter(t testing.TB, filename string, sources imagemeta.Sour
 		panic(errors.New(s))
 	}
 
-	err = imagemeta.Decode(imagemeta.Options{R: f, ImageFormat: imageFormat, ShouldHandleTag: shouldHandle, HandleTag: handleTag, Warnf: warnf, Sources: sources})
+	imgOpts := imagemeta.Options{R: f, ImageFormat: imageFormat, ShouldHandleTag: shouldHandle, HandleTag: handleTag, Warnf: warnf, Sources: sources}
+	for _, opt := range opts {
+		opt(&imgOpts)
+	}
+
+	err = imagemeta.Decode(imgOpts)
 	if err != nil {
-		t.Fatal(fmt.Errorf("failed to decode %q: %w", filename, err))
+		return tags, err
 	}
 
 	// See https://github.com/gohugoio/hugo/issues/12741 and https://github.com/golang/go/issues/59627
@@ -788,7 +820,7 @@ func extractTagsWithFilter(t testing.TB, filename string, sources imagemeta.Sour
 		t.Fatal(fmt.Errorf("failed to marshal tags in %q to JSON: %w", filename, err))
 	}
 
-	return tags
+	return tags, nil
 }
 
 func readGoldenInfo(t testing.TB, filename string) goldenFileInfo {

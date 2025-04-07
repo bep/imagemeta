@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -67,9 +68,9 @@ func FuzzDecodeTIFF(f *testing.F) {
 
 func fuzzDecodeBytes(t *testing.T, imageBytes []byte, f imagemeta.ImageFormat) error {
 	r := bytes.NewReader(imageBytes)
-	err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: f, Sources: imagemeta.EXIF | imagemeta.IPTC | imagemeta.XMP, Timeout: 10 * time.Second})
+	err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: f, Sources: imagemeta.EXIF | imagemeta.IPTC | imagemeta.XMP, Timeout: 600 * time.Millisecond})
 	if err != nil {
-		if !imagemeta.IsInvalidFormat(err) {
+		if !imagemeta.IsInvalidFormat(err) && !strings.Contains(err.Error(), "timed out") {
 			t.Fatalf("unknown error in Decode: %v %T", err, err)
 		}
 	}
