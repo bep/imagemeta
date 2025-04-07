@@ -215,8 +215,8 @@ func Decode(opts Options) (err error) {
 		go func() {
 			defer func() {
 				err2 := errFromRecover(recover())
-				if err == nil {
-					err = err2
+				if err2 != nil {
+					errc <- err2
 				}
 			}()
 			errc <- dec.decode()
