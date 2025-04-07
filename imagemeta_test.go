@@ -460,6 +460,7 @@ func TestLatLong(t *testing.T) {
 	c := qt.New(t)
 
 	tags, err := extractTags(t, "sunrise.jpg", imagemeta.EXIF)
+	c.Assert(err, qt.IsNil)
 
 	lat, long, err := tags.GetLatLong()
 	c.Assert(err, qt.IsNil)
@@ -478,6 +479,7 @@ func TestGetDateTime(t *testing.T) {
 	c := qt.New(t)
 
 	tags, err := extractTags(t, "sunrise.jpg", imagemeta.EXIF)
+	c.Assert(err, qt.IsNil)
 	d, err := tags.GetDateTime()
 	c.Assert(err, qt.IsNil)
 	c.Assert(d.Format("2006-01-02"), qt.Equals, "2017-10-27")

@@ -90,9 +90,15 @@ func (e *streamReader) otherByteOrder() binary.ByteOrder {
 	return binary.BigEndian
 }
 
+// 10 MB should be plenty for image metadata.
+const maxBufSize = 10 * 1024 * 1024
+
 // bufferedReader reads length bytes from the stream and returns a ReaderCloser.
 // It's important to call Close on the ReaderCloser when done.
 func (e *streamReader) bufferedReader(length int64) (readerCloser, error) {
+	if length > maxBufSize {
+		return nil, newInvalidFormatErrorf("length %d exceeds max %d", length, maxBufSize)
+	}
 	if length == 0 {
 		return struct {
 			io.ReadSeeker
