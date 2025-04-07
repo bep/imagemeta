@@ -74,12 +74,13 @@ func TestDecodeWebP(t *testing.T) {
 
 func TestDecodeXmpChildElements(t *testing.T) {
 	c := qt.New(t)
-	tags := extractTags(t, "mushroom.jpg", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
+	_, tags, err := extractTags(t, "mushroom.jpg", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
+	c.Assert(err, qt.IsNil)
 
-	c.Assert(tags.XMP()["subject"].Value, qt.Equals, "autumn, closeup, forest, forestPhotography, mushroom, nature, naturePhotography, photo, photography")
-	c.Assert(tags.XMP()["rights"].Value, qt.Equals, "Creative Commons Attribution-ShareAlike (CC BY-SA)")
-	c.Assert(tags.XMP()["creator"].Value, qt.Equals, "Lukas Nagel")
-	c.Assert(tags.XMP()["publisher"].Value, qt.Equals, "LNA-DEV")
+	c.Assert(tags.XMP()["Subject"].Value, qt.DeepEquals, []string{"autumn", "closeup", "forest", "forestPhotography", "mushroom", "nature", "naturePhotography", "photo", "photography"})
+	c.Assert(tags.XMP()["Rights"].Value, qt.Equals, "Creative Commons Attribution-ShareAlike (CC BY-SA)")
+	c.Assert(tags.XMP()["Creator"].Value, qt.Equals, "Lukas Nagel")
+	c.Assert(tags.XMP()["Publisher"].Value, qt.Equals, "LNA-DEV")
 }
 
 // For development.
@@ -490,6 +491,10 @@ func TestGoldenEXIFAndIPTCAndConfig(t *testing.T) {
 	withGolden(t, imagemeta.EXIF|imagemeta.IPTC|imagemeta.CONFIG)
 }
 
+func TestGoldenXMPMushroom(t *testing.T) {
+	compareWithExiftoolOutput(t, "mushroom.jpg", imagemeta.XMP)
+}
+
 func TestGoldenXMP(t *testing.T) {
 	// We do verify the "golden" tag count above, but ...
 	t.Skip("XMP parsing is currently limited and the diff set is too large to reasoun about.")
@@ -720,9 +725,33 @@ func compareWithExiftoolOutput(t testing.TB, filename string, sources imagemeta.
 
 		normalizeThem := func(s string, v any, source imagemeta.Source) any {
 			if source == imagemeta.XMP {
-				// Our current XMP handling is very limited in the type department.
-				// Convert v to a string.
-				return xmpReplacer.Replace(fmt.Sprintf("%v", v))
+				// Normalize exiftool date format to ISO format.
+				normalizeXMPDate := func(s string) string {
+					if len(s) >= 19 && s[4] == ':' && s[7] == ':' && s[10] == ' ' {
+						// Convert "2024:09:29 10:37:52" to "2024-09-29T10:37:52"
+						return s[:4] + "-" + s[5:7] + "-" + s[8:10] + "T" + s[11:]
+					}
+					return s
+				}
+				switch v := v.(type) {
+				case []string:
+					if len(v) == 1 {
+						return normalizeXMPDate(v[0])
+					}
+					return v
+				case []any:
+					if len(v) == 1 {
+						return normalizeXMPDate(fmt.Sprintf("%v", v[0]))
+					}
+					// Convert to a string slice.
+					vvv := make([]string, len(v))
+					for i, vv := range v {
+						vvv[i] = fmt.Sprintf("%v", vv)
+					}
+					return vvv
+				default:
+					return normalizeXMPDate(xmpReplacer.Replace(fmt.Sprintf("%v", v)))
+				}
 			}
 
 			switch v := v.(type) {
