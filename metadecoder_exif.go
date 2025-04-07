@@ -433,7 +433,7 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 	if isIFDPointer {
 		offset, ok := val.(uint32)
 		if !ok {
-			return newInvalidFormatErrorf("invalid IFD pointer value: %v", val)
+			return newInvalidFormatErrorf("invalid IFD pointer value")
 		}
 		namespace := path.Join(namespace, ifd)
 		return e.decodeTagsAt(namespace, int64(offset))

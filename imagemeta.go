@@ -9,7 +9,6 @@ import (
 	"io"
 	"maps"
 	"math"
-	"os"
 	"strings"
 	"time"
 )
@@ -51,49 +50,65 @@ const (
 func Decode(opts Options) (err error) {
 	var base *baseStreamingDecoder
 
-	defer func() {
-		if r := recover(); r != nil {
-			if errp, ok := r.(error); ok {
-				if isInvalidFormatErrorCandidate(errp) {
-					err = newInvalidFormatError(errp)
-				} else {
-					err = errp
-					if err != errStop {
-						printStackTrace(os.Stderr)
-					}
-				}
-			} else {
-				err = fmt.Errorf("unknown panic: %v", r)
-				printStackTrace(os.Stderr)
-			}
+	errFinal := func(err2 error) error {
+		if err2 == nil {
+			return nil
 		}
 
-		if err == ErrStopWalking {
-			err = nil
-			return
+		if err2 == ErrStopWalking {
+			return nil
 		}
 
-		if err == errStop {
-			err = nil
+		if err2 == errStop {
+			return nil
 		}
 
-		if err == nil {
+		if err2 == nil {
 			if base != nil {
-				err = base.streamErr()
+				err2 = base.streamErr()
 			}
 		}
 
+		if err2 == nil {
+			return nil
+		}
+
+		if err2 == io.EOF {
+			return nil
+		}
+
+		if isInvalidFormatErrorCandidate(err2) {
+			err2 = newInvalidFormatError(err2)
+		}
+
+		return err2
+	}
+
+	defer func() {
+		err = errFinal(err)
+	}()
+
+	errFromRecover := func(r any) (err2 error) {
+		if r == nil {
+			return nil
+		}
+		if errp, ok := r.(error); ok {
+			if isInvalidFormatErrorCandidate(errp) {
+				err2 = newInvalidFormatError(errp)
+			} else {
+				err2 = errp
+			}
+		} else {
+			err2 = fmt.Errorf("unknown panic: %v", r)
+		}
+
+		return
+	}
+
+	defer func() {
+		err2 := errFromRecover(recover())
 		if err == nil {
-			return
-		}
-
-		if err == io.EOF {
-			err = nil
-			return
-		}
-
-		if isInvalidFormatErrorCandidate(err) {
-			err = newInvalidFormatError(err)
+			err = err2
 		}
 	}()
 
@@ -195,32 +210,26 @@ func Decode(opts Options) (err error) {
 		dec = &imageDecoderPNG{baseStreamingDecoder: base}
 	}
 
-	if opts.Timeout > 0 {
+	decode := func() chan error {
 		errc := make(chan error, 1)
 		go func() {
 			defer func() {
-				if r := recover(); r != nil {
-					if errp, ok := r.(error); ok {
-						if errp != errStop {
-							printStackTrace(os.Stderr)
-						}
-						errc <- errp
-					} else {
-						errc <- fmt.Errorf("unknown panic: %v", r)
-						printStackTrace(os.Stderr)
-					}
+				err2 := errFromRecover(recover())
+				if err == nil {
+					err = err2
 				}
 			}()
-			select {
-			case <-time.After(opts.Timeout):
-				printStackTrace(os.Stderr)
-				errc <- fmt.Errorf("timed out after %s", opts.Timeout)
-			case errc <- dec.decode():
-			}
+			errc <- dec.decode()
 		}()
+		return errc
+	}
 
-		err = <-errc
-
+	if opts.Timeout > 0 {
+		select {
+		case <-time.After(opts.Timeout):
+			err = fmt.Errorf("timed out after %s", opts.Timeout)
+		case err = <-decode():
+		}
 	} else {
 		err = dec.decode()
 	}
@@ -277,7 +286,7 @@ type Options struct {
 	// Tag values larger than this will be skipped without notice.
 	// Note that this limit is not relevant for the XMP source.
 	// Default value is 10000.
-	LimitTagSize uint16
+	LimitTagSize uint32
 }
 
 // TagInfo contains information about a tag.
