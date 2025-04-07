@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 )
 
 var xmpSkipNamespaces = map[string]bool{
@@ -83,7 +82,7 @@ func decodeXMP(r io.Reader, opts Options) error {
 
 		tagInfo := TagInfo{
 			Source:    XMP,
-			Tag:       attr.Name.Local,
+			Tag:       firstUpper(attr.Name.Local),
 			Namespace: attr.Name.Space,
 			Value:     attr.Value,
 		}
@@ -97,38 +96,53 @@ func decodeXMP(r io.Reader, opts Options) error {
 		}
 	}
 
-	if err := processChildElements("creator", meta.RDF.Description.Creator.Seq.Items, opts, meta.RDF.Description.Creator.XMLName.Space); err != nil {
+	if err := processChildElements(meta.RDF.Description.Creator.XMLName, meta.RDF.Description.Creator.Seq.Items, opts); err != nil {
 		return err
 	}
 
-	if err := processChildElements("publisher", meta.RDF.Description.Publisher.Bag.Items, opts, meta.RDF.Description.Publisher.XMLName.Space); err != nil {
+	if err := processChildElements(meta.RDF.Description.Publisher.XMLName, meta.RDF.Description.Publisher.Bag.Items, opts); err != nil {
 		return err
 	}
 
-	if err := processChildElements("subject", meta.RDF.Description.Subject.Bag.Items, opts, meta.RDF.Description.Subject.XMLName.Space); err != nil {
+	if err := processChildElements(meta.RDF.Description.Subject.XMLName, meta.RDF.Description.Subject.Bag.Items, opts); err != nil {
 		return err
 	}
 
-	if err := processChildElements("rights", meta.RDF.Description.Rights.Alt.Items, opts, meta.RDF.Description.Rights.XMLName.Space); err != nil {
+	if err := processChildElements(meta.RDF.Description.Rights.XMLName, meta.RDF.Description.Rights.Alt.Items, opts); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func processChildElements(tag string, items []string, opts Options, namespace string) error {
+func processChildElements(name xml.Name, items []string, opts Options) error {
 	if len(items) == 0 {
 		return nil
 	}
-	joined := strings.Join(items, ", ")
+	var v any
+
+	// This is how ExifTool does it:
+	if len(items) == 1 {
+		v = items[0]
+	} else {
+		v = items
+	}
+
 	tagInfo := TagInfo{
 		Source:    XMP,
-		Tag:       tag,
-		Namespace: namespace,
-		Value:     joined,
+		Tag:       firstUpper(name.Local),
+		Namespace: name.Space,
+		Value:     v,
 	}
 	if !opts.ShouldHandleTag(tagInfo) {
 		return nil
 	}
 	return opts.HandleTag(tagInfo)
+}
+
+func firstUpper(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	return string(s[0]-32) + s[1:]
 }
