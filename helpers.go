@@ -296,6 +296,12 @@ func (c vc) convertUserComment(ctx valueConverterContext, v any) any {
 	// UserComment tag is identified based on an ID code in a fixed 8-byte area at the start of the tag data area.
 	b, ok := typeAssert[[]byte](ctx, v)
 	if !ok {
+		// Handle plain string user comment (which is against spec; but commonly done)
+		// Exiftool prints a warning but returns the string as-is.
+		// See https://github.com/exiftool/exiftool/blob/13.27/lib/Image/ExifTool/Exif.pm#L5483
+		if text, ok := typeAssert[string](ctx, v); ok {
+			return text
+		}
 		return ""
 	}
 	if len(b) < 8 {
