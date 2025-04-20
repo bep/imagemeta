@@ -173,6 +173,37 @@ func TestDecodeCorrupt(t *testing.T) {
 	}
 }
 
+func TestDecodeUserCommentWithInvalidEncoding(t *testing.T) {
+	c := qt.New(t)
+
+	img, err := os.Open(filepath.Join("testdata", "images", "invalid-encoding-usercomment.jpg"))
+	c.Assert(err, qt.IsNil)
+	defer img.Close()
+
+	var userComment any
+	handleTag := func(ti imagemeta.TagInfo) error {
+		if ti.Tag == "UserComment" {
+			userComment = ti.Value
+		}
+		return nil
+	}
+
+	var warning error
+	warnf := func(format string, args ...any) {
+		warning = fmt.Errorf(format, args...)
+	}
+
+	err = imagemeta.Decode(imagemeta.Options{R: img, ImageFormat: imagemeta.JPEG, HandleTag: handleTag, Sources: imagemeta.EXIF, Warnf: warnf})
+	c.Assert(err, qt.IsNil)
+
+	// Expect user comment to be decoded
+	c.Assert(userComment, qt.IsNotNil)
+	c.Assert(userComment, eq, "UserComment")
+
+	// But with a warning about incorrect type
+	c.Assert(warning, qt.ErrorMatches, "UserComment: expected \\[\\]uint8, got string")
+}
+
 func TestDecodeCustomXMPHandler(t *testing.T) {
 	c := qt.New(t)
 
@@ -888,7 +919,8 @@ func withTestDataFile(t testing.TB, fn func(path string, info os.FileInfo, err e
 }
 
 var goldenSkip = map[string]bool{
-	"goexif/geodegrees_as_string.jpg": true, // The file has many EXIF errors. I think we do a better job than exiftools, but there are some differences.
+	"goexif/geodegrees_as_string.jpg":  true, // The file has many EXIF errors. I think we do a better job than exiftools, but there are some differences.
+	"invalid-encoding-usercomment.jpg": true, // The file has an EXIF error that produces a warning in imagemeta. It's tested separately.
 }
 
 var isSpaceDelimitedFloatRe = regexp.MustCompile(`^(\d+\.\d+) (\d+\.\d+)`)
