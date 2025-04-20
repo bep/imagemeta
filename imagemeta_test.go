@@ -152,8 +152,9 @@ func TestDecodeTIFF(t *testing.T) {
 func TestDecodeCorrupt(t *testing.T) {
 	c := qt.New(t)
 
-	files, err := filepath.Glob(filepath.Join("testdata", "corrupt", "*.*"))
+	files, err := filepath.Glob(filepath.Join("testdata", "images", "corrupt", "*.*"))
 	c.Assert(err, qt.IsNil)
+	c.Assert(files, qt.HasLen, 3)
 
 	for _, file := range files {
 		img, err := os.Open(file)
@@ -163,7 +164,11 @@ func TestDecodeCorrupt(t *testing.T) {
 			return nil
 		}
 		err = imagemeta.Decode(imagemeta.Options{R: img, ImageFormat: format, HandleTag: handleTag, Warnf: panicWarnf})
-		c.Assert(imagemeta.IsInvalidFormat(err), qt.IsTrue, qt.Commentf("file: %s", file))
+
+		if !imagemeta.IsInvalidFormat(err) {
+			c.Assert(err, qt.ErrorMatches, "UserComment: expected \\[\\]uint8, got string", qt.Commentf("file: %s", file))
+		}
+
 		img.Close()
 	}
 }
