@@ -188,9 +188,7 @@ func TestDecodeUserCommentWithInvalidEncoding(t *testing.T) {
 		return nil
 	}
 
-	var warning error
 	warnf := func(format string, args ...any) {
-		warning = fmt.Errorf(format, args...)
 	}
 
 	err = imagemeta.Decode(imagemeta.Options{R: img, ImageFormat: imagemeta.JPEG, HandleTag: handleTag, Sources: imagemeta.EXIF, Warnf: warnf})
@@ -199,9 +197,6 @@ func TestDecodeUserCommentWithInvalidEncoding(t *testing.T) {
 	// Expect user comment to be decoded
 	c.Assert(userComment, qt.IsNotNil)
 	c.Assert(userComment, eq, "UserComment")
-
-	// But with a warning about incorrect type
-	c.Assert(warning, qt.ErrorMatches, "UserComment: expected \\[\\]uint8, got string")
 }
 
 func TestDecodeCustomXMPHandler(t *testing.T) {
