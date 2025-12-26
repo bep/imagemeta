@@ -17,15 +17,44 @@ var xmpSkipNamespaces = map[string]bool{
 }
 
 type rdf struct {
+	XMLName     xml.Name
 	Description rdfDescription `xml:"Description"`
 }
 
 type rdfDescription struct {
-	Attrs []xml.Attr `xml:",any,attr"`
+	XMLName   xml.Name
+	Attrs     []xml.Attr `xml:",any,attr"`
+	Creator   seqList    `xml:"creator"`
+	Publisher bagList    `xml:"publisher"`
+	Subject   bagList    `xml:"subject"`
+	Rights    altList    `xml:"rights"`
+}
+
+type altList struct {
+	XMLName xml.Name
+	Alt     struct {
+		Items []string `xml:"li"`
+	} `xml:"Alt"`
+}
+
+type seqList struct {
+	XMLName xml.Name
+	Seq     struct {
+		Items []string `xml:"li"`
+	} `xml:"Seq"`
+}
+
+type bagList struct {
+	XMLName xml.Name
+	Bag     struct {
+		XMLName xml.Name
+		Items   []string `xml:"li"`
+	} `xml:"Bag"`
 }
 
 type xmpmeta struct {
-	RDF rdf `xml:"RDF"`
+	XMLName xml.Name
+	RDF     rdf `xml:"RDF"`
 }
 
 func decodeXMP(r io.Reader, opts Options) error {
@@ -53,7 +82,7 @@ func decodeXMP(r io.Reader, opts Options) error {
 
 		tagInfo := TagInfo{
 			Source:    XMP,
-			Tag:       attr.Name.Local,
+			Tag:       firstUpper(attr.Name.Local),
 			Namespace: attr.Name.Space,
 			Value:     attr.Value,
 		}
@@ -66,5 +95,54 @@ func decodeXMP(r io.Reader, opts Options) error {
 			return err
 		}
 	}
+
+	if err := processChildElements(meta.RDF.Description.Creator.XMLName, meta.RDF.Description.Creator.Seq.Items, opts); err != nil {
+		return err
+	}
+
+	if err := processChildElements(meta.RDF.Description.Publisher.XMLName, meta.RDF.Description.Publisher.Bag.Items, opts); err != nil {
+		return err
+	}
+
+	if err := processChildElements(meta.RDF.Description.Subject.XMLName, meta.RDF.Description.Subject.Bag.Items, opts); err != nil {
+		return err
+	}
+
+	if err := processChildElements(meta.RDF.Description.Rights.XMLName, meta.RDF.Description.Rights.Alt.Items, opts); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func processChildElements(name xml.Name, items []string, opts Options) error {
+	if len(items) == 0 {
+		return nil
+	}
+	var v any
+
+	// This is how ExifTool does it:
+	if len(items) == 1 {
+		v = items[0]
+	} else {
+		v = items
+	}
+
+	tagInfo := TagInfo{
+		Source:    XMP,
+		Tag:       firstUpper(name.Local),
+		Namespace: name.Space,
+		Value:     v,
+	}
+	if !opts.ShouldHandleTag(tagInfo) {
+		return nil
+	}
+	return opts.HandleTag(tagInfo)
+}
+
+func firstUpper(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	return string(s[0]-32) + s[1:]
 }
