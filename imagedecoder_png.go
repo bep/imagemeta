@@ -18,6 +18,7 @@ type imageDecoderPNG struct {
 // See https://exiftool.org/TagNames/PNG.html
 var (
 	pngTagIDExif          = []byte("eXIf")
+	pngTagIDIHDR          = []byte("IHDR")
 	pngCompressedText     = []byte("zTXt") // See https://exiftool.org/forum/index.php?topic=7988.msg40759#msg40759
 	pngRawProfileTypeIPTC = []byte("Raw profile type iptc")
 	pngRawProfileTypeEXIF = []byte("Raw profile type exif")
@@ -40,6 +41,19 @@ func (e *imageDecoderPNG) decode() error {
 		}
 		chunkLength := e.read4()
 		tagID := e.readBytesVolatile(4)
+		if sources.Has(CONFIG) && bytes.Equal(tagID, pngTagIDIHDR) {
+			sources = sources.Remove(CONFIG)
+			// IHDR: 4 bytes width, 4 bytes height, then other fields.
+			width := int(e.read4())
+			height := int(e.read4())
+			e.result.ImageConfig = ImageConfig{
+				Width:  width,
+				Height: height,
+			}
+			e.skip(int64(chunkLength) - 8) // Skip remaining bytes.
+			e.skip(4)                      // Skip CRC.
+			continue
+		}
 		if sources.Has(EXIF) && bytes.Equal(tagID, pngTagIDExif) {
 			sources = sources.Remove(EXIF)
 			if err := func() error {

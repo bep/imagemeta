@@ -1,0 +1,20 @@
+[{
+  "SourceFile": "../testdata/images/sunrise_lossless.webp",
+  "ExifTool": {
+    "ExifToolVersion": 13.36
+  },
+  "File": {
+    "FileName": "sunrise_lossless.webp",
+    "Directory": "../testdata/images",
+    "FileSize": 244888,
+    "FilePermissions": 100644,
+    "FileType": "WEBP (lossless)",
+    "FileTypeExtension": "WEBP",
+    "MIMEType": "image/webp"
+  },
+  "RIFF": {
+    "ImageWidth": 1024,
+    "ImageHeight": 640,
+    "AlphaIsUsed": 0
+  }
+}]

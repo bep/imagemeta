@@ -24,7 +24,7 @@ func (e *imageDecoderJPEG) decode() error {
 	}
 
 	// These are the sources we support.
-	sourceSet := EXIF | IPTC | XMP
+	sourceSet := EXIF | IPTC | XMP | CONFIG
 	// Remove sources that are not requested.
 	sourceSet = sourceSet & e.opts.Sources
 
@@ -95,11 +95,35 @@ func (e *imageDecoderJPEG) decode() error {
 
 		}
 
+		// SOF markers contain image dimensions.
+		if sourceSet.Has(CONFIG) && (marker == markerSOF0 || marker == markerSOF1 || marker == markerSOF2) {
+			sourceSet = sourceSet.Remove(CONFIG)
+			e.skip(1) // Skip precision byte.
+			height := int(e.read2())
+			width := int(e.read2())
+			e.result.ImageConfig = ImageConfig{
+				Width:  width,
+				Height: height,
+			}
+			e.skip(int64(length) - 5) // Skip remaining bytes (precision + height + width = 5).
+			continue
+		}
+
 		e.skip(int64(length))
 	}
 }
 
-func (e *imageDecoderJPEG) handleEXIF(length int64) error {
+func (e *imageDecoderJPEG) handleEXIF(length int64) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			// Recover from panic in EXIF decoder (e.g., errStop).
+			// This allows the JPEG decoder to continue processing other sources.
+			if rerr, ok := r.(error); ok && rerr != errStop {
+				err = rerr
+			}
+		}
+	}()
+
 	thumbnailOffset := e.pos()
 	r, err := e.bufferedReader(length)
 	if err != nil {
@@ -110,17 +134,22 @@ func (e *imageDecoderJPEG) handleEXIF(length int64) error {
 
 	header := exifr.read4()
 	if header != exifHeader {
-		return err
+		return nil
 	}
 	exifr.skip(2)
 
-	if err := exifr.decode(); err != nil {
-		return err
-	}
-	return nil
+	return exifr.decode()
 }
 
-func (e *imageDecoderJPEG) handleIPTC(length int) error {
+func (e *imageDecoderJPEG) handleIPTC(length int) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if rerr, ok := r.(error); ok && rerr != errStop {
+				err = rerr
+			}
+		}
+	}()
+
 	const headerLength = 14
 	// Skip the IPTC header.
 	e.skip(headerLength)

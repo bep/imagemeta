@@ -21,6 +21,9 @@ const (
 	markerrApp1XMP        = 0xffe1
 	markerApp13           = 0xffed
 	markerSOS             = 0xffda
+	markerSOF0            = 0xffc0 // Baseline DCT
+	markerSOF1            = 0xffc1 // Extended sequential DCT
+	markerSOF2            = 0xffc2 // Progressive DCT
 	exifHeader            = 0x45786966
 	byteOrderBigEndian    = 0x4d4d
 	byteOrderLittleEndian = 0x4949
