@@ -390,12 +390,31 @@ func (t Tags) All() map[string]TagInfo {
 	return all
 }
 
-// GetDateTime tries DateTimeOriginal and then DateTime,
-// in the EXIF tags, and returns the parsed time.Time value if found.
+// GetDateTime tries to find a date/time value from available metadata sources.
+// It checks EXIF first (DateTimeOriginal, DateTime), then XMP (DateTimeOriginal, CreateDate, DateCreated),
+// and finally IPTC (DateCreated + TimeCreated).
 func (t Tags) GetDateTime() (time.Time, error) {
-	dateStr := t.dateTime()
+	dateStr, hasTimeZone := t.dateTime()
 	if dateStr == "" {
 		return time.Time{}, nil
+	}
+
+	// Layout without timezone suffix.
+	const layout = "2006:01:02 15:04:05"
+
+	if hasTimeZone {
+		// Try parsing with timezone offset.
+		// Common formats: "2017:05:29 17:19:21-04:00" or "2017-05-29T17:19:21-04:00"
+		for _, l := range []string{
+			"2006:01:02 15:04:05-07:00",
+			"2006-01-02T15:04:05-07:00",
+			"2006:01:02 15:04:05Z07:00",
+			"2006-01-02T15:04:05Z07:00",
+		} {
+			if tm, err := time.Parse(l, dateStr); err == nil {
+				return tm, nil
+			}
+		}
 	}
 
 	loc := time.Local
@@ -403,31 +422,46 @@ func (t Tags) GetDateTime() (time.Time, error) {
 		loc = v
 	}
 
-	const layout = "2006:01:02 15:04:05"
-
 	return time.ParseInLocation(layout, dateStr, loc)
 }
 
-// GetLatLong returns the latitude and longitude from the EXIF GPS tags.
+// GetLatLong returns the latitude and longitude from available metadata sources.
+// It checks EXIF first, then falls back to XMP.
 func (t Tags) GetLatLong() (lat float64, long float64, err error) {
+	// Try EXIF first.
+	lat, long, found := t.getLatLongFromEXIF()
+	if found {
+		return lat, long, nil
+	}
+
+	// Try XMP as fallback.
+	lat, long, found = t.getLatLongFromXMP()
+	if found {
+		return lat, long, nil
+	}
+
+	return 0, 0, nil
+}
+
+func (t Tags) getLatLongFromEXIF() (lat float64, long float64, found bool) {
 	var ns, ew string
 
 	exif := t.EXIF()
 
-	longTag, found := exif["GPSLongitude"]
-	if !found {
+	longTag, ok := exif["GPSLongitude"]
+	if !ok {
 		return
 	}
-	ewTag, found := exif["GPSLongitudeRef"]
-	if found {
+	ewTag, ok := exif["GPSLongitudeRef"]
+	if ok {
 		ew = ewTag.Value.(string)
 	}
-	latTag, found := exif["GPSLatitude"]
-	if !found {
+	latTag, ok := exif["GPSLatitude"]
+	if !ok {
 		return
 	}
-	nsTag, found := exif["GPSLatitudeRef"]
-	if found {
+	nsTag, ok := exif["GPSLatitudeRef"]
+	if ok {
 		ns = nsTag.Value.(string)
 	}
 
@@ -449,7 +483,33 @@ func (t Tags) GetLatLong() (lat float64, long float64, err error) {
 		long = 0
 	}
 
-	return
+	return lat, long, true
+}
+
+func (t Tags) getLatLongFromXMP() (lat float64, long float64, found bool) {
+	xmp := t.XMP()
+
+	latTag, ok := xmp["GPSLatitude"]
+	if !ok {
+		return
+	}
+	longTag, ok := xmp["GPSLongitude"]
+	if !ok {
+		return
+	}
+
+	// XMP GPS values may be float64 or string.
+	lat = toFloat64(latTag.Value)
+	long = toFloat64(longTag.Value)
+
+	if math.IsNaN(lat) {
+		lat = 0
+	}
+	if math.IsNaN(long) {
+		long = 0
+	}
+
+	return lat, long, true
 }
 
 func (t *Tags) getSourceMap(source Source) map[string]TagInfo {
@@ -465,15 +525,41 @@ func (t *Tags) getSourceMap(source Source) map[string]TagInfo {
 	}
 }
 
-func (t Tags) dateTime() string {
+func (t Tags) dateTime() (string, bool) {
+	// Try EXIF first.
 	exif := t.EXIF()
 	if ti, ok := exif["DateTimeOriginal"]; ok {
-		return ti.Value.(string)
+		return ti.Value.(string), false
 	}
 	if ti, ok := exif["DateTime"]; ok {
-		return ti.Value.(string)
+		return ti.Value.(string), false
 	}
-	return ""
+
+	// Try XMP.
+	xmp := t.XMP()
+	for _, tag := range []string{"DateTimeOriginal", "CreateDate", "DateCreated"} {
+		if ti, ok := xmp[tag]; ok {
+			s := ti.Value.(string)
+			// XMP dates may include timezone offset.
+			hasTimeZone := len(s) > 19
+			return s, hasTimeZone
+		}
+	}
+
+	// Try IPTC (DateCreated + TimeCreated).
+	iptc := t.IPTC()
+	if dateTag, ok := iptc["DateCreated"]; ok {
+		dateStr := dateTag.Value.(string)
+		if timeTag, ok := iptc["TimeCreated"]; ok {
+			timeStr := timeTag.Value.(string)
+			// IPTC TimeCreated format: "HH:MM:SS" or "HH:MM:SS+HH:MM"
+			hasTimeZone := len(timeStr) > 8
+			return dateStr + " " + timeStr, hasTimeZone
+		}
+		return dateStr + " 00:00:00", false
+	}
+
+	return "", false
 }
 
 // Borrowed from github.com/rwcarlsen/goexif

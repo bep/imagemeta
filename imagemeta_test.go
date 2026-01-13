@@ -544,6 +544,73 @@ func TestGetDateTime(t *testing.T) {
 	c.Assert(d.Format("2006-01-02"), qt.Equals, "2017-10-27")
 }
 
+// TestGetDateTimeFallback tests that GetDateTime falls back to XMP and IPTC
+// when EXIF is not available.
+func TestGetDateTimeFallback(t *testing.T) {
+	c := qt.New(t)
+
+	// This file has no EXIF data, only IPTC and XMP.
+	// XMP has: DateCreated: "2017:05:29 17:19:21-04:00", CreateDate: "2017:05:29 17:19:21-04:00"
+	// IPTC has: DateCreated: "2017:05:29", TimeCreated: "17:19:21-04:00"
+	_, tags, err := extractTags(t, "metadata_demo_iim_and_xmp_only.jpg", imagemeta.IPTC|imagemeta.XMP)
+	c.Assert(err, qt.IsNil)
+
+	d, err := tags.GetDateTime()
+	c.Assert(err, qt.IsNil)
+	c.Assert(d.Format("2006-01-02"), qt.Equals, "2017-05-29")
+	// Should preserve the timezone from XMP.
+	_, offset := d.Zone()
+	c.Assert(offset, qt.Equals, -4*60*60) // -04:00 = -4 hours = -14400 seconds
+}
+
+// TestGetDateTimeFallbackIPTC tests that GetDateTime falls back to IPTC
+// when both EXIF and XMP are not available.
+func TestGetDateTimeFallbackIPTC(t *testing.T) {
+	c := qt.New(t)
+
+	// Only load IPTC, so we test the IPTC fallback path.
+	_, tags, err := extractTags(t, "metadata_demo_iim_and_xmp_only.jpg", imagemeta.IPTC)
+	c.Assert(err, qt.IsNil)
+
+	d, err := tags.GetDateTime()
+	c.Assert(err, qt.IsNil)
+	c.Assert(d.Format("2006-01-02"), qt.Equals, "2017-05-29")
+	// IPTC TimeCreated: "17:19:21-04:00" should preserve timezone.
+	_, offset := d.Zone()
+	c.Assert(offset, qt.Equals, -4*60*60) // -04:00
+}
+
+// TestLatLongFallback tests that GetLatLong falls back to XMP
+// when EXIF is not available.
+func TestLatLongFallback(t *testing.T) {
+	c := qt.New(t)
+
+	// This file has no EXIF GPS data, only XMP GPS data.
+	// XMP has GPS coordinates in DMS format: "26,34.951N", "80,12.014W"
+	// which get parsed to decimal: 26.5825166..., -80.2002333...
+	_, tags, err := extractTags(t, "metadata_demo_iim_and_xmp_only.jpg", imagemeta.XMP)
+	c.Assert(err, qt.IsNil)
+
+	lat, long, err := tags.GetLatLong()
+	c.Assert(err, qt.IsNil)
+	c.Assert(lat, eq, float64(26.5825166666667))
+	c.Assert(long, eq, float64(-80.2002333333333))
+}
+
+// TestLatLongWithBothSources tests that GetLatLong prefers EXIF over XMP.
+func TestLatLongWithBothSources(t *testing.T) {
+	c := qt.New(t)
+
+	// sunrise.jpg has EXIF GPS data
+	_, tags, err := extractTags(t, "sunrise.jpg", imagemeta.EXIF|imagemeta.XMP)
+	c.Assert(err, qt.IsNil)
+
+	lat, long, err := tags.GetLatLong()
+	c.Assert(err, qt.IsNil)
+	c.Assert(lat, eq, float64(36.59744166))
+	c.Assert(long, eq, float64(-4.50846))
+}
+
 func TestTagSource(t *testing.T) {
 	c := qt.New(t)
 	sources := imagemeta.EXIF | imagemeta.IPTC

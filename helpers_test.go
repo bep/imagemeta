@@ -47,6 +47,67 @@ func BenchmarkPrintableString(b *testing.B) {
 	runBench(b, "Unprintable", "Hello, \x00World!")
 }
 
+func TestParseXMPGPSCoordinate(t *testing.T) {
+	c := qt.New(t)
+
+	floatEq := func(got, want float64) bool {
+		if got == want {
+			return true
+		}
+		delta := got - want
+		if delta < 0 {
+			delta = -delta
+		}
+		mean := (got + want) / 2.0
+		if mean < 0 {
+			mean = -mean
+		}
+		return delta/mean < 0.00001
+	}
+
+	// DMS format with direction
+	lat, err := parseXMPGPSCoordinate("26,34.951N")
+	c.Assert(err, qt.IsNil)
+	c.Assert(floatEq(lat, 26.5825166666667), qt.IsTrue)
+
+	long, err := parseXMPGPSCoordinate("80,12.014W")
+	c.Assert(err, qt.IsNil)
+	c.Assert(floatEq(long, -80.2002333333333), qt.IsTrue)
+
+	// South latitude
+	lat, err = parseXMPGPSCoordinate("36,35.846S")
+	c.Assert(err, qt.IsNil)
+	c.Assert(floatEq(lat, -36.5974333333333), qt.IsTrue)
+
+	// East longitude
+	long, err = parseXMPGPSCoordinate("4,30.507E")
+	c.Assert(err, qt.IsNil)
+	c.Assert(floatEq(long, 4.50845), qt.IsTrue)
+
+	// Pure decimal format
+	lat, err = parseXMPGPSCoordinate("26.5825")
+	c.Assert(err, qt.IsNil)
+	c.Assert(lat, qt.Equals, 26.5825)
+
+	// Decimal with direction
+	lat, err = parseXMPGPSCoordinate("26.5825N")
+	c.Assert(err, qt.IsNil)
+	c.Assert(lat, qt.Equals, 26.5825)
+
+	lat, err = parseXMPGPSCoordinate("26.5825S")
+	c.Assert(err, qt.IsNil)
+	c.Assert(lat, qt.Equals, -26.5825)
+
+	// Empty string should error
+	_, err = parseXMPGPSCoordinate("")
+	c.Assert(err, qt.IsNotNil)
+
+	// Whitespace should be trimmed
+	lat, err = parseXMPGPSCoordinate("  26.5825N  ")
+	c.Assert(err, qt.IsNil)
+	c.Assert(lat, qt.Equals, 26.5825)
+}
+
 func TestRat(t *testing.T) {
 	c := qt.New(t)
 

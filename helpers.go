@@ -447,6 +447,9 @@ func toFloat64(v any) float64 {
 		return vv.Float64()
 	case float64:
 		return vv
+	case string:
+		f, _ := strconv.ParseFloat(vv, 64)
+		return f
 	default:
 		return 0
 	}
