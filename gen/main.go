@@ -44,12 +44,37 @@ func main() {
 			return err
 		}
 
-		outFilename := filepath.Join(outDir, basePath+".json")
-		if err := os.MkdirAll(filepath.Dir(outFilename), 0o755); err != nil {
+		exiftoolOutFilename := filepath.Join(outDir, basePath+".json")
+		if err := os.MkdirAll(filepath.Dir(exiftoolOutFilename), 0o755); err != nil {
 			return err
 		}
 
-		if err := os.WriteFile(outFilename, buf.Bytes(), 0o644); err != nil {
+		if err := os.WriteFile(exiftoolOutFilename, buf.Bytes(), 0o644); err != nil {
+			return err
+		}
+
+		buf.Reset()
+		cmd = exec.Command("identify", "-format", "{\"width\": %w, \"height\": %h}", path)
+		cmd.Stdout = &buf
+		var errorBuf bytes.Buffer
+		cmd.Stderr = &errorBuf
+
+		if err := cmd.Run(); err != nil {
+			if strings.Contains(errorBuf.String(), "identify:") {
+				// We have some corrupt images.
+				return nil
+			}
+			return err
+		}
+
+		imageConfigOutFilename := filepath.Join(outDir, basePath+".config.json")
+		if err := os.MkdirAll(filepath.Dir(imageConfigOutFilename), 0o755); err != nil {
+			return err
+		}
+
+		configBytes := buf.Bytes()
+
+		if err := os.WriteFile(imageConfigOutFilename, configBytes, 0o644); err != nil {
 			return err
 		}
 

@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/goexif/2007-07-13-17-02-30-sep-2007-07-13-17-02-30a.jpg",
   "ExifTool": {
-    "ExifToolVersion": 12.76,
+    "ExifToolVersion": 13.36,
     "Warning": "JPEG format error"
   },
   "File": {

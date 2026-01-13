@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/smoke/hugo-issue-10738/sony_arw_fraction.jpg",
   "ExifTool": {
-    "ExifToolVersion": 12.76
+    "ExifToolVersion": 13.36
   },
   "File": {
     "FileName": "sony_arw_fraction.jpg",

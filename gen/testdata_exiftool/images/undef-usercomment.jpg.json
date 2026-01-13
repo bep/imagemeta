@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/undef-usercomment.jpg",
   "ExifTool": {
-    "ExifToolVersion": 12.76
+    "ExifToolVersion": 13.36
   },
   "File": {
     "FileName": "undef-usercomment.jpg",

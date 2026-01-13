@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/metadata-extractor/simple.jpg",
   "ExifTool": {
-    "ExifToolVersion": 12.76,
+    "ExifToolVersion": 13.36,
     "Warning": "[minor] Possibly incorrect maker notes offsets (fix by -278?)"
   },
   "File": {

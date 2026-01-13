@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/largeexif.png",
   "ExifTool": {
-    "ExifToolVersion": 12.76,
+    "ExifToolVersion": 13.36,
     "Warning": "Processing TIFF-like data after unknown 16-byte header"
   },
   "File": {

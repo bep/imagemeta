@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/metadata-extractor-images/png/Issue 62.png",
   "ExifTool": {
-    "ExifToolVersion": 12.76
+    "ExifToolVersion": 13.36
   },
   "File": {
     "FileName": "Issue 62.png",
