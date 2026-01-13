@@ -11,6 +11,8 @@ jobs:
         platform: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Install Go
         uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
@@ -24,8 +26,6 @@ jobs:
       - name: Update PATH
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
         shell: bash
-      - name: Checkout code
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Fmt
         if: matrix.platform != 'windows-latest' # :(
         run: "diff <(gofmt -d .) <(printf '')"
