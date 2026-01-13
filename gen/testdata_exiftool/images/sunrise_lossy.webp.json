@@ -1,0 +1,22 @@
+[{
+  "SourceFile": "../testdata/images/sunrise_lossy.webp",
+  "ExifTool": {
+    "ExifToolVersion": 13.36
+  },
+  "File": {
+    "FileName": "sunrise_lossy.webp",
+    "Directory": "../testdata/images",
+    "FileSize": 21052,
+    "FilePermissions": 100644,
+    "FileType": "WEBP",
+    "FileTypeExtension": "WEBP",
+    "MIMEType": "image/webp"
+  },
+  "RIFF": {
+    "VP8Version": 0,
+    "ImageWidth": 1024,
+    "HorizontalScale": 0,
+    "ImageHeight": 640,
+    "VerticalScale": 0
+  }
+}]

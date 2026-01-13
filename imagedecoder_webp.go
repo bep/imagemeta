@@ -7,13 +7,15 @@ var (
 	fccRIFF = fourCC{'R', 'I', 'F', 'F'}
 	fccWEBP = fourCC{'W', 'E', 'B', 'P'}
 	fccVP8X = fourCC{'V', 'P', '8', 'X'}
+	fccVP8  = fourCC{'V', 'P', '8', ' '}
+	fccVP8L = fourCC{'V', 'P', '8', 'L'}
 	fccEXIF = fourCC{'E', 'X', 'I', 'F'}
 	fccXMP  = fourCC{'X', 'M', 'P', ' '}
 )
 
 func (e *decoderWebP) decode() error {
 	// These are the sources we currently support in WebP.
-	sourceSet := EXIF | XMP
+	sourceSet := EXIF | XMP | CONFIG
 	// Remove sources that are not requested.
 	sourceSet = sourceSet & e.opts.Sources
 
@@ -74,6 +76,18 @@ func (e *decoderWebP) decode() error {
 				sourceSet = sourceSet.Remove(XMP)
 			}
 
+			if sourceSet.Has(CONFIG) {
+				// Bytes 4-6: canvas width minus 1 (24-bit little-endian)
+				// Bytes 7-9: canvas height minus 1 (24-bit little-endian)
+				width := int(buf[4]) | int(buf[5])<<8 | int(buf[6])<<16 + 1
+				height := int(buf[7]) | int(buf[8])<<8 | int(buf[9])<<16 + 1
+				e.result.ImageConfig = ImageConfig{
+					Width:  width,
+					Height: height,
+				}
+				sourceSet = sourceSet.Remove(CONFIG)
+			}
+
 			if sourceSet.IsZero() {
 				return nil
 			}
@@ -104,6 +118,40 @@ func (e *decoderWebP) decode() error {
 			}(); err != nil {
 				return err
 			}
+
+		case chunkID == fccVP8 && sourceSet.Has(CONFIG):
+			sourceSet = sourceSet.Remove(CONFIG)
+			// VP8 lossy format: read frame header for dimensions.
+			e.readBytes(buf[:10])
+			// Check for VP8 signature: 0x9D 0x01 0x2A at bytes 3-5.
+			if buf[3] == 0x9D && buf[4] == 0x01 && buf[5] == 0x2A {
+				// Width and height are 14-bit values in bytes 6-9.
+				width := int(buf[6]) | int(buf[7]&0x3F)<<8
+				height := int(buf[8]) | int(buf[9]&0x3F)<<8
+				e.result.ImageConfig = ImageConfig{
+					Width:  width,
+					Height: height,
+				}
+			}
+			e.skip(int64(chunkLen) - 10)
+
+		case chunkID == fccVP8L && sourceSet.Has(CONFIG):
+			sourceSet = sourceSet.Remove(CONFIG)
+			// VP8L lossless format.
+			e.readBytes(buf[:5])
+			// Check for VP8L signature: 0x2F.
+			if buf[0] == 0x2F {
+				// Width and height are packed in bytes 1-4.
+				// Bits 0-13: width - 1, bits 14-27: height - 1.
+				bits := uint32(buf[1]) | uint32(buf[2])<<8 | uint32(buf[3])<<16 | uint32(buf[4])<<24
+				width := int(bits&0x3FFF) + 1
+				height := int((bits>>14)&0x3FFF) + 1
+				e.result.ImageConfig = ImageConfig{
+					Width:  width,
+					Height: height,
+				}
+			}
+			e.skip(int64(chunkLen) - 5)
 
 		default:
 			e.skip(int64(chunkLen))

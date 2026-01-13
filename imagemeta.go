@@ -23,6 +23,10 @@ const (
 	IPTC
 	// XMP is the XMP tag source.
 	XMP
+
+	// CONFIG source, which currently the image dimensions encoded in the image.
+	// Note that this must not be confused with the dimensions stored in EXIF tags.
+	CONFIG
 )
 
 var (
@@ -46,11 +50,30 @@ const (
 	WebP
 )
 
+// ImageConfig contains basic image configuration.
+type ImageConfig struct {
+	Width  int
+	Height int
+}
+
+// DecodeResult contains the result of a Decode operation.
+type DecodeResult struct {
+	// ImageConfig contains basic image configuration.
+	// Note that this will be zero if the CONFIG source was not requested.
+	ImageConfig ImageConfig
+}
+
 // Decode reads EXIF and IPTC metadata from r and returns a Meta struct.
-func Decode(opts Options) (err error) {
+func Decode(opts Options) (result DecodeResult, err error) {
 	var base *baseStreamingDecoder
 
 	errFinal := func(err2 error) error {
+		if err2 == nil {
+			if base != nil {
+				err2 = base.streamErr()
+			}
+		}
+
 		if err2 == nil {
 			return nil
 		}
@@ -60,16 +83,6 @@ func Decode(opts Options) (err error) {
 		}
 
 		if err2 == errStop {
-			return nil
-		}
-
-		if err2 == nil {
-			if base != nil {
-				err2 = base.streamErr()
-			}
-		}
-
-		if err2 == nil {
 			return nil
 		}
 
@@ -113,10 +126,10 @@ func Decode(opts Options) (err error) {
 	}()
 
 	if opts.R == nil {
-		return fmt.Errorf("no reader provided")
+		return result, fmt.Errorf("no reader provided")
 	}
 	if opts.ImageFormat == ImageFormatAuto {
-		return fmt.Errorf("no image format provided; format detection not implemented yet")
+		return result, fmt.Errorf("no image format provided; format detection not implemented yet")
 	}
 	if opts.ShouldHandleTag == nil {
 		opts.ShouldHandleTag = func(ti TagInfo) bool {
@@ -167,15 +180,15 @@ func Decode(opts Options) (err error) {
 	// Remove sources not supported by the format.
 	switch opts.ImageFormat {
 	case JPEG:
-		sourceSet = EXIF | XMP | IPTC
+		sourceSet = EXIF | XMP | IPTC | CONFIG
 	case TIFF:
-		sourceSet = EXIF | XMP | IPTC
+		sourceSet = EXIF | XMP | IPTC | CONFIG
 	case WebP:
-		sourceSet = EXIF | XMP
+		sourceSet = EXIF | XMP | CONFIG
 	case PNG:
-		sourceSet = EXIF | XMP | IPTC
+		sourceSet = EXIF | XMP | IPTC | CONFIG
 	default:
-		return fmt.Errorf("unsupported image format")
+		return result, fmt.Errorf("unsupported image format")
 
 	}
 	// Remove sources that are not requested.
@@ -183,7 +196,7 @@ func Decode(opts Options) (err error) {
 	opts.Sources = sourceSet
 
 	if opts.Sources.IsZero() {
-		return nil
+		return result, nil
 	}
 
 	br := &streamReader{
@@ -194,6 +207,7 @@ func Decode(opts Options) (err error) {
 	base = &baseStreamingDecoder{
 		streamReader: br,
 		opts:         opts,
+		result:       &result,
 	}
 
 	var dec decoder
@@ -480,8 +494,9 @@ func (t Tags) location() *time.Location {
 
 type baseStreamingDecoder struct {
 	*streamReader
-	opts Options
-	err  error
+	opts   Options
+	err    error
+	result *DecodeResult
 }
 
 func (d *baseStreamingDecoder) streamErr() error {
