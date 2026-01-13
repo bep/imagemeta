@@ -60,14 +60,14 @@ Many of the tests depends on generated golden files. To update these, run:
  go generate ./gen
 ```
 
-Note that you need a working `exiftool` and updated binary in your `PATH` for this to work. This was tested OK with:
+Note that you need a working `exiftool` and `identify`(ImageMagick) in your `PATH` for this to work. This was tested OK with:
 
 ```
 exiftool -ver
 12.76
 ```
 
-Debuggin tips:
+Debugging tips:
 
 ```bash
  exiftool testdata/goexif_samples/has-lens-info.jpg -htmldump > dump.html

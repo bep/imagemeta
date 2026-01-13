@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/metadata_demo_iim_and_xmp_only.jpg",
   "ExifTool": {
-    "ExifToolVersion": 12.76,
+    "ExifToolVersion": 13.36,
     "Warning": "IPTCDigest is not current. XMP may be out of sync"
   },
   "File": {

@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/smoke/hugo-issue-10738/nikon_nef_fraction_2.jpg",
   "ExifTool": {
-    "ExifToolVersion": 12.76
+    "ExifToolVersion": 13.36
   },
   "File": {
     "FileName": "nikon_nef_fraction_2.jpg",
@@ -275,12 +275,13 @@
     "ColorBalanceVersion": "0802",
     "LensDataVersion": "0801",
     "LensID": 18,
-    "LensMountType": 1,
+    "LensFirmwareVersion": 256,
     "MaxAperture": 4,
     "FNumber": 4,
     "FocalLength": 24,
     "FocusDistance": 11.0015539920815,
     "LensPositionAbsolute": -1,
+    "LensMountType": 0,
     "RetouchHistory": 0,
     "ImageDataSize": 9446364,
     "ShutterCount": 54,
@@ -307,15 +308,12 @@
     "HighISONoiseReduction": 4,
     "PowerUpTime": "2022:11:06 16:54:12",
     "AFInfo2Version": "0301",
-    "ContrastDetectAF": 2,
+    "AFDetectionMethod": 2,
     "AFAreaMode": 197,
-    "PhaseDetectAF": 8,
-    "PrimaryAFPoint": 24,
+    "FocusPointSchema": 8,
+    "AFCoordinatesAvailable": 0,
     "AFPointsUsed": "e1 c2 80 09 03 04 08 10 00 00 00",
-    "AFAreaXPosition": 0,
-    "FocusPositionHorizontal": 0,
-    "AFAreaYPosition": 0,
-    "FocusPositionVertical": 0,
+    "PrimaryAFPoint": 24,
     "FileInfoVersion": "0100",
     "MemoryCardNumber": 0,
     "DirectoryNumber": 100,

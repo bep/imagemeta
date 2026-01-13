@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/goexif/f5-exif.jpg",
   "ExifTool": {
-    "ExifToolVersion": 12.76
+    "ExifToolVersion": 13.36
   },
   "File": {
     "FileName": "f5-exif.jpg",

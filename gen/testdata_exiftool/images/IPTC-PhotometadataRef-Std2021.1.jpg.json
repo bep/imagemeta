@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/IPTC-PhotometadataRef-Std2021.1.jpg",
   "ExifTool": {
-    "ExifToolVersion": 12.76
+    "ExifToolVersion": 13.36
   },
   "File": {
     "FileName": "IPTC-PhotometadataRef-Std2021.1.jpg",
