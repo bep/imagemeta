@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -19,8 +21,8 @@ var xmpSkipNamespaces = map[string]bool{
 }
 
 type rdf struct {
-	XMLName     xml.Name
-	Description rdfDescription `xml:"Description"`
+	XMLName      xml.Name
+	Descriptions []rdfDescription `xml:"Description"`
 }
 
 // Note: We currently only handle a subset of XMP tags,
@@ -32,6 +34,12 @@ type rdfDescription struct {
 	Publisher bagList    `xml:"publisher"`
 	Subject   bagList    `xml:"subject"`
 	Rights    altList    `xml:"rights"`
+
+	// GPS and other simple child elements from exif namespace.
+	GPSLatitude    string `xml:"GPSLatitude"`
+	GPSLongitude   string `xml:"GPSLongitude"`
+	GPSAltitude    string `xml:"GPSAltitude"`
+	GPSAltitudeRef string `xml:"GPSAltitudeRef"`
 }
 
 type altList struct {
@@ -78,41 +86,65 @@ func decodeXMP(r io.Reader, opts Options) error {
 		return newInvalidFormatError(fmt.Errorf("decoding XMP: %w", err))
 	}
 
-	for _, attr := range meta.RDF.Description.Attrs {
-		if xmpSkipNamespaces[attr.Name.Space] {
-			continue
+	// Process all rdf:Description elements.
+	for _, desc := range meta.RDF.Descriptions {
+		// Process attributes.
+		for _, attr := range desc.Attrs {
+			if xmpSkipNamespaces[attr.Name.Space] {
+				continue
+			}
+
+			tagInfo := TagInfo{
+				Source:    XMP,
+				Tag:       firstUpper(attr.Name.Local),
+				Namespace: attr.Name.Space,
+				Value:     attr.Value,
+			}
+
+			if !opts.ShouldHandleTag(tagInfo) {
+				continue
+			}
+
+			if err := opts.HandleTag(tagInfo); err != nil {
+				return err
+			}
 		}
 
-		tagInfo := TagInfo{
-			Source:    XMP,
-			Tag:       firstUpper(attr.Name.Local),
-			Namespace: attr.Name.Space,
-			Value:     attr.Value,
-		}
-
-		if !opts.ShouldHandleTag(tagInfo) {
-			continue
-		}
-
-		if err := opts.HandleTag(tagInfo); err != nil {
+		// Process known child element lists.
+		if err := processChildElements(desc.Creator.XMLName, desc.Creator.Seq.Items, opts); err != nil {
 			return err
 		}
-	}
 
-	if err := processChildElements(meta.RDF.Description.Creator.XMLName, meta.RDF.Description.Creator.Seq.Items, opts); err != nil {
-		return err
-	}
+		if err := processChildElements(desc.Publisher.XMLName, desc.Publisher.Bag.Items, opts); err != nil {
+			return err
+		}
 
-	if err := processChildElements(meta.RDF.Description.Publisher.XMLName, meta.RDF.Description.Publisher.Bag.Items, opts); err != nil {
-		return err
-	}
+		if err := processChildElements(desc.Subject.XMLName, desc.Subject.Bag.Items, opts); err != nil {
+			return err
+		}
 
-	if err := processChildElements(meta.RDF.Description.Subject.XMLName, meta.RDF.Description.Subject.Bag.Items, opts); err != nil {
-		return err
-	}
+		if err := processChildElements(desc.Rights.XMLName, desc.Rights.Alt.Items, opts); err != nil {
+			return err
+		}
 
-	if err := processChildElements(meta.RDF.Description.Rights.XMLName, meta.RDF.Description.Rights.Alt.Items, opts); err != nil {
-		return err
+		// Process GPS child elements.
+		// GPS coordinates in XMP are typically in DMS format like "26,34.951N"
+		// which needs to be converted to decimal degrees.
+		if desc.GPSLatitude != "" {
+			if lat, err := parseXMPGPSCoordinate(desc.GPSLatitude); err == nil {
+				if err := processGPSTag("GPSLatitude", lat, opts); err != nil {
+					return err
+				}
+			}
+		}
+
+		if desc.GPSLongitude != "" {
+			if long, err := parseXMPGPSCoordinate(desc.GPSLongitude); err == nil {
+				if err := processGPSTag("GPSLongitude", long, opts); err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	return nil
@@ -152,4 +184,75 @@ func firstUpper(s string) string {
 	}
 	r, n := utf8.DecodeRuneInString(s)
 	return string(unicode.ToUpper(r)) + s[n:]
+}
+
+// processGPSTag creates a TagInfo for a GPS coordinate and passes it to the handler.
+func processGPSTag(tag string, value float64, opts Options) error {
+	tagInfo := TagInfo{
+		Source:    XMP,
+		Tag:       tag,
+		Namespace: "http://ns.adobe.com/exif/1.0/",
+		Value:     value,
+	}
+	if !opts.ShouldHandleTag(tagInfo) {
+		return nil
+	}
+	return opts.HandleTag(tagInfo)
+}
+
+// parseXMPGPSCoordinate parses GPS coordinates from XMP format.
+// XMP GPS coordinates can be in several formats:
+// - DMS with direction: "26,34.951N" or "80,12.014W"
+// - Decimal with direction: "26.5825N" or "80.2002W"
+// - Pure decimal: "26.5825" or "-80.2002"
+func parseXMPGPSCoordinate(s string) (float64, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, fmt.Errorf("empty coordinate")
+	}
+
+	// Check for direction suffix (N, S, E, W)
+	var negative bool
+	lastChar := s[len(s)-1]
+	switch lastChar {
+	case 'S', 's', 'W', 'w':
+		negative = true
+		s = s[:len(s)-1]
+	case 'N', 'n', 'E', 'e':
+		s = s[:len(s)-1]
+	}
+
+	var degrees float64
+
+	// Check if it's in DMS format (contains comma)
+	if idx := strings.Index(s, ","); idx != -1 {
+		// Format: "degrees,minutes" e.g., "26,34.951"
+		degStr := s[:idx]
+		minStr := s[idx+1:]
+
+		deg, err := strconv.ParseFloat(degStr, 64)
+		if err != nil {
+			return 0, fmt.Errorf("parsing degrees: %w", err)
+		}
+
+		min, err := strconv.ParseFloat(minStr, 64)
+		if err != nil {
+			return 0, fmt.Errorf("parsing minutes: %w", err)
+		}
+
+		degrees = deg + min/60.0
+	} else {
+		// Pure decimal format
+		var err error
+		degrees, err = strconv.ParseFloat(s, 64)
+		if err != nil {
+			return 0, fmt.Errorf("parsing decimal: %w", err)
+		}
+	}
+
+	if negative {
+		degrees = -degrees
+	}
+
+	return degrees, nil
 }
