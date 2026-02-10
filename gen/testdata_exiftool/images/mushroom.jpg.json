@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/mushroom.jpg",
   "ExifTool": {
-    "ExifToolVersion": 12.76
+    "ExifToolVersion": 13.50
   },
   "File": {
     "FileName": "mushroom.jpg",

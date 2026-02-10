@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/metadata-extractor/withUncompressedYCbCrThumbnail.jpg",
   "ExifTool": {
-    "ExifToolVersion": 13.36
+    "ExifToolVersion": 13.50
   },
   "File": {
     "FileName": "withUncompressedYCbCrThumbnail.jpg",

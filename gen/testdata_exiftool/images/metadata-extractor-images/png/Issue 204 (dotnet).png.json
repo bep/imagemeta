@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/metadata-extractor-images/png/Issue 204 (dotnet).png",
   "ExifTool": {
-    "ExifToolVersion": 13.36,
+    "ExifToolVersion": 13.50,
     "Warning": "[minor] Empty XMP"
   },
   "File": {

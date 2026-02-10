@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/metadata-extractor/withXmp.jpg",
   "ExifTool": {
-    "ExifToolVersion": 13.36,
+    "ExifToolVersion": 13.50,
     "Warning": "Non-standard header for APP1 XMP segment"
   },
   "File": {
