@@ -1,0 +1,6 @@
+
+Photos below this folder is copyright (c) 2012, Robert Carlsen & Contributors
+
+BSD 2-Clause "Simplified" License
+
+https://github.com/rwcarlsen/goexif/blob/go1/LICENSE

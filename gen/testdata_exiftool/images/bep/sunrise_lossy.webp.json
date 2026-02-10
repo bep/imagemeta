@@ -1,11 +1,11 @@
 [{
-  "SourceFile": "../testdata/images/sunrise_lossy.webp",
+  "SourceFile": "../testdata/images/bep/sunrise_lossy.webp",
   "ExifTool": {
     "ExifToolVersion": 13.50
   },
   "File": {
     "FileName": "sunrise_lossy.webp",
-    "Directory": "../testdata/images",
+    "Directory": "../testdata/images/bep",
     "FileSize": 21052,
     "FilePermissions": 100644,
     "FileType": "WEBP",

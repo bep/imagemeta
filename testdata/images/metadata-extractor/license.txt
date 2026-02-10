@@ -1,0 +1,6 @@
+License for the images below this folder:
+
+Apache-2.0 license
+
+
+https://github.com/drewnoakes/metadata-extractor/tree/main?tab=Apache-2.0-1-ov-file#readme

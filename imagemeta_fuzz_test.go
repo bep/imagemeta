@@ -16,7 +16,7 @@ import (
 
 func FuzzDecodeJPG(f *testing.F) {
 	filenames := []string{
-		"sunrise.jpg", "goexif/geodegrees_as_string.jpg",
+		"bep/sunrise.jpg", "goexif/geodegrees_as_string.jpg",
 		"metadata_demo_exif_only.jpg", "metadata_demo_iim_and_xmp_only.jpg",
 		"corrupt/infinite_loop_exif.jpg",
 		"corrupt/max_uint32_exif.jpg",
@@ -31,7 +31,7 @@ func FuzzDecodeJPG(f *testing.F) {
 }
 
 func FuzzDecodeWebP(f *testing.F) {
-	filenames := []string{"sunrise.webp"}
+	filenames := []string{"bep/sunrise.webp"}
 
 	for _, filename := range filenames {
 		f.Add(readTestDataFileAll(f, filename))
@@ -43,7 +43,7 @@ func FuzzDecodeWebP(f *testing.F) {
 }
 
 func FuzzDecodePNG(f *testing.F) {
-	filenames := []string{"sunrise.png", "metadata-extractor-images/png/issue614.png"}
+	filenames := []string{"bep/sunrise.png"}
 
 	for _, filename := range filenames {
 		f.Add(readTestDataFileAll(f, filename))
@@ -55,7 +55,7 @@ func FuzzDecodePNG(f *testing.F) {
 }
 
 func FuzzDecodeTIFF(f *testing.F) {
-	filenames := []string{"sunrise.tif"}
+	filenames := []string{"bep/sunrise.tif"}
 
 	for _, filename := range filenames {
 		f.Add(readTestDataFileAll(f, filename))
