@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/smoke/upstream66.jpg",
   "ExifTool": {
-    "ExifToolVersion": 13.36
+    "ExifToolVersion": 13.50
   },
   "File": {
     "FileName": "upstream66.jpg",

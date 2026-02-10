@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/sunrise.tif",
   "ExifTool": {
-    "ExifToolVersion": 13.36,
+    "ExifToolVersion": 13.50,
     "Warning": "IPTCDigest is not current. XMP may be out of sync"
   },
   "File": {

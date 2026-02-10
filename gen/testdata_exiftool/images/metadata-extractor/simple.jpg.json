@@ -1,7 +1,7 @@
 [{
   "SourceFile": "../testdata/images/metadata-extractor/simple.jpg",
   "ExifTool": {
-    "ExifToolVersion": 13.36,
+    "ExifToolVersion": 13.50,
     "Warning": "[minor] Possibly incorrect maker notes offsets (fix by -278?)"
   },
   "File": {
@@ -13,6 +13,7 @@
     "FileTypeExtension": "JPG",
     "MIMEType": "image/jpeg",
     "ExifByteOrder": "MM",
+    "MakerNoteByteOrder": "II",
     "Comment": "AppleMark\n",
     "ImageWidth": 800,
     "ImageHeight": 600,
