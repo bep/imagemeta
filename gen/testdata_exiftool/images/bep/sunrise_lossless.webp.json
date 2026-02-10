@@ -1,11 +1,11 @@
 [{
-  "SourceFile": "../testdata/images/sunrise_lossless.webp",
+  "SourceFile": "../testdata/images/bep/sunrise_lossless.webp",
   "ExifTool": {
     "ExifToolVersion": 13.50
   },
   "File": {
     "FileName": "sunrise_lossless.webp",
-    "Directory": "../testdata/images",
+    "Directory": "../testdata/images/bep",
     "FileSize": 244888,
     "FilePermissions": 100644,
     "FileType": "WEBP (lossless)",

@@ -1,11 +1,11 @@
 [{
-  "SourceFile": "../testdata/images/sunrise.jpg",
+  "SourceFile": "../testdata/images/bep/sunrise.jpg",
   "ExifTool": {
     "ExifToolVersion": 13.50
   },
   "File": {
     "FileName": "sunrise.jpg",
-    "Directory": "../testdata/images",
+    "Directory": "../testdata/images/bep",
     "FileSize": 140479,
     "FilePermissions": 100644,
     "FileType": "JPEG",

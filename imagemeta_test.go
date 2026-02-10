@@ -62,7 +62,7 @@ func TestDecodeAllImageFormats(t *testing.T) {
 
 func TestDecodeWebP(t *testing.T) {
 	c := qt.New(t)
-	_, tags, err := extractTags(t, "sunrise.webp", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
+	_, tags, err := extractTags(t, "bep/sunrise.webp", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
 	c.Assert(err, qt.IsNil)
 
 	c.Assert(tags.EXIF()["Copyright"].Value, qt.Equals, "Bjørn Erik Pedersen")
@@ -96,7 +96,7 @@ func TestDecodeJPEG(t *testing.T) {
 		return true
 	}
 
-	_, tags, err := extractTagsWithFilter(t, "sunrise.jpg", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP, shouldInclude)
+	_, tags, err := extractTagsWithFilter(t, "bep/sunrise.jpg", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP, shouldInclude)
 	c.Assert(err, qt.IsNil)
 
 	c.Assert(tags.EXIF()["Copyright"].Value, qt.Equals, "Bjørn Erik Pedersen")
@@ -113,7 +113,7 @@ func TestDecodePNG(t *testing.T) {
 		return true
 	}
 
-	_, tags, err := extractTagsWithFilter(t, "sunrise.png", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP, shouldInclude)
+	_, tags, err := extractTagsWithFilter(t, "bep/sunrise.png", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP, shouldInclude)
 	c.Assert(err, qt.IsNil)
 
 	c.Assert(len(tags.EXIF()), qt.Equals, 61)
@@ -139,16 +139,16 @@ func TestThumbnailOffset(t *testing.T) {
 		return tags.EXIF()["ThumbnailOffset"].Value.(uint32)
 	}
 
-	c.Assert(offset("sunrise.webp"), eq, uint32(64160))
-	c.Assert(offset("sunrise.png"), eq, uint32(1326))
-	c.Assert(offset("sunrise.jpg"), eq, uint32(1338))
+	c.Assert(offset("bep/sunrise.webp"), eq, uint32(64160))
+	c.Assert(offset("bep/sunrise.png"), eq, uint32(1326))
+	c.Assert(offset("bep/sunrise.jpg"), eq, uint32(1338))
 	c.Assert(offset("goexif/has-lens-info.jpg"), eq, uint32(1274))
 }
 
 func TestDecodeTIFF(t *testing.T) {
 	c := qt.New(t)
 
-	_, tags, err := extractTags(t, "sunrise.tif", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
+	_, tags, err := extractTags(t, "bep/sunrise.tif", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
 	c.Assert(err, qt.IsNil)
 
 	c.Assert(len(tags.EXIF()), qt.Equals, 76)
@@ -170,7 +170,11 @@ func TestDecodeCorrupt(t *testing.T) {
 	for _, file := range files {
 		img, err := os.Open(file)
 		c.Assert(err, qt.IsNil)
-		format := extToFormat(filepath.Ext(file))
+		ext := filepath.Ext(file)
+		format := extToFormat(ext)
+		if format == -1 {
+			continue
+		}
 		handleTag := func(ti imagemeta.TagInfo) error {
 			return nil
 		}
@@ -355,7 +359,7 @@ func TestDecodeNamespace(t *testing.T) {
 		return true
 	}
 
-	_, tags, err := extractTagsWithFilter(t, "sunrise.jpg", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP, shouldInclude)
+	_, tags, err := extractTagsWithFilter(t, "bep/sunrise.jpg", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP, shouldInclude)
 	c.Assert(err, qt.IsNil)
 
 	c.Assert(tags.EXIF()["Artist"].Namespace, qt.Equals, "IFD0")
@@ -442,7 +446,7 @@ func TestDecodeLargeExifTimeout(t *testing.T) {
 func TestDecodeXMPJPG(t *testing.T) {
 	c := qt.New(t)
 
-	_, tags, err := extractTags(t, "sunrise.jpg", imagemeta.XMP)
+	_, tags, err := extractTags(t, "bep/sunrise.jpg", imagemeta.XMP)
 	c.Assert(err, qt.IsNil)
 
 	c.Assert(len(tags.EXIF()) == 0, qt.IsTrue)
@@ -504,7 +508,7 @@ func TestGoldenXMP(t *testing.T) {
 func TestGoldenTagCountEXIF(t *testing.T) {
 	assertGoldenInfoTagCount(t, "IPTC-PhotometadataRef-Std2021.1.jpg", imagemeta.EXIF)
 	assertGoldenInfoTagCount(t, "metadata_demo_exif_only.jpg", imagemeta.EXIF)
-	assertGoldenInfoTagCount(t, "sunrise.jpg", imagemeta.EXIF)
+	assertGoldenInfoTagCount(t, "bep/sunrise.jpg", imagemeta.EXIF)
 }
 
 func TestGoldenTagCountIPTC(t *testing.T) {
@@ -512,13 +516,13 @@ func TestGoldenTagCountIPTC(t *testing.T) {
 }
 
 func TestGoldenTagCountXMP(t *testing.T) {
-	assertGoldenInfoTagCount(t, "sunrise.jpg", imagemeta.XMP)
+	assertGoldenInfoTagCount(t, "bep/sunrise.jpg", imagemeta.XMP)
 }
 
 func TestLatLong(t *testing.T) {
 	c := qt.New(t)
 
-	_, tags, err := extractTags(t, "sunrise.jpg", imagemeta.EXIF)
+	_, tags, err := extractTags(t, "bep/sunrise.jpg", imagemeta.EXIF)
 	c.Assert(err, qt.IsNil)
 
 	lat, long, err := tags.GetLatLong()
@@ -537,7 +541,7 @@ func TestLatLong(t *testing.T) {
 func TestGetDateTime(t *testing.T) {
 	c := qt.New(t)
 
-	_, tags, err := extractTags(t, "sunrise.jpg", imagemeta.EXIF)
+	_, tags, err := extractTags(t, "bep/sunrise.jpg", imagemeta.EXIF)
 	c.Assert(err, qt.IsNil)
 	d, err := tags.GetDateTime()
 	c.Assert(err, qt.IsNil)
@@ -602,7 +606,7 @@ func TestLatLongWithBothSources(t *testing.T) {
 	c := qt.New(t)
 
 	// sunrise.jpg has EXIF GPS data
-	_, tags, err := extractTags(t, "sunrise.jpg", imagemeta.EXIF|imagemeta.XMP)
+	_, tags, err := extractTags(t, "bep/sunrise.jpg", imagemeta.EXIF|imagemeta.XMP)
 	c.Assert(err, qt.IsNil)
 
 	lat, long, err := tags.GetLatLong()
@@ -650,7 +654,7 @@ func getSunrise(c *qt.C, imageFormat imagemeta.ImageFormat) (io.ReadSeeker, func
 		c.Fatalf("unknown image format: %v", imageFormat)
 	}
 
-	img, err := os.Open(filepath.Join("testdata", "images", "sunrise"+ext))
+	img, err := os.Open(filepath.Join("testdata", "images", "bep/sunrise"+ext))
 	c.Assert(err, qt.IsNil)
 	return img, func() {
 		img.Close()
@@ -908,6 +912,8 @@ func extToFormat(ext string) imagemeta.ImageFormat {
 		return imagemeta.PNG
 	case ".tif", ".tiff":
 		return imagemeta.TIFF
+	case ".txt":
+		return -1
 	default:
 		panic(fmt.Errorf("unknown image format: %s", ext))
 	}
@@ -941,6 +947,9 @@ func extractTagsWithFilter(t testing.TB, filename string, sources imagemeta.Sour
 	}
 
 	imageFormat := extToFormat(filepath.Ext(filename))
+	if imageFormat == -1 {
+		return imagemeta.DecodeResult{}, tags, nil
+	}
 
 	knownWarnings := []*regexp.Regexp{}
 
