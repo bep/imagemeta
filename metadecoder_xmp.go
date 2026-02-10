@@ -225,10 +225,10 @@ func parseXMPGPSCoordinate(s string) (float64, error) {
 	var degrees float64
 
 	// Check if it's in DMS format (contains comma)
-	if idx := strings.Index(s, ","); idx != -1 {
+	if before, after, ok := strings.Cut(s, ","); ok {
 		// Format: "degrees,minutes" e.g., "26,34.951"
-		degStr := s[:idx]
-		minStr := s[idx+1:]
+		degStr := before
+		minStr := after
 
 		deg, err := strconv.ParseFloat(degStr, 64)
 		if err != nil {
