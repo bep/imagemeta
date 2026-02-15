@@ -7,14 +7,14 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: [1.24.x, 1.25.x]
+        go-version: [1.25.x, 1.26.x]
         platform: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Install Go
-        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
           go-version: ${{ matrix.go-version }}
       - name: Install staticcheck
@@ -39,6 +39,6 @@ jobs:
       - name: Test
         run: go test -race ./... -coverpkg=./... -coverprofile=coverage.txt -covermode=atomic
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@79066c46f8dcdf8d7355f820dbac958c5b4cb9d3 # v4.5.0
+        uses: codecov/codecov-action@0561704f0f02c16a585d4c7555e57fa2e44cf909 # v5.5.2
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
