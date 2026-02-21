@@ -346,16 +346,15 @@ func (c vc) convertToTimestampString(ctx valueConverterContext, v any) any {
 		if len(vv) != 3 {
 			return time.Time{}
 		}
-		for i, v := range vv {
-			vv[i] = c.ratNum(v)
+		h := c.ratNum(vv[0])
+		m := c.ratNum(vv[1])
+		// Seconds may be fractional (e.g. 362/10 = 36.2 or 4279/100 = 42.79).
+		secs := toFloat64(vv[2])
+		secsStr := strconv.FormatFloat(secs, 'f', -1, 64)
+		if secs < 10 {
+			secsStr = "0" + secsStr
 		}
-		s := fmt.Sprintf("%02d:%02d:%02d", vv...)
-
-		if len(s) == 10 {
-			// 13:03:4279 => 13:03:42.79
-			s = s[:8] + "." + s[8:]
-		}
-		return s
+		return fmt.Sprintf("%02d:%02d:%s", h, m, secsStr)
 	case string:
 		// 17,00000,8,00000,29,0000
 		parts := strings.Split(vv, ",")
