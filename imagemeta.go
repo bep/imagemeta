@@ -48,6 +48,10 @@ const (
 	PNG
 	// WebP is the WebP image format.
 	WebP
+	// HEIF is the HEIF/HEIC image format (ISO Base Media File Format with HEVC codec).
+	HEIF
+	// AVIF is the AVIF image format (ISO Base Media File Format with AV1 codec).
+	AVIF
 )
 
 // ImageConfig contains basic image configuration.
@@ -187,6 +191,8 @@ func Decode(opts Options) (result DecodeResult, err error) {
 		sourceSet = EXIF | XMP | CONFIG
 	case PNG:
 		sourceSet = EXIF | XMP | IPTC | CONFIG
+	case HEIF, AVIF:
+		sourceSet = EXIF | XMP | CONFIG
 	default:
 		return result, fmt.Errorf("unsupported image format")
 
@@ -222,6 +228,8 @@ func Decode(opts Options) (result DecodeResult, err error) {
 		dec = &decoderWebP{baseStreamingDecoder: base}
 	case PNG:
 		dec = &imageDecoderPNG{baseStreamingDecoder: base}
+	case HEIF, AVIF:
+		dec = &imageDecoderHEIF{baseStreamingDecoder: base}
 	}
 
 	decode := func() chan error {

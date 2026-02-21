@@ -11,11 +11,13 @@ func _() {
 	_ = x[EXIF-1]
 	_ = x[IPTC-2]
 	_ = x[XMP-4]
+	_ = x[CONFIG-8]
 }
 
 const (
 	_Source_name_0 = "EXIFIPTC"
 	_Source_name_1 = "XMP"
+	_Source_name_2 = "CONFIG"
 )
 
 var (
@@ -29,6 +31,8 @@ func (i Source) String() string {
 		return _Source_name_0[_Source_index_0[i]:_Source_index_0[i+1]]
 	case i == 4:
 		return _Source_name_1
+	case i == 8:
+		return _Source_name_2
 	default:
 		return "Source(" + strconv.FormatInt(int64(i), 10) + ")"
 	}

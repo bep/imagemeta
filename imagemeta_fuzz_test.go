@@ -54,6 +54,29 @@ func FuzzDecodePNG(f *testing.F) {
 	})
 }
 
+func FuzzDecodeHEIF(f *testing.F) {
+	filenames := []string{"iphone.heic", "sony.heif"}
+	for _, filename := range filenames {
+		f.Add(readTestDataFileAll(f, filename))
+	}
+
+	f.Fuzz(func(t *testing.T, imageBytes []byte) {
+		fuzzDecodeBytes(t, imageBytes, imagemeta.HEIF)
+	})
+}
+
+func FuzzDecodeAVIF(f *testing.F) {
+	// Use a HEIF file as seed corpus since we don't have a dedicated AVIF test image.
+	filenames := []string{"iphone.heic"}
+	for _, filename := range filenames {
+		f.Add(readTestDataFileAll(f, filename))
+	}
+
+	f.Fuzz(func(t *testing.T, imageBytes []byte) {
+		fuzzDecodeBytes(t, imageBytes, imagemeta.AVIF)
+	})
+}
+
 func FuzzDecodeTIFF(f *testing.F) {
 	filenames := []string{"bep/sunrise.tif"}
 

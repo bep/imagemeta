@@ -60,6 +60,58 @@ func TestDecodeAllImageFormats(t *testing.T) {
 	}
 }
 
+func TestDecodeHEIF(t *testing.T) {
+	c := qt.New(t)
+
+	// Test iphone.heic (HEIF/HEIC with EXIF, no XMP for these tags).
+	_, tags, err := extractTags(t, "iphone.heic", imagemeta.EXIF|imagemeta.XMP)
+	c.Assert(err, qt.IsNil)
+	c.Assert(tags.EXIF()["Make"].Value, qt.Equals, "Apple")
+	c.Assert(tags.EXIF()["Model"].Value, qt.Equals, "iPhone 15 Pro")
+	c.Assert(tags.EXIF()["Orientation"].Value, qt.Equals, uint16(1))
+
+	// Test sony.heif (HEIF with EXIF, little-endian byte order).
+	_, tags, err = extractTags(t, "sony.heif", imagemeta.EXIF|imagemeta.XMP)
+	c.Assert(err, qt.IsNil)
+	c.Assert(tags.EXIF()["Make"].Value, qt.Equals, "SONY")
+	c.Assert(tags.EXIF()["Model"].Value, qt.Equals, "ILCE-6700")
+}
+
+func TestDecodeHEIFConfig(t *testing.T) {
+	c := qt.New(t)
+
+	f, err := os.Open(filepath.Join("testdata", "images", "iphone.heic"))
+	c.Assert(err, qt.IsNil)
+	defer f.Close()
+
+	res, err := imagemeta.Decode(imagemeta.Options{
+		R:           f,
+		ImageFormat: imagemeta.HEIF,
+		Sources:     imagemeta.CONFIG,
+		HandleTag:   func(ti imagemeta.TagInfo) error { return nil },
+		Warnf:       panicWarnf,
+	})
+	c.Assert(err, qt.IsNil)
+	c.Assert(res.ImageConfig.Width, qt.Equals, 5712)
+	c.Assert(res.ImageConfig.Height, qt.Equals, 4284)
+
+	// Sony A6700: coded 6192x4128, irot angle=3 (270° CCW) swaps to 4128x6192.
+	f2, err := os.Open(filepath.Join("testdata", "images", "sony.heif"))
+	c.Assert(err, qt.IsNil)
+	defer f2.Close()
+
+	res2, err := imagemeta.Decode(imagemeta.Options{
+		R:           f2,
+		ImageFormat: imagemeta.HEIF,
+		Sources:     imagemeta.CONFIG,
+		HandleTag:   func(ti imagemeta.TagInfo) error { return nil },
+		Warnf:       panicWarnf,
+	})
+	c.Assert(err, qt.IsNil)
+	c.Assert(res2.ImageConfig.Width, qt.Equals, 4128)
+	c.Assert(res2.ImageConfig.Height, qt.Equals, 6192)
+}
+
 func TestDecodeWebP(t *testing.T) {
 	c := qt.New(t)
 	_, tags, err := extractTags(t, "bep/sunrise.webp", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
@@ -916,6 +968,10 @@ func extToFormat(ext string) imagemeta.ImageFormat {
 		return imagemeta.PNG
 	case ".tif", ".tiff":
 		return imagemeta.TIFF
+	case ".heic", ".heif":
+		return imagemeta.HEIF
+	case ".avif":
+		return imagemeta.AVIF
 	case ".txt":
 		return -1
 	default:
