@@ -851,6 +851,10 @@ func compareWithExiftoolOutput(t testing.TB, filename string, sources imagemeta.
 				switch s {
 				case "SerialNumber", "LensSerialNumber", "ObjectName":
 					return fmt.Sprintf("%d", int(v))
+				case "Software":
+					// ExifTool may output numeric-looking software versions (e.g. iOS "26.3")
+					// as float64 in JSON. Convert back to string for comparison.
+					return strconv.FormatFloat(v, 'f', -1, 64)
 				}
 				if source == imagemeta.IPTC {
 					switch s {
@@ -1061,7 +1065,7 @@ var goldenSkip = map[string]bool{
 	"invalid-encoding-usercomment.jpg": true, // The file has an EXIF error that produces a warning in imagemeta. It's tested separately.
 }
 
-var isSpaceDelimitedFloatRe = regexp.MustCompile(`^(\d+\.\d+) (\d+\.\d+)`)
+var isSpaceDelimitedFloatRe = regexp.MustCompile(`^(\d+\.\d+)( \d+\.?\d*)+$`)
 
 var cmpFloats = func(x, y float64) bool {
 	if x == y {
