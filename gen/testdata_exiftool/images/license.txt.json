@@ -1,0 +1,19 @@
+[{
+  "SourceFile": "../testdata/images/license.txt",
+  "ExifTool": {
+    "ExifToolVersion": 13.50
+  },
+  "File": {
+    "FileName": "license.txt",
+    "Directory": "../testdata/images",
+    "FileSize": 116,
+    "FilePermissions": 100644,
+    "FileType": "TXT",
+    "FileTypeExtension": "TXT",
+    "MIMEType": "text/plain",
+    "MIMEEncoding": "us-ascii",
+    "Newlines": "\n",
+    "LineCount": 1,
+    "WordCount": 10
+  }
+}]
