@@ -124,6 +124,17 @@ func TestDecodeWebP(t *testing.T) {
 	c.Assert(tags.XMP()["City"].Value, qt.Equals, "Benalmádena")
 }
 
+func TestDecodeAVIF(t *testing.T) {
+	c := qt.New(t)
+	_, tags, err := extractTags(t, "bep/sunset.avif", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
+	c.Assert(err, qt.IsNil)
+
+	c.Assert(tags.EXIF()["Artist"].Value, qt.Equals, "bjorn.erik.pedersen@gmail.com")
+	c.Assert(tags.EXIF()["ApertureValue"].Value, eq, 5.6)
+	c.Assert(tags.XMP()["CreatorTool"].Value, qt.Equals, "Adobe Photoshop Lightroom 6.12 (Macintosh)")
+	c.Assert(tags.XMP()["City"].Value, qt.Equals, "Benalmádena")
+}
+
 func TestDecodeXmpChildElements(t *testing.T) {
 	c := qt.New(t)
 	_, tags, err := extractTags(t, "mushroom.jpg", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
