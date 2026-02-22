@@ -108,11 +108,14 @@ func (e *imageDecoderHEIF) decode() error {
 		exifItemID    uint32
 		xmpItemID     uint32
 		primaryItemID uint32
-		exifOffset    uint64
-		exifLength    uint64
-		xmpOffset     uint64
-		xmpLength     uint64
 	)
+
+	// iloc entries keyed by item ID, resolved after the full meta scan
+	// so that box ordering (iloc before/after iinf) doesn't matter.
+	type ilocEntry struct {
+		offset, length uint64
+	}
+	ilocEntries := make(map[uint32]ilocEntry)
 
 	// For CONFIG: ipco properties and ipma associations are collected during
 	// the meta box scan and resolved afterwards, so box ordering doesn't matter.
@@ -257,18 +260,7 @@ func (e *imageDecoderHEIF) decode() error {
 					}
 				}
 
-				switch itemID {
-				case exifItemID:
-					if exifItemID != 0 {
-						exifOffset = firstOffset
-						exifLength = firstLength
-					}
-				case xmpItemID:
-					if xmpItemID != 0 {
-						xmpOffset = firstOffset
-						xmpLength = firstLength
-					}
-				}
+				ilocEntries[itemID] = ilocEntry{offset: firstOffset, length: firstLength}
 			}
 
 		case fccIprp:
@@ -340,7 +332,16 @@ func (e *imageDecoderHEIF) decode() error {
 		e.seek(innerEnd)
 	}
 
-	// Step 5: Resolve CONFIG dimensions from collected ipco/ipma/pitm data.
+	// Step 5: Resolve iloc offsets now that both iinf and iloc have been parsed.
+	var exifOffset, exifLength, xmpOffset, xmpLength uint64
+	if loc, ok := ilocEntries[exifItemID]; ok && exifItemID != 0 {
+		exifOffset, exifLength = loc.offset, loc.length
+	}
+	if loc, ok := ilocEntries[xmpItemID]; ok && xmpItemID != 0 {
+		xmpOffset, xmpLength = loc.offset, loc.length
+	}
+
+	// Step 6: Resolve CONFIG dimensions from collected ipco/ipma/pitm data.
 	if e.opts.Sources.Has(CONFIG) && len(ipcoProps) > 0 {
 		var cfgWidth, cfgHeight uint32
 		var cfgRotate bool
@@ -387,14 +388,14 @@ func (e *imageDecoderHEIF) decode() error {
 		}
 	}
 
-	// Step 6: Extract EXIF metadata using the absolute offset from iloc.
+	// Step 7: Extract EXIF metadata using the absolute offset from iloc.
 	if e.opts.Sources.Has(EXIF) && exifItemID != 0 && exifOffset != 0 && exifLength > 4 {
 		if err := e.handleEXIF(exifOffset, exifLength); err != nil {
 			return err
 		}
 	}
 
-	// Step 7: Extract XMP metadata using the absolute offset from iloc.
+	// Step 8: Extract XMP metadata using the absolute offset from iloc.
 	if e.opts.Sources.Has(XMP) && xmpItemID != 0 && xmpOffset != 0 && xmpLength > 0 {
 		if err := func() error {
 			e.seek(int64(xmpOffset))
