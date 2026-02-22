@@ -6,21 +6,26 @@ package imagemeta
 import "math"
 
 // ISOBMFF box and item types used in HEIF/AVIF containers.
-var (
-	fccFtyp = fourCC{'f', 't', 'y', 'p'}
-	fccMeta = fourCC{'m', 'e', 't', 'a'}
-	fccIinf = fourCC{'i', 'i', 'n', 'f'}
-	fccInfe = fourCC{'i', 'n', 'f', 'e'}
-	fccIloc = fourCC{'i', 'l', 'o', 'c'}
-	fccIprp = fourCC{'i', 'p', 'r', 'p'}
-	fccIpco = fourCC{'i', 'p', 'c', 'o'}
-	fccIpma = fourCC{'i', 'p', 'm', 'a'}
-	fccIspe = fourCC{'i', 's', 'p', 'e'}
-	fccIrot = fourCC{'i', 'r', 'o', 't'}
-	fccPitm = fourCC{'p', 'i', 't', 'm'}
-	fccExif = fourCC{'E', 'x', 'i', 'f'}
-	fccMime = fourCC{'m', 'i', 'm', 'e'}
-)
+var heifFCC = struct {
+	ftyp, meta                         fourCC
+	iinf, infe, iloc                   fourCC
+	iprp, ipco, ipma, ispe, irot, pitm fourCC
+	exif, mime                         fourCC
+}{
+	ftyp: fourCC{'f', 't', 'y', 'p'},
+	meta: fourCC{'m', 'e', 't', 'a'},
+	iinf: fourCC{'i', 'i', 'n', 'f'},
+	infe: fourCC{'i', 'n', 'f', 'e'},
+	iloc: fourCC{'i', 'l', 'o', 'c'},
+	iprp: fourCC{'i', 'p', 'r', 'p'},
+	ipco: fourCC{'i', 'p', 'c', 'o'},
+	ipma: fourCC{'i', 'p', 'm', 'a'},
+	ispe: fourCC{'i', 's', 'p', 'e'},
+	irot: fourCC{'i', 'r', 'o', 't'},
+	pitm: fourCC{'p', 'i', 't', 'm'},
+	exif: fourCC{'E', 'x', 'i', 'f'},
+	mime: fourCC{'m', 'i', 'm', 'e'},
+}
 
 type imageDecoderHEIF struct {
 	*baseStreamingDecoder
@@ -66,7 +71,7 @@ func (e *imageDecoderHEIF) decode() error {
 	if e.isEOF {
 		return errInvalidFormat
 	}
-	if ftypType != fccFtyp {
+	if ftypType != heifFCC.ftyp {
 		return errInvalidFormat
 	}
 	if ftypSize > 0 {
@@ -83,7 +88,7 @@ func (e *imageDecoderHEIF) decode() error {
 		if e.isEOF {
 			return nil // No meta box found; nothing to decode.
 		}
-		if boxType == fccMeta {
+		if boxType == heifFCC.meta {
 			metaStart = s
 			metaSize = size
 			break
@@ -141,7 +146,7 @@ func (e *imageDecoderHEIF) decode() error {
 		innerEnd := innerStart + int64(innerSize)
 
 		switch innerType {
-		case fccPitm:
+		case heifFCC.pitm:
 			if e.opts.Sources.Has(CONFIG) {
 				vf := e.read4()
 				if vf>>24 == 0 {
@@ -151,7 +156,7 @@ func (e *imageDecoderHEIF) decode() error {
 				}
 			}
 
-		case fccIinf:
+		case heifFCC.iinf:
 			if !needEXIFOrXMP {
 				break
 			}
@@ -173,7 +178,7 @@ func (e *imageDecoderHEIF) decode() error {
 				}
 				infeEnd := infeStart + int64(infeSize)
 
-				if infeType == fccInfe {
+				if infeType == heifFCC.infe {
 					// infe is a FullBox: read version+flags.
 					vf2 := e.read4()
 					infeVersion := vf2 >> 24
@@ -189,9 +194,9 @@ func (e *imageDecoderHEIF) decode() error {
 						var itemType fourCC
 						e.readBytes(itemType[:])
 						switch itemType {
-						case fccExif:
+						case heifFCC.exif:
 							exifItemID = itemID
-						case fccMime:
+						case heifFCC.mime:
 							xmpItemID = itemID
 						}
 					} else {
@@ -201,7 +206,7 @@ func (e *imageDecoderHEIF) decode() error {
 				e.seek(infeEnd)
 			}
 
-		case fccIloc:
+		case heifFCC.iloc:
 			if !needEXIFOrXMP {
 				break
 			}
@@ -273,7 +278,7 @@ func (e *imageDecoderHEIF) decode() error {
 				ilocEntries[itemID] = ilocEntry{offset: firstOffset, length: firstLength}
 			}
 
-		case fccIprp:
+		case heifFCC.iprp:
 			if e.opts.Sources.Has(CONFIG) {
 				iprpEnd := innerEnd
 				for e.pos()+8 <= iprpEnd {
@@ -284,7 +289,7 @@ func (e *imageDecoderHEIF) decode() error {
 					childEnd := childStart + int64(childSize)
 
 					switch childType {
-					case fccIpco:
+					case heifFCC.ipco:
 						for e.pos()+8 <= childEnd {
 							propStart, propSize, propType := readBox()
 							if e.isEOF || propSize == 0 {
@@ -294,17 +299,17 @@ func (e *imageDecoderHEIF) decode() error {
 
 							var prop ipcoProp
 							switch propType {
-							case fccIspe:
+							case heifFCC.ispe:
 								e.skip(4) // version+flags
 								prop = ipcoProp{isIspe: true, width: e.read4(), height: e.read4()}
-							case fccIrot:
+							case heifFCC.irot:
 								prop = ipcoProp{isIrot: true, angle: e.read1()}
 							}
 							ipcoProps = append(ipcoProps, prop)
 							e.seek(propEnd)
 						}
 
-					case fccIpma:
+					case heifFCC.ipma:
 						// ipma maps item IDs to property indices in ipco.
 						vf := e.read4()
 						ipmaVersion := uint8(vf >> 24)
