@@ -115,7 +115,8 @@ func (e *imageDecoderHEIF) decode() error {
 	type ilocEntry struct {
 		offset, length uint64
 	}
-	ilocEntries := make(map[uint32]ilocEntry)
+	needEXIFOrXMP := e.opts.Sources.Has(EXIF) || e.opts.Sources.Has(XMP)
+	var ilocEntries map[uint32]ilocEntry
 
 	// For CONFIG: ipco properties and ipma associations are collected during
 	// the meta box scan and resolved afterwards, so box ordering doesn't matter.
@@ -151,6 +152,9 @@ func (e *imageDecoderHEIF) decode() error {
 			}
 
 		case fccIinf:
+			if !needEXIFOrXMP {
+				break
+			}
 			// iinf is a FullBox: read version+flags then item count.
 			vf := e.read4()
 			iinfVersion := vf >> 24
@@ -198,6 +202,12 @@ func (e *imageDecoderHEIF) decode() error {
 			}
 
 		case fccIloc:
+			if !needEXIFOrXMP {
+				break
+			}
+			if ilocEntries == nil {
+				ilocEntries = make(map[uint32]ilocEntry)
+			}
 			// iloc is a FullBox: read version+flags.
 			vf := e.read4()
 			ilocVersion := uint8(vf >> 24)
