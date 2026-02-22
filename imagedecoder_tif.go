@@ -75,6 +75,10 @@ func (e *imageDecoderTIF) decode() error {
 			Width:  width,
 			Height: height,
 		}
+		// If only CONFIG was requested, we're done.
+		if e.opts.Sources == CONFIG {
+			return nil
+		}
 		// Seek back to IFD start for EXIF decoder.
 		e.seek(ifdPos)
 	}
