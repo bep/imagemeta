@@ -3,15 +3,20 @@
 
 package imagemeta
 
-var (
-	fccRIFF = fourCC{'R', 'I', 'F', 'F'}
-	fccWEBP = fourCC{'W', 'E', 'B', 'P'}
-	fccVP8X = fourCC{'V', 'P', '8', 'X'}
-	fccVP8  = fourCC{'V', 'P', '8', ' '}
-	fccVP8L = fourCC{'V', 'P', '8', 'L'}
-	fccEXIF = fourCC{'E', 'X', 'I', 'F'}
-	fccXMP  = fourCC{'X', 'M', 'P', ' '}
-)
+// WebP chunk types.
+var webpFCC = struct {
+	riff, webp      fourCC
+	vp8x, vp8, vp8l fourCC
+	exif, xmp       fourCC
+}{
+	riff: fourCC{'R', 'I', 'F', 'F'},
+	webp: fourCC{'W', 'E', 'B', 'P'},
+	vp8x: fourCC{'V', 'P', '8', 'X'},
+	vp8:  fourCC{'V', 'P', '8', ' '},
+	vp8l: fourCC{'V', 'P', '8', 'L'},
+	exif: fourCC{'E', 'X', 'I', 'F'},
+	xmp:  fourCC{'X', 'M', 'P', ' '},
+}
 
 func (e *decoderWebP) decode() error {
 	// These are the sources we currently support in WebP.
@@ -29,7 +34,7 @@ func (e *decoderWebP) decode() error {
 	var chunkID fourCC
 	// Read the RIFF header.
 	e.readBytes(chunkID[:])
-	if chunkID != fccRIFF {
+	if chunkID != webpFCC.riff {
 		return errInvalidFormat
 	}
 
@@ -37,7 +42,7 @@ func (e *decoderWebP) decode() error {
 	e.skip(4)
 
 	e.readBytes(chunkID[:])
-	if chunkID != fccWEBP {
+	if chunkID != webpFCC.webp {
 		return errInvalidFormat
 	}
 
@@ -54,7 +59,7 @@ func (e *decoderWebP) decode() error {
 		chunkLen := e.read4()
 
 		switch {
-		case chunkID == fccVP8X:
+		case chunkID == webpFCC.vp8x:
 			if chunkLen != 10 {
 				return errInvalidFormat
 			}
@@ -91,7 +96,7 @@ func (e *decoderWebP) decode() error {
 			if sourceSet.IsZero() {
 				return nil
 			}
-		case chunkID == fccEXIF && sourceSet.Has(EXIF):
+		case chunkID == webpFCC.exif && sourceSet.Has(EXIF):
 			sourceSet = sourceSet.Remove(EXIF)
 			thumbnailOffset := e.pos()
 			if err := func() error {
@@ -106,7 +111,7 @@ func (e *decoderWebP) decode() error {
 				return err
 			}
 
-		case chunkID == fccXMP && sourceSet.Has(XMP):
+		case chunkID == webpFCC.xmp && sourceSet.Has(XMP):
 			sourceSet = sourceSet.Remove(XMP)
 			if err := func() error {
 				r, err := e.bufferedReader(int64(chunkLen))
@@ -119,7 +124,7 @@ func (e *decoderWebP) decode() error {
 				return err
 			}
 
-		case chunkID == fccVP8 && sourceSet.Has(CONFIG):
+		case chunkID == webpFCC.vp8 && sourceSet.Has(CONFIG):
 			sourceSet = sourceSet.Remove(CONFIG)
 			// VP8 lossy format: read frame header for dimensions.
 			e.readBytes(buf[:10])
@@ -135,7 +140,7 @@ func (e *decoderWebP) decode() error {
 			}
 			e.skip(int64(chunkLen) - 10)
 
-		case chunkID == fccVP8L && sourceSet.Has(CONFIG):
+		case chunkID == webpFCC.vp8l && sourceSet.Has(CONFIG):
 			sourceSet = sourceSet.Remove(CONFIG)
 			// VP8L lossless format.
 			e.readBytes(buf[:5])
