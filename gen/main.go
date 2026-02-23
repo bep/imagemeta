@@ -60,11 +60,11 @@ func main() {
 		cmd.Stderr = &errorBuf
 
 		if err := cmd.Run(); err != nil {
-			if strings.Contains(errorBuf.String(), "identify:") {
-				// We have some corrupt images.
-				return nil
-			}
-			return err
+			// identify may fail for corrupt images (prefix "identify:") or
+			// unsupported formats (e.g. RAW files without a darktable/libraw delegate).
+			// Non-fatal: readGoldenInfo already handles missing .config.json via os.IsNotExist.
+			log.Printf("warning: identify failed for %s: %s (skipping config.json)", path, errorBuf.String())
+			return nil
 		}
 
 		imageConfigOutFilename := filepath.Join(outDir, basePath+".config.json")

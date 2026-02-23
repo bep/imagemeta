@@ -52,6 +52,14 @@ const (
 	HEIF
 	// AVIF is the AVIF image format (ISO Base Media File Format with AV1 codec).
 	AVIF
+	// DNG is the DNG (Digital Negative) RAW image format.
+	DNG
+	// CR2 is the Canon CR2 RAW image format.
+	CR2
+	// NEF is the Nikon NEF RAW image format.
+	NEF
+	// ARW is the Sony ARW RAW image format.
+	ARW
 )
 
 // ImageConfig contains basic image configuration.
@@ -193,6 +201,8 @@ func Decode(opts Options) (result DecodeResult, err error) {
 		sourceSet = EXIF | XMP | IPTC | CONFIG
 	case HEIF, AVIF:
 		sourceSet = EXIF | XMP | CONFIG
+	case DNG, CR2, NEF, ARW:
+		sourceSet = EXIF | XMP | IPTC | CONFIG
 	default:
 		return result, fmt.Errorf("unsupported image format")
 
@@ -230,6 +240,8 @@ func Decode(opts Options) (result DecodeResult, err error) {
 		dec = &imageDecoderPNG{baseStreamingDecoder: base}
 	case HEIF, AVIF:
 		dec = &imageDecoderHEIF{baseStreamingDecoder: base}
+	case DNG, CR2, NEF, ARW:
+		dec = &imageDecoderRAW{baseStreamingDecoder: base}
 	}
 
 	decode := func() chan error {
