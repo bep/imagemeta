@@ -112,6 +112,69 @@ func TestDecodeHEIFConfig(t *testing.T) {
 	c.Assert(res2.ImageConfig.Height, qt.Equals, 6192)
 }
 
+func TestDecodeRAW(t *testing.T) {
+	c := qt.New(t)
+
+	// DNG (Canon PowerShot SD450)
+	_, tags, err := extractTags(t, "sample.dng", imagemeta.EXIF)
+	c.Assert(err, qt.IsNil)
+	c.Assert(tags.EXIF()["Make"].Value, qt.Equals, "Canon")
+	c.Assert(tags.EXIF()["Model"].Value, qt.Equals, "Canon PowerShot SD450")
+
+	// CR2 (Canon PowerShot S90)
+	_, tags, err = extractTags(t, "sample.cr2", imagemeta.EXIF)
+	c.Assert(err, qt.IsNil)
+	c.Assert(tags.EXIF()["Make"].Value, qt.Equals, "Canon")
+	c.Assert(tags.EXIF()["Model"].Value, qt.Equals, "Canon PowerShot S90")
+
+	// NEF (Nikon D1)
+	_, tags, err = extractTags(t, "sample.nef", imagemeta.EXIF)
+	c.Assert(err, qt.IsNil)
+	c.Assert(tags.EXIF()["Make"].Value, qt.Equals, "NIKON CORPORATION")
+	c.Assert(tags.EXIF()["Model"].Value, qt.Equals, "NIKON D1")
+
+	// ARW (Sony DSLR-A330)
+	_, tags, err = extractTags(t, "sample.arw", imagemeta.EXIF)
+	c.Assert(err, qt.IsNil)
+	c.Assert(tags.EXIF()["Make"].Value, qt.Equals, "SONY")
+	c.Assert(tags.EXIF()["Model"].Value, qt.Equals, "DSLR-A330")
+}
+
+func TestDecodeRAWConfig(t *testing.T) {
+	c := qt.New(t)
+
+	tests := []struct {
+		filename string
+		format   imagemeta.ImageFormat
+		width    int
+		height   int
+	}{
+		{"sample.dng", imagemeta.DNG, 2592, 1944}, // DefaultCropSize
+		{"sample.cr2", imagemeta.CR2, 3648, 2736}, // ExifIFD dimensions
+		{"sample.nef", imagemeta.NEF, 2012, 1324}, // SubIFD dimensions
+		{"sample.arw", imagemeta.ARW, 3880, 2600}, // ExifIFD dimensions
+	}
+
+	for _, tt := range tests {
+		c.Run(tt.filename, func(c *qt.C) {
+			f, err := os.Open(filepath.Join("testdata", "images", tt.filename))
+			c.Assert(err, qt.IsNil)
+			defer f.Close()
+
+			res, err := imagemeta.Decode(imagemeta.Options{
+				R:           f,
+				ImageFormat: tt.format,
+				Sources:     imagemeta.CONFIG,
+				HandleTag:   func(ti imagemeta.TagInfo) error { return nil },
+				Warnf:       panicWarnf,
+			})
+			c.Assert(err, qt.IsNil)
+			c.Assert(res.ImageConfig.Width, qt.Equals, tt.width)
+			c.Assert(res.ImageConfig.Height, qt.Equals, tt.height)
+		})
+	}
+}
+
 func TestDecodeWebP(t *testing.T) {
 	c := qt.New(t)
 	_, tags, err := extractTags(t, "bep/sunrise.webp", imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP)
@@ -953,6 +1016,11 @@ func compareWithExiftoolOutput(t testing.TB, filename string, sources imagemeta.
 		}
 
 		if found {
+			// Skip comparison for binary data tags (exiftool shows
+			// "(Binary data N bytes, use -b option to extract)" for large arrays).
+			if s, ok := exifToolValue.(string); ok && strings.Contains(s, "Binary data") {
+				continue
+			}
 			expect := normalizeThem(v.Tag, exifToolValue, v.Source)
 			got := normalizeUs(v.Tag, v.Value, v.Source)
 			if v, ok := got.(float64); ok {
@@ -985,6 +1053,14 @@ func extToFormat(ext string) imagemeta.ImageFormat {
 		return imagemeta.HEIF
 	case ".avif":
 		return imagemeta.AVIF
+	case ".dng":
+		return imagemeta.DNG
+	case ".cr2":
+		return imagemeta.CR2
+	case ".nef":
+		return imagemeta.NEF
+	case ".arw":
+		return imagemeta.ARW
 	case ".txt":
 		return -1
 	default:
@@ -1132,6 +1208,8 @@ func withTestDataFile(t testing.TB, fn func(path string, info os.FileInfo, err e
 var goldenSkip = map[string]bool{
 	"goexif/geodegrees_as_string.jpg":  true, // The file has many EXIF errors. I think we do a better job than exiftools, but there are some differences.
 	"invalid-encoding-usercomment.jpg": true, // The file has an EXIF error that produces a warning in imagemeta. It's tested separately.
+	"sample.cr2":                       true, // CR2 chains 4 IFDs; exiftool reports IFD3 StripByteCounts which we don't reach.
+	"sample.arw":                       true, // IFD0 0x0201/0x0202 are preview offsets; exiftool renames to PreviewImageStart/Length so values differ.
 }
 
 var isSpaceDelimitedFloatRe = regexp.MustCompile(`^(\d+\.\d+)( \d+\.?\d*)+$`)
@@ -1327,6 +1405,47 @@ func BenchmarkDecode(b *testing.B) {
 		_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: imagemeta.CONFIG})
 		return err
 	})
+
+	runBenchmarkWithFile := func(b *testing.B, name string, imageFormat imagemeta.ImageFormat, filename string, f func(r io.ReadSeeker) error) {
+		img, err := os.Open(filepath.Join("testdata", "images", filename))
+		if err != nil {
+			b.Fatal(err)
+		}
+		b.Cleanup(func() { img.Close() })
+		b.Run(name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				if err := f(img); err != nil {
+					b.Fatal(err)
+				}
+				img.Seek(0, 0)
+			}
+		})
+	}
+
+	for _, tt := range []struct {
+		name     string
+		format   imagemeta.ImageFormat
+		filename string
+	}{
+		{"dng", imagemeta.DNG, "sample.dng"},
+		{"cr2", imagemeta.CR2, "sample.cr2"},
+		{"nef", imagemeta.NEF, "sample.nef"},
+		{"arw", imagemeta.ARW, "sample.arw"},
+	} {
+		imageFormat = tt.format
+		runBenchmarkWithFile(b, "exif/"+tt.name, tt.format, tt.filename, func(r io.ReadSeeker) error {
+			_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetEXIF})
+			return err
+		})
+		runBenchmarkWithFile(b, "all/"+tt.name, tt.format, tt.filename, func(r io.ReadSeeker) error {
+			_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetAll})
+			return err
+		})
+		runBenchmarkWithFile(b, "config/"+tt.name, tt.format, tt.filename, func(r io.ReadSeeker) error {
+			_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: imagemeta.CONFIG})
+			return err
+		})
+	}
 }
 
 func BenchmarkDecodeCompareWithGoexif(b *testing.B) {
