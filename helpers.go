@@ -224,9 +224,10 @@ func (c vc) convertDegreesToDecimal(ctx valueConverterContext, v any) any {
 }
 
 func (vc) convertNumbersToSpaceLimited(ctx valueConverterContext, v any) any {
-	nums, ok := typeAssertSlice[any](ctx, v)
+	nums, ok := v.([]any)
 	if !ok {
-		return ""
+		// Single value, keep original type.
+		return v
 	}
 
 	var sb strings.Builder

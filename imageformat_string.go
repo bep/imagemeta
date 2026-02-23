@@ -15,11 +15,15 @@ func _() {
 	_ = x[WebP-4]
 	_ = x[HEIF-5]
 	_ = x[AVIF-6]
+	_ = x[DNG-7]
+	_ = x[CR2-8]
+	_ = x[NEF-9]
+	_ = x[ARW-10]
 }
 
-const _ImageFormat_name = "ImageFormatAutoJPEGTIFFPNGWebPHEIFAVIF"
+const _ImageFormat_name = "ImageFormatAutoJPEGTIFFPNGWebPHEIFAVIFDNGCR2NEFARW"
 
-var _ImageFormat_index = [...]uint8{0, 15, 19, 23, 26, 30, 34, 38}
+var _ImageFormat_index = [...]uint8{0, 15, 19, 23, 26, 30, 34, 38, 41, 44, 47, 50}
 
 func (i ImageFormat) String() string {
 	idx := int(i) - 0

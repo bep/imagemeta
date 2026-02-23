@@ -89,6 +89,46 @@ func FuzzDecodeTIFF(f *testing.F) {
 	})
 }
 
+func FuzzDecodeDNG(f *testing.F) {
+	filenames := []string{"sample.dng"}
+	for _, filename := range filenames {
+		f.Add(readTestDataFileAll(f, filename))
+	}
+	f.Fuzz(func(t *testing.T, imageBytes []byte) {
+		fuzzDecodeBytes(t, imageBytes, imagemeta.DNG)
+	})
+}
+
+func FuzzDecodeCR2(f *testing.F) {
+	filenames := []string{"sample.cr2"}
+	for _, filename := range filenames {
+		f.Add(readTestDataFileAll(f, filename))
+	}
+	f.Fuzz(func(t *testing.T, imageBytes []byte) {
+		fuzzDecodeBytes(t, imageBytes, imagemeta.CR2)
+	})
+}
+
+func FuzzDecodeNEF(f *testing.F) {
+	filenames := []string{"sample.nef"}
+	for _, filename := range filenames {
+		f.Add(readTestDataFileAll(f, filename))
+	}
+	f.Fuzz(func(t *testing.T, imageBytes []byte) {
+		fuzzDecodeBytes(t, imageBytes, imagemeta.NEF)
+	})
+}
+
+func FuzzDecodeARW(f *testing.F) {
+	filenames := []string{"sample.arw"}
+	for _, filename := range filenames {
+		f.Add(readTestDataFileAll(f, filename))
+	}
+	f.Fuzz(func(t *testing.T, imageBytes []byte) {
+		fuzzDecodeBytes(t, imageBytes, imagemeta.ARW)
+	})
+}
+
 func fuzzDecodeBytes(t *testing.T, imageBytes []byte, f imagemeta.ImageFormat) error {
 	r := bytes.NewReader(imageBytes)
 	_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: f, Sources: imagemeta.EXIF | imagemeta.IPTC | imagemeta.XMP | imagemeta.CONFIG, Timeout: 600 * time.Millisecond})

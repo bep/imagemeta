@@ -75,6 +75,7 @@ var exifTypeSize = map[exifType]uint32{
 var (
 	exifFieldsAll   = map[uint16]string{}
 	exifIFDPointers = map[uint16]string{
+		0x014a: "SubIFD",
 		0x8769: "ExifIFDP",
 		0x8825: "GPSInfoIFD",
 		0xa005: "InteroperabilityIFD",
@@ -109,6 +110,26 @@ var (
 		"LensInfo":                exifConverters.convertRatsToSpaceLimited,
 		"Padding":                 exifConverters.convertBinaryData,
 		"UserComment":             exifConverters.convertUserComment,
+		"CFAPattern2":             exifConverters.convertBytesToStringSpaceDelim,
+		"CFARepeatPatternDim":     exifConverters.convertNumbersToSpaceLimited,
+		"DefaultCropOrigin":       exifConverters.convertNumbersToSpaceLimited,
+		"DefaultCropSize":         exifConverters.convertNumbersToSpaceLimited,
+		"DefaultScale":            exifConverters.convertRatsToSpaceLimited,
+		"ActiveArea":              exifConverters.convertNumbersToSpaceLimited,
+		"ColorMatrix1":            exifConverters.convertRatsToSpaceLimited,
+		"ColorMatrix2":            exifConverters.convertRatsToSpaceLimited,
+		"AnalogBalance":           exifConverters.convertRatsToSpaceLimited,
+		"AsShotNeutral":           exifConverters.convertRatsToSpaceLimited,
+		"AsShotWhiteXY":           exifConverters.convertRatsToSpaceLimited,
+		"DNGVersion":              exifConverters.convertBytesToStringSpaceDelim,
+		"DNGBackwardVersion":      exifConverters.convertBytesToStringSpaceDelim,
+		"TIFF-EPStandardID":       exifConverters.convertBytesToStringSpaceDelim,
+		"CR2CFAPattern":           exifConverters.convertBytesToStringSpaceDelim,
+		"RawImageSegmentation":    exifConverters.convertNumbersToSpaceLimited,
+		"SonyToneCurve":           exifConverters.convertNumbersToSpaceLimited,
+		"ThumbnailImageValidArea": exifConverters.convertNumbersToSpaceLimited,
+		"BlackLevelRepeatDim":     exifConverters.convertNumbersToSpaceLimited,
+		"MaskedAreas":             exifConverters.convertNumbersToSpaceLimited,
 		"CFAPattern": func(ctx valueConverterContext, v any) any {
 			b := v.([]byte)
 			horizontalRepeat := ctx.s.byteOrder.Uint16(b[:2])
@@ -434,12 +455,27 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 	}
 
 	if isIFDPointer {
-		offset, ok := val.(uint32)
-		if !ok {
+		switch v := val.(type) {
+		case uint32:
+			return e.decodeTagsAt(path.Join(namespace, ifd), int64(v))
+		case []any:
+			// SubIFDs (0x014a) can be an array of IFD offsets.
+			// Number them to match exiftool: SubIFD, SubIFD1, SubIFD2, etc.
+			for i, item := range v {
+				if offset, ok := item.(uint32); ok {
+					ns := path.Join(namespace, ifd)
+					if i > 0 {
+						ns = path.Join(namespace, fmt.Sprintf("%s%d", ifd, i))
+					}
+					if err := e.decodeTagsAt(ns, int64(offset)); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		default:
 			return newInvalidFormatErrorf("invalid IFD pointer value")
 		}
-		namespace := path.Join(namespace, ifd)
-		return e.decodeTagsAt(namespace, int64(offset))
 	}
 
 	if convert, found := exifValueConverterMap[tagName]; found {

@@ -1,1 +1,2 @@
 iphone.heic and sony.heif are copyright 2026 Toni Melisma, license: https://creativecommons.org/licenses/by-sa/4.0/
+sample.dng (Canon PowerShot SD450), sample.cr2 (Canon PowerShot S90), sample.nef (Nikon D1), sample.arw (Sony DSLR-A330) are from https://raw.pixls.us/, license: CC0 1.0 Universal (https://creativecommons.org/publicdomain/zero/1.0/)
