@@ -179,12 +179,10 @@ type exifType uint16
 
 type metaDecoderEXIF struct {
 	*streamReader
-	thumbnailOffset    int64
-	currentCompression uint16 // Compression tag (0x0103) for current IFD
-	currentSubfileType uint32 // SubfileType tag (0x00FE) for current IFD
-	seenIFDs           map[string]struct{}
-	valueConverterCtx  valueConverterContext
-	opts               Options
+	thumbnailOffset   int64
+	seenIFDs          map[string]struct{}
+	valueConverterCtx valueConverterContext
+	opts              Options
 }
 
 func (e *metaDecoderEXIF) convertValue(typ exifType, r io.Reader) any {
@@ -352,78 +350,6 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 
 	}
 
-	// Tags 0x0201/0x0202 and 0x0111/0x0117 have context-dependent names
-	// based on which IFD they appear in, the image format, Compression value,
-	// and SubfileType. Reference: exiftool lib/Image/ExifTool/Exif.pm
-	dirName := path.Base(namespace)
-
-	switch tagID {
-	case 0x0201, 0x0202:
-		isStart := tagID == 0x0201
-		switch {
-		case dirName == "IFD1":
-			// Keep default: ThumbnailOffset/ThumbnailLength
-		case dirName == "SubIFD":
-			if isStart {
-				tagName = "JpgFromRawStart"
-			} else {
-				tagName = "JpgFromRawLength"
-			}
-		case strings.HasPrefix(dirName, "SubIFD"):
-			// SubIFD1, SubIFD2, etc.
-			if isStart {
-				tagName = "OtherImageStart"
-			} else {
-				tagName = "OtherImageLength"
-			}
-		default:
-			// IFD0 (all formats), IFD2, etc.
-			if isStart {
-				tagName = "PreviewImageStart"
-			} else {
-				tagName = "PreviewImageLength"
-			}
-		}
-	case 0x0111, 0x0117:
-		isStart := tagID == 0x0111
-		format := e.opts.ImageFormat
-		comp := e.currentCompression
-		sft := e.currentSubfileType
-
-		switch {
-		case comp == 34892:
-			// Lossy DNG/TIFF compression
-			if isStart {
-				tagName = "OtherImageStart"
-			} else {
-				tagName = "OtherImageLength"
-			}
-		case comp == 52546:
-			// JPEG XL compression
-			if isStart {
-				tagName = "PreviewJXLStart"
-			} else {
-				tagName = "PreviewJXLLength"
-			}
-		case format == CR2 && dirName == "IFD0":
-			// CR2 IFD0 with JPEG compression: preview image
-			if isStart {
-				tagName = "PreviewImageStart"
-			} else {
-				tagName = "PreviewImageLength"
-			}
-		case (format == DNG || format == TIFF) && comp == 7 && sft != 0:
-			// DNG/TIFF SubIFD with lossless JPEG + non-main SubfileType
-			if isStart {
-				tagName = "PreviewImageStart"
-			} else {
-				tagName = "PreviewImageLength"
-			}
-		default:
-			// Keep default: StripOffsets/StripByteCounts
-		}
-	}
-
 	ifd, isIFDPointer := exifIFDPointers[tagID]
 	if isIFDPointer {
 		if _, ok := e.seenIFDs[ifd]; ok {
@@ -528,24 +454,6 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 		return err
 	}
 
-	// Track per-IFD Compression and SubfileType for context-dependent tag naming.
-	switch tagID {
-	case 0x0103: // Compression
-		switch v := val.(type) {
-		case uint16:
-			e.currentCompression = v
-		case uint32:
-			e.currentCompression = uint16(v)
-		}
-	case 0x00fe: // SubfileType (NewSubfileType)
-		switch v := val.(type) {
-		case uint32:
-			e.currentSubfileType = v
-		case uint16:
-			e.currentSubfileType = uint32(v)
-		}
-	}
-
 	if isIFDPointer {
 		switch v := val.(type) {
 		case uint32:
@@ -584,8 +492,7 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 		val = ""
 	}
 
-	switch tagName {
-	case tagNameThumbnailOffset, "PreviewImageStart", "JpgFromRawStart", "OtherImageStart", "PreviewJXLStart":
+	if tagName == tagNameThumbnailOffset {
 		// When set, thumbnailOffset is set to the offset of the EXIF data in the original file.
 		val = val.(uint32) + uint32(e.readerOffset+e.thumbnailOffset)
 	}
@@ -600,8 +507,6 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 }
 
 func (e *metaDecoderEXIF) decodeTags(namespace string) error {
-	e.currentCompression = 0
-	e.currentSubfileType = 0
 	numTags := e.read2()
 
 	for range int(numTags) {

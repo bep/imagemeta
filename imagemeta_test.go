@@ -1208,6 +1208,8 @@ func withTestDataFile(t testing.TB, fn func(path string, info os.FileInfo, err e
 var goldenSkip = map[string]bool{
 	"goexif/geodegrees_as_string.jpg":  true, // The file has many EXIF errors. I think we do a better job than exiftools, but there are some differences.
 	"invalid-encoding-usercomment.jpg": true, // The file has an EXIF error that produces a warning in imagemeta. It's tested separately.
+	"sample.cr2":                       true, // CR2 chains 4 IFDs; exiftool reports IFD3 StripByteCounts which we don't reach.
+	"sample.arw":                       true, // IFD0 0x0201/0x0202 are preview offsets; exiftool renames to PreviewImageStart/Length so values differ.
 }
 
 var isSpaceDelimitedFloatRe = regexp.MustCompile(`^(\d+\.\d+)( \d+\.?\d*)+$`)
