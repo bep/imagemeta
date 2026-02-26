@@ -15,26 +15,40 @@ import (
 
 var markerXMP = []byte("http://ns.adobe.com/xap/1.0/\x00")
 
-const (
-	markerSOI             = 0xffd8
-	markerApp1EXIF        = 0xffe1
-	markerrApp1XMP        = 0xffe1
-	markerApp13           = 0xffed
-	markerSOS             = 0xffda
-	markerSOF0            = 0xffc0 // Baseline DCT
-	markerSOF1            = 0xffc1 // Extended sequential DCT
-	markerSOF2            = 0xffc2 // Progressive DCT
-	exifHeader            = 0x45786966
-	byteOrderBigEndian    = 0x4d4d
-	byteOrderLittleEndian = 0x4949
+// JPEG segment markers and EXIF header.
+var jpegMarker = struct {
+	soi              uint16
+	app1EXIF         uint16
+	app1XMP          uint16
+	app13            uint16
+	sos              uint16
+	sof0, sof1, sof2 uint16 // Baseline, Extended sequential, Progressive DCT
+	exifHeader       uint32
+}{
+	soi:        0xffd8,
+	app1EXIF:   0xffe1,
+	app1XMP:    0xffe1,
+	app13:      0xffed,
+	sos:        0xffda,
+	sof0:       0xffc0,
+	sof1:       0xffc1,
+	sof2:       0xffc2,
+	exifHeader: 0x45786966,
+}
 
-	tagNameThumbnailOffset = "ThumbnailOffset"
-)
+// TIFF byte-order markers and EXIF IFD tag IDs.
+var tiffMarker = struct {
+	byteOrderBE, byteOrderLE uint16
+	xmp                      uint16 // ApplicationNotes
+	iptc                     uint16 // IPTC-NAA
+}{
+	byteOrderBE: 0x4d4d,
+	byteOrderLE: 0x4949,
+	xmp:         0x02bc,
+	iptc:        0x83bb,
+}
 
-const (
-	xmpMarker  = 0x02bc // EXIF ApplicationNotes
-	iptcMarker = 0x83bb // EXIF IPTC-NAA
-)
+const tagNameThumbnailOffset = "ThumbnailOffset"
 
 //go:generate stringer -type=exifType
 
@@ -285,9 +299,9 @@ func (e *metaDecoderEXIF) decode() (err error) {
 	byteOrderTag := e.read2()
 
 	switch byteOrderTag {
-	case byteOrderBigEndian:
+	case tiffMarker.byteOrderBE:
 		e.byteOrder = binary.BigEndian
-	case byteOrderLittleEndian:
+	case tiffMarker.byteOrderLE:
 		e.byteOrder = binary.LittleEndian
 	default:
 		return nil
@@ -366,7 +380,7 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 	}
 	valLen := size * count
 
-	if tagID == xmpMarker {
+	if tagID == tiffMarker.xmp {
 		if !e.opts.Sources.Has(XMP) {
 			e.skip(4)
 			return nil
@@ -386,7 +400,7 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 
 	}
 
-	if tagID == iptcMarker {
+	if tagID == tiffMarker.iptc {
 		if !e.opts.Sources.Has(IPTC) {
 			e.skip(4)
 			return nil

@@ -5,16 +5,24 @@ package imagemeta
 
 import "encoding/binary"
 
-const (
-	rawMeaningOfLife      = 42
-	rawTagImageWidth      = 0x0100
-	rawTagImageHeight     = 0x0101
-	rawTagSubIFDs         = 0x014a
-	rawTagExifIFDPointer  = 0x8769
-	rawTagExifImageWidth  = 0xa002
-	rawTagExifImageHeight = 0xa003
-	rawTagDefaultCropSize = 0xc620
-)
+// TIFF/EXIF tag IDs used in RAW config parsing.
+var rawMarker = struct {
+	meaningOfLife                   uint16
+	imageWidth, imageHeight         uint16
+	subIFDs                         uint16
+	exifIFDPointer                  uint16
+	exifImageWidth, exifImageHeight uint16
+	defaultCropSize                 uint16
+}{
+	meaningOfLife:   42,
+	imageWidth:      0x0100,
+	imageHeight:     0x0101,
+	subIFDs:         0x014a,
+	exifIFDPointer:  0x8769,
+	exifImageWidth:  0xa002,
+	exifImageHeight: 0xa003,
+	defaultCropSize: 0xc620,
+}
 
 type imageDecoderRAW struct {
 	*baseStreamingDecoder
@@ -23,15 +31,15 @@ type imageDecoderRAW struct {
 func (e *imageDecoderRAW) decode() error {
 	byteOrderTag := e.read2()
 	switch byteOrderTag {
-	case byteOrderBigEndian:
+	case tiffMarker.byteOrderBE:
 		e.byteOrder = binary.BigEndian
-	case byteOrderLittleEndian:
+	case tiffMarker.byteOrderLE:
 		e.byteOrder = binary.LittleEndian
 	default:
 		return errInvalidFormat
 	}
 
-	if id := e.read2(); id != rawMeaningOfLife {
+	if id := e.read2(); id != rawMarker.meaningOfLife {
 		return errInvalidFormat
 	}
 
@@ -59,7 +67,7 @@ func (e *imageDecoderRAW) decode() error {
 			count := e.read4()
 
 			switch tagID {
-			case rawTagImageWidth, rawTagImageHeight:
+			case rawMarker.imageWidth, rawMarker.imageHeight:
 				var value int
 				if dataType == 3 { // SHORT
 					value = int(e.read2())
@@ -67,14 +75,14 @@ func (e *imageDecoderRAW) decode() error {
 				} else { // LONG
 					value = int(e.read4())
 				}
-				if tagID == rawTagImageWidth {
+				if tagID == rawMarker.imageWidth {
 					width = value
 				} else {
 					height = value
 				}
-			case rawTagExifIFDPointer:
+			case rawMarker.exifIFDPointer:
 				exifIFDOffset = e.read4()
-			case rawTagSubIFDs:
+			case rawMarker.subIFDs:
 				if count == 1 {
 					subIFDOffsets = append(subIFDOffsets, e.read4())
 				} else {
@@ -88,7 +96,7 @@ func (e *imageDecoderRAW) decode() error {
 						return nil
 					})
 				}
-			case rawTagDefaultCropSize:
+			case rawMarker.defaultCropSize:
 				w, h, ok := e.readDefaultCropSize(dataType, count)
 				if ok {
 					hasDefaultCrop = true
@@ -104,7 +112,7 @@ func (e *imageDecoderRAW) decode() error {
 		if exifIFDOffset > 0 {
 			e.preservePos(func() error {
 				e.seek(int64(exifIFDOffset))
-				exifW, exifH = e.readIFDDimensions(rawTagExifImageWidth, rawTagExifImageHeight)
+				exifW, exifH = e.readIFDDimensions(rawMarker.exifImageWidth, rawMarker.exifImageHeight)
 				return nil
 			})
 		}
@@ -252,7 +260,7 @@ func (e *imageDecoderRAW) readSubIFDInfo() (int, int, int, int) {
 		dataType := e.read2()
 		count := e.read4()
 		switch tagID {
-		case rawTagImageWidth, rawTagImageHeight:
+		case rawMarker.imageWidth, rawMarker.imageHeight:
 			var value int
 			if dataType == 3 { // SHORT
 				value = int(e.read2())
@@ -260,12 +268,12 @@ func (e *imageDecoderRAW) readSubIFDInfo() (int, int, int, int) {
 			} else { // LONG
 				value = int(e.read4())
 			}
-			if tagID == rawTagImageWidth {
+			if tagID == rawMarker.imageWidth {
 				w = value
 			} else {
 				h = value
 			}
-		case rawTagDefaultCropSize:
+		case rawMarker.defaultCropSize:
 			cw, ch, ok := e.readDefaultCropSize(dataType, count)
 			if ok {
 				cropW, cropH = cw, ch

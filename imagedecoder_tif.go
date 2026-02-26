@@ -20,9 +20,9 @@ func (e *imageDecoderTIF) decode() error {
 
 	byteOrderTag := e.read2()
 	switch byteOrderTag {
-	case byteOrderBigEndian:
+	case tiffMarker.byteOrderBE:
 		e.byteOrder = binary.BigEndian
-	case byteOrderLittleEndian:
+	case tiffMarker.byteOrderLE:
 		e.byteOrder = binary.LittleEndian
 	default:
 		return errInvalidFormat
