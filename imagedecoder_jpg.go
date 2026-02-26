@@ -19,7 +19,7 @@ func (e *imageDecoderJPEG) decode() error {
 		return nil
 	}
 
-	if soi != markerSOI {
+	if soi != jpegMarker.soi {
 		return nil
 	}
 
@@ -42,7 +42,7 @@ func (e *imageDecoderJPEG) decode() error {
 			continue
 		}
 
-		if marker == markerSOS {
+		if marker == jpegMarker.sos {
 			// Start of scan. We're done.
 			return nil
 		}
@@ -55,7 +55,7 @@ func (e *imageDecoderJPEG) decode() error {
 		}
 		length -= 2
 
-		if marker == markerApp1EXIF && sourceSet.Has(EXIF) {
+		if marker == jpegMarker.app1EXIF && sourceSet.Has(EXIF) {
 			sourceSet = sourceSet.Remove(EXIF)
 			if err := e.handleEXIF(int64(length)); err != nil {
 				return err
@@ -63,7 +63,7 @@ func (e *imageDecoderJPEG) decode() error {
 			continue
 		}
 
-		if marker == markerApp13 && sourceSet.Has(IPTC) {
+		if marker == jpegMarker.app13 && sourceSet.Has(IPTC) {
 			sourceSet = sourceSet.Remove(IPTC)
 			if err := e.handleIPTC(int(length)); err != nil {
 				return err
@@ -71,7 +71,7 @@ func (e *imageDecoderJPEG) decode() error {
 			continue
 		}
 
-		if marker == markerrApp1XMP && sourceSet.Has(XMP) {
+		if marker == jpegMarker.app1XMP && sourceSet.Has(XMP) {
 			const xmpMarkerLen = 29
 			oldPos := e.pos()
 			b, err := e.readBytesVolatileE(xmpMarkerLen)
@@ -96,7 +96,7 @@ func (e *imageDecoderJPEG) decode() error {
 		}
 
 		// SOF markers contain image dimensions.
-		if sourceSet.Has(CONFIG) && (marker == markerSOF0 || marker == markerSOF1 || marker == markerSOF2) {
+		if sourceSet.Has(CONFIG) && (marker == jpegMarker.sof0 || marker == jpegMarker.sof1 || marker == jpegMarker.sof2) {
 			sourceSet = sourceSet.Remove(CONFIG)
 			e.skip(1) // Skip precision byte.
 			height := int(e.read2())
@@ -133,7 +133,7 @@ func (e *imageDecoderJPEG) handleEXIF(length int64) (err error) {
 	exifr := newMetaDecoderEXIF(r, e.byteOrder, thumbnailOffset, e.opts)
 
 	header := exifr.read4()
-	if header != exifHeader {
+	if header != jpegMarker.exifHeader {
 		return nil
 	}
 	exifr.skip(2)
