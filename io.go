@@ -4,12 +4,51 @@
 package imagemeta
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
 	"sync"
 )
+
+type bufferedReadSeeker struct {
+	rs io.ReadSeeker
+	br *bufio.Reader
+}
+
+var bufferedReadSeekerPool = &sync.Pool{
+	New: func() any {
+		return &bufferedReadSeeker{br: bufio.NewReaderSize(nil, 4096)}
+	},
+}
+
+func getBufferedReadSeeker(rs io.ReadSeeker) *bufferedReadSeeker {
+	b := bufferedReadSeekerPool.Get().(*bufferedReadSeeker)
+	b.rs = rs
+	b.br.Reset(rs)
+	return b
+}
+
+func putBufferedReadSeeker(b *bufferedReadSeeker) {
+	b.rs = nil
+	b.br.Reset(nil)
+	bufferedReadSeekerPool.Put(b)
+}
+
+func (b *bufferedReadSeeker) Read(p []byte) (int, error) {
+	return b.br.Read(p)
+}
+
+func (b *bufferedReadSeeker) Seek(offset int64, whence int) (int64, error) {
+	if whence == io.SeekCurrent {
+		// Adjust for buffered but unread data.
+		offset -= int64(b.br.Buffered())
+	}
+	n, err := b.rs.Seek(offset, whence)
+	b.br.Reset(b.rs)
+	return n, err
+}
 
 type bytesAndReader struct {
 	b []byte
