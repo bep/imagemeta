@@ -215,8 +215,11 @@ func Decode(opts Options) (result DecodeResult, err error) {
 		return result, nil
 	}
 
+	brs := getBufferedReadSeeker(opts.R)
+	defer putBufferedReadSeeker(brs)
+
 	br := &streamReader{
-		r:         opts.R,
+		r:         brs,
 		byteOrder: binary.BigEndian,
 	}
 
