@@ -25,7 +25,7 @@ func main() {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() || strings.HasPrefix(info.Name(), ".") {
+		if info.IsDir() || strings.HasPrefix(info.Name(), ".") || strings.HasSuffix(info.Name(), ".txt") {
 			return nil
 		}
 

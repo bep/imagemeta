@@ -1,12 +1,12 @@
 [{
-  "SourceFile": "testdata/images/sample.arw",
+  "SourceFile": "../testdata/images/sample.arw",
   "ExifTool": {
     "ExifToolVersion": 13.50
   },
   "File": {
     "FileName": "sample.arw",
-    "Directory": "testdata/images",
-    "FileSize": 9601024,
+    "Directory": "../testdata/images",
+    "FileSize": 102400,
     "FilePermissions": 100644,
     "FileType": "ARW",
     "FileTypeExtension": "ARW",
