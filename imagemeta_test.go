@@ -155,10 +155,10 @@ func TestDecodeRAWConfig(t *testing.T) {
 		width    int
 		height   int
 	}{
-		{"sample.dng", imagemeta.DNG, 2592, 1944}, // DefaultCropSize
-		{"sample.cr2", imagemeta.CR2, 3648, 2736}, // ExifIFD dimensions
-		{"sample.nef", imagemeta.NEF, 2012, 1324}, // SubIFD dimensions
-		{"sample.arw", imagemeta.ARW, 3880, 2600},              // ExifIFD dimensions
+		{"sample.dng", imagemeta.DNG, 2592, 1944},            // DefaultCropSize
+		{"sample.cr2", imagemeta.CR2, 3648, 2736},            // ExifIFD dimensions
+		{"sample.nef", imagemeta.NEF, 2012, 1324},            // SubIFD dimensions
+		{"sample.arw", imagemeta.ARW, 3880, 2600},            // ExifIFD dimensions
 		{"bep/jølstravatnet.pef", imagemeta.PEF, 6080, 4032}, // IFD0 dimensions
 	}
 

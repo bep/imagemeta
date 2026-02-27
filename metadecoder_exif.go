@@ -145,7 +145,10 @@ var (
 		"BlackLevelRepeatDim":     exifConverters.convertNumbersToSpaceLimited,
 		"MaskedAreas":             exifConverters.convertNumbersToSpaceLimited,
 		"CFAPattern": func(ctx valueConverterContext, v any) any {
-			b := v.([]byte)
+			b, ok := typeAssert[[]byte](ctx, v)
+			if !ok {
+				return v
+			}
 			horizontalRepeat := ctx.s.byteOrder.Uint16(b[:2])
 			verticalRepeat := ctx.s.byteOrder.Uint16(b[2:])
 			repeatLen := int(horizontalRepeat) * int(verticalRepeat)
@@ -508,7 +511,9 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 
 	if tagName == tagNameThumbnailOffset {
 		// When set, thumbnailOffset is set to the offset of the EXIF data in the original file.
-		val = val.(uint32) + uint32(e.readerOffset+e.thumbnailOffset)
+		if v, ok := typeAssert[uint32](e.valueConverterCtx, val); ok {
+			val = v + uint32(e.readerOffset+e.thumbnailOffset)
+		}
 	}
 
 	tagInfo.Value = val
