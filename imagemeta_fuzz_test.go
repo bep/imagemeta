@@ -129,6 +129,16 @@ func FuzzDecodeARW(f *testing.F) {
 	})
 }
 
+func FuzzDecodePEF(f *testing.F) {
+	filenames := []string{"bep/jølstravatnet.pef"}
+	for _, filename := range filenames {
+		f.Add(readTestDataFileAll(f, filename))
+	}
+	f.Fuzz(func(t *testing.T, imageBytes []byte) {
+		fuzzDecodeBytes(t, imageBytes, imagemeta.PEF)
+	})
+}
+
 func fuzzDecodeBytes(t *testing.T, imageBytes []byte, f imagemeta.ImageFormat) error {
 	r := bytes.NewReader(imageBytes)
 	_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: f, Sources: imagemeta.EXIF | imagemeta.IPTC | imagemeta.XMP | imagemeta.CONFIG, Timeout: 600 * time.Millisecond})

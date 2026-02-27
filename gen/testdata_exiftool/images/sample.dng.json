@@ -1,12 +1,12 @@
 [{
-  "SourceFile": "testdata/images/sample.dng",
+  "SourceFile": "../testdata/images/sample.dng",
   "ExifTool": {
     "ExifToolVersion": 13.50
   },
   "File": {
     "FileName": "sample.dng",
-    "Directory": "testdata/images",
-    "FileSize": 6611520,
+    "Directory": "../testdata/images",
+    "FileSize": 51200,
     "FilePermissions": 100644,
     "FileType": "DNG",
     "FileTypeExtension": "DNG",

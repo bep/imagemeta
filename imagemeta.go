@@ -25,7 +25,7 @@ const (
 	XMP
 
 	// CONFIG source, which currently the image dimensions encoded in the image.
-	// Note that this must not be confused with the dimensions stored in EXIF tags.
+	// Note that this may not be the same as the dimensions stored in EXIF tags.
 	CONFIG
 )
 
@@ -60,6 +60,8 @@ const (
 	NEF
 	// ARW is the Sony ARW RAW image format.
 	ARW
+	// PEF is the Pentax PEF RAW image format.
+	PEF
 )
 
 // ImageConfig contains basic image configuration.
@@ -75,7 +77,8 @@ type DecodeResult struct {
 	ImageConfig ImageConfig
 }
 
-// Decode reads EXIF and IPTC metadata from r and returns a Meta struct.
+// Decode reads the metadata and passes it to the provided handlers in the options.
+// It returns a DecodeResult containing the image configuration if the CONFIG source was requested.
 func Decode(opts Options) (result DecodeResult, err error) {
 	var base *baseStreamingDecoder
 
@@ -201,7 +204,7 @@ func Decode(opts Options) (result DecodeResult, err error) {
 		sourceSet = EXIF | XMP | IPTC | CONFIG
 	case HEIF, AVIF:
 		sourceSet = EXIF | XMP | CONFIG
-	case DNG, CR2, NEF, ARW:
+	case DNG, CR2, NEF, ARW, PEF:
 		sourceSet = EXIF | XMP | IPTC | CONFIG
 	default:
 		return result, fmt.Errorf("unsupported image format")
@@ -243,7 +246,7 @@ func Decode(opts Options) (result DecodeResult, err error) {
 		dec = &imageDecoderPNG{baseStreamingDecoder: base}
 	case HEIF, AVIF:
 		dec = &imageDecoderHEIF{baseStreamingDecoder: base}
-	case DNG, CR2, NEF, ARW:
+	case DNG, CR2, NEF, ARW, PEF:
 		dec = &imageDecoderRAW{baseStreamingDecoder: base}
 	}
 

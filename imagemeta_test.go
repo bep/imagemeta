@@ -138,6 +138,12 @@ func TestDecodeRAW(t *testing.T) {
 	c.Assert(err, qt.IsNil)
 	c.Assert(tags.EXIF()["Make"].Value, qt.Equals, "SONY")
 	c.Assert(tags.EXIF()["Model"].Value, qt.Equals, "DSLR-A330")
+
+	// PEF (Pentax K-3 II)
+	_, tags, err = extractTags(t, "bep/jølstravatnet.pef", imagemeta.EXIF)
+	c.Assert(err, qt.IsNil)
+	c.Assert(tags.EXIF()["Make"].Value, qt.Equals, "RICOH IMAGING COMPANY, LTD.")
+	c.Assert(tags.EXIF()["Model"].Value, qt.Equals, "PENTAX K-3 II")
 }
 
 func TestDecodeRAWConfig(t *testing.T) {
@@ -152,7 +158,8 @@ func TestDecodeRAWConfig(t *testing.T) {
 		{"sample.dng", imagemeta.DNG, 2592, 1944}, // DefaultCropSize
 		{"sample.cr2", imagemeta.CR2, 3648, 2736}, // ExifIFD dimensions
 		{"sample.nef", imagemeta.NEF, 2012, 1324}, // SubIFD dimensions
-		{"sample.arw", imagemeta.ARW, 3880, 2600}, // ExifIFD dimensions
+		{"sample.arw", imagemeta.ARW, 3880, 2600},              // ExifIFD dimensions
+		{"bep/jølstravatnet.pef", imagemeta.PEF, 6080, 4032}, // IFD0 dimensions
 	}
 
 	for _, tt := range tests {
@@ -1061,6 +1068,8 @@ func extToFormat(ext string) imagemeta.ImageFormat {
 		return imagemeta.NEF
 	case ".arw":
 		return imagemeta.ARW
+	case ".pef":
+		return imagemeta.PEF
 	case ".txt":
 		return -1
 	default:
@@ -1192,7 +1201,7 @@ func withTestDataFile(t testing.TB, fn func(path string, info os.FileInfo, err e
 			return err
 		}
 
-		if info.IsDir() || strings.HasPrefix(info.Name(), ".") {
+		if info.IsDir() || strings.HasPrefix(info.Name(), ".") || strings.HasSuffix(info.Name(), ".txt") {
 			return nil
 		}
 
@@ -1210,6 +1219,7 @@ var goldenSkip = map[string]bool{
 	"invalid-encoding-usercomment.jpg": true, // The file has an EXIF error that produces a warning in imagemeta. It's tested separately.
 	"sample.cr2":                       true, // CR2 chains 4 IFDs; exiftool reports IFD3 StripByteCounts which we don't reach.
 	"sample.arw":                       true, // IFD0 0x0201/0x0202 are preview offsets; exiftool renames to PreviewImageStart/Length so values differ.
+	"bep/jølstravatnet.pef":            true, // GPSProcessingMethod includes encoding prefix; CONFIG dimensions differ (identify uses libraw active area).
 }
 
 var isSpaceDelimitedFloatRe = regexp.MustCompile(`^(\d+\.\d+)( \d+\.?\d*)+$`)
@@ -1431,6 +1441,7 @@ func BenchmarkDecode(b *testing.B) {
 		{"cr2", imagemeta.CR2, "sample.cr2"},
 		{"nef", imagemeta.NEF, "sample.nef"},
 		{"arw", imagemeta.ARW, "sample.arw"},
+		{"pef", imagemeta.PEF, "bep/jølstravatnet.pef"},
 	} {
 		imageFormat = tt.format
 		runBenchmarkWithFile(b, "exif/"+tt.name, tt.format, tt.filename, func(r io.ReadSeeker) error {

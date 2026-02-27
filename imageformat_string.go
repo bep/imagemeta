@@ -19,16 +19,16 @@ func _() {
 	_ = x[CR2-8]
 	_ = x[NEF-9]
 	_ = x[ARW-10]
+	_ = x[PEF-11]
 }
 
-const _ImageFormat_name = "ImageFormatAutoJPEGTIFFPNGWebPHEIFAVIFDNGCR2NEFARW"
+const _ImageFormat_name = "ImageFormatAutoJPEGTIFFPNGWebPHEIFAVIFDNGCR2NEFARWPEF"
 
-var _ImageFormat_index = [...]uint8{0, 15, 19, 23, 26, 30, 34, 38, 41, 44, 47, 50}
+var _ImageFormat_index = [...]uint8{0, 15, 19, 23, 26, 30, 34, 38, 41, 44, 47, 50, 53}
 
 func (i ImageFormat) String() string {
-	idx := int(i) - 0
-	if i < 0 || idx >= len(_ImageFormat_index)-1 {
+	if i < 0 || i >= ImageFormat(len(_ImageFormat_index)-1) {
 		return "ImageFormat(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _ImageFormat_name[_ImageFormat_index[idx]:_ImageFormat_index[idx+1]]
+	return _ImageFormat_name[_ImageFormat_index[i]:_ImageFormat_index[i+1]]
 }
