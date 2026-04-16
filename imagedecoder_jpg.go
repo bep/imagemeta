@@ -83,21 +83,20 @@ func (e *imageDecoderJPEG) decode() error {
 			if err == nil && bytes.Equal(b, markerXMP) {
 				length -= xmpMarkerLen
 				sourceSet = sourceSet.Remove(XMP)
-				// Use bufferedReader so the entire XMP segment is consumed
-				// from e.r up front. Otherwise xml.Decoder's internal
-				// bufio.Reader pre-fetches bytes past where XML parsing
-				// stops (XMP packets typically have ~2 KB of trailing
-				// padding after </x:xmpmeta>), leaving e.r misaligned for
-				// the next JPEG segment marker.
-				r, berr := e.bufferedReader(int64(length))
-				if berr != nil {
-					return berr
-				}
-				if err := decodeXMP(r, e.opts); err != nil {
-					r.Close()
+				if err := func() error {
+					// Use bufferedReader so the entire XMP segment is consumed
+					// from e.r up front.
+					r, err := e.bufferedReader(int64(length))
+					if err != nil {
+						return err
+					}
+					defer r.Close()
+
+					return decodeXMP(r, e.opts)
+				}(); err != nil {
 					return err
 				}
-				r.Close()
+
 				continue
 			} else {
 				// Not XMP, rewind.
