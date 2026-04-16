@@ -239,21 +239,7 @@ func TestDecodeJPEG(t *testing.T) {
 	c.Assert(tags.IPTC()["City"].Value, qt.Equals, "Benalmádena")
 }
 
-// TestDecodeJPEGXMPIPTCMisalignment is a regression test for a JPEG with
-// both an APP1 XMP segment whose payload exceeds bufio.Reader's 4096-byte
-// default buffer AND a subsequent APP13 IPTC segment.
-//
-// Before the fix, decodeXMP was passed an io.LimitReader directly. Go's
-// xml.Decoder wraps its input in bufio.NewReader, which pre-fetches up to
-// 4 KB. After XML parsing finishes at </x:xmpmeta>, the bufio buffer
-// retains unread bytes — meaning the underlying reader has been advanced
-// past where XML parsing logically stopped, leaving the JPEG segment
-// walker misaligned for the next marker. Subsequent IPTC was either
-// silently skipped (loss of metadata) or the walker hit errInvalidFormat
-// trying to interpret garbage as a length.
-//
-// Fixture: a real-world darktable-exported JPEG (truncated at the SOS
-// marker) that triggers the loud failure mode.
+// Issue #65.
 func TestDecodeJPEGXMPIPTCMisalignment(t *testing.T) {
 	c := qt.New(t)
 
@@ -265,14 +251,8 @@ func TestDecodeJPEGXMPIPTCMisalignment(t *testing.T) {
 		imagemeta.EXIF|imagemeta.IPTC|imagemeta.XMP, shouldInclude)
 	c.Assert(err, qt.IsNil)
 
-	// IPTC: the failing fixture contains exactly one IPTC field
-	// (CodedCharacterSet, dataset 1:90). Before the fix this tag was
-	// either missing entirely or the entire decode aborted.
 	c.Assert(tags.IPTC()["CodedCharacterSet"].Value, qt.Equals, "UTF-8")
 
-	// Sanity: EXIF (parsed before XMP) and XMP itself should also be
-	// captured. EXIF Artist/Copyright come from the EXIF segment;
-	// XMP Subject (dc:subject keywords) from the XMP segment.
 	c.Assert(tags.EXIF()["Artist"].Value, qt.Equals, "Lukas Nagel")
 	c.Assert(tags.XMP()["Subject"].Source, qt.Equals, imagemeta.XMP)
 }
