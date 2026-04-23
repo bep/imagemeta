@@ -111,7 +111,7 @@ func (e *imageDecoderHEIF) decode() error {
 
 	var (
 		exifItemID    uint32
-		xmpItemID     uint32
+		xmpItemIDs    []uint32
 		primaryItemID uint32
 	)
 
@@ -197,7 +197,21 @@ func (e *imageDecoderHEIF) decode() error {
 						case heifFCC.exif:
 							exifItemID = itemID
 						case heifFCC.mime:
-							xmpItemID = itemID
+							// A "mime" infe carries item_name and content_type as
+							// null-terminated strings. XMP is content_type
+							// "application/rdf+xml"; other mime items (ICC profiles,
+							// etc.) must be ignored.
+							remaining := int(infeEnd - e.pos())
+							if remaining > 0 {
+								_, n := e.readNullTerminatedBytes(remaining)
+								remaining -= int(n)
+							}
+							if remaining > 0 {
+								contentType, _ := e.readNullTerminatedBytes(remaining)
+								if string(contentType) == "application/rdf+xml" {
+									xmpItemIDs = append(xmpItemIDs, itemID)
+								}
+							}
 						}
 					} else {
 						e.opts.Warnf("heif: infe version %d not supported, skipping", infeVersion)
@@ -348,12 +362,9 @@ func (e *imageDecoderHEIF) decode() error {
 	}
 
 	// Step 5: Resolve iloc offsets now that both iinf and iloc have been parsed.
-	var exifOffset, exifLength, xmpOffset, xmpLength uint64
+	var exifOffset, exifLength uint64
 	if loc, ok := ilocEntries[exifItemID]; ok && exifItemID != 0 {
 		exifOffset, exifLength = loc.offset, loc.length
-	}
-	if loc, ok := ilocEntries[xmpItemID]; ok && xmpItemID != 0 {
-		xmpOffset, xmpLength = loc.offset, loc.length
 	}
 
 	// Step 6: Resolve CONFIG dimensions from collected ipco/ipma/pitm data.
@@ -410,18 +421,26 @@ func (e *imageDecoderHEIF) decode() error {
 		}
 	}
 
-	// Step 8: Extract XMP metadata using the absolute offset from iloc.
-	if e.opts.Sources.Has(XMP) && xmpItemID != 0 && xmpOffset != 0 && xmpLength > 0 {
-		if err := func() error {
-			e.seek(int64(xmpOffset))
-			r, err := e.bufferedReader(int64(xmpLength))
-			if err != nil {
+	// Step 8: Extract XMP metadata. HEIF permits multiple XMP items (e.g. Ultra
+	// HDR: one on the primary image, one on the gain map). Deliver each in file
+	// order; HandleXMP is invoked once per packet.
+	if e.opts.Sources.Has(XMP) {
+		for _, id := range xmpItemIDs {
+			loc, ok := ilocEntries[id]
+			if !ok || loc.offset == 0 || loc.length == 0 {
+				continue
+			}
+			if err := func() error {
+				e.seek(int64(loc.offset))
+				r, err := e.bufferedReader(int64(loc.length))
+				if err != nil {
+					return err
+				}
+				defer r.Close()
+				return decodeXMP(r, e.opts)
+			}(); err != nil {
 				return err
 			}
-			defer r.Close()
-			return decodeXMP(r, e.opts)
-		}(); err != nil {
-			return err
 		}
 	}
 
