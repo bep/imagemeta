@@ -77,6 +77,36 @@ func TestDecodeHEIF(t *testing.T) {
 	c.Assert(tags.EXIF()["Model"].Value, qt.Equals, "ILCE-6700")
 }
 
+func TestDecodeHEIFMultipleXMP(t *testing.T) {
+	c := qt.New(t)
+
+	// multi-xmp.heic has two application/rdf+xml items (primary + gain-map
+	// style, per Android Ultra HDR) and a decoy application/octet-stream mime
+	// item. See issue #67.
+	_, tags, err := extractTags(t, "multi-xmp.heic", imagemeta.XMP)
+	c.Assert(err, qt.IsNil)
+	all := tags.All()
+	c.Assert(all["MotionPhoto"].Value, qt.Equals, "1")
+	c.Assert(all["GainMapMax"].Value, qt.Equals, "2.3")
+
+	// HandleXMP fires once per packet, in file order, and never on the decoy.
+	var got [][]byte
+	_, _, err = extractTags(t, "multi-xmp.heic", imagemeta.XMP, func(opts *imagemeta.Options) {
+		opts.HandleXMP = func(r io.Reader) error {
+			b, err := io.ReadAll(r)
+			if err != nil {
+				return err
+			}
+			got = append(got, b)
+			return nil
+		}
+	})
+	c.Assert(err, qt.IsNil)
+	c.Assert(got, qt.HasLen, 2)
+	c.Assert(strings.Contains(string(got[0]), "GCamera:MotionPhoto"), qt.IsTrue)
+	c.Assert(strings.Contains(string(got[1]), "hdrgm:GainMapMax"), qt.IsTrue)
+}
+
 func TestDecodeHEIFConfig(t *testing.T) {
 	c := qt.New(t)
 
@@ -1238,6 +1268,7 @@ var goldenSkip = map[string]bool{
 	"sample.cr2":                       true, // CR2 chains 4 IFDs; exiftool reports IFD3 StripByteCounts which we don't reach.
 	"sample.arw":                       true, // IFD0 0x0201/0x0202 are preview offsets; exiftool renames to PreviewImageStart/Length so values differ.
 	"bep/jølstravatnet.pef":            true, // GPSProcessingMethod includes encoding prefix; CONFIG dimensions differ (identify uses libraw active area).
+	"multi-xmp.heic":                   true, // Synthetic metadata-only fixture for issue #67 (no pixel data, no exiftool golden).
 }
 
 var isSpaceDelimitedFloatRe = regexp.MustCompile(`^(\d+\.\d+)( \d+\.?\d*)+$`)
