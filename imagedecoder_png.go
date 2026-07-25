@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -90,6 +91,9 @@ func (e *imageDecoderPNG) decode() error {
 					if err != nil {
 						return newInvalidFormatError(fmt.Errorf("decompressing zTXt: %w", err))
 					}
+					if int64(len(data)) < profileNameLength {
+						return newInvalidFormatErrorf("zTXt data too short: %d", len(data))
+					}
 					data = data[profileNameLength:] // Skip the header bytes.
 					data = bytes.ReplaceAll(data, []byte("\n"), []byte(""))
 					d := make([]byte, hex.DecodedLen(len(data)))
@@ -120,6 +124,9 @@ func (e *imageDecoderPNG) decode() error {
 }
 
 func decompressZTXt(data []byte) ([]byte, error) {
+	if len(data) == 0 {
+		return nil, errors.New("no zTXt data")
+	}
 	// The first byte indicates the compression method, for which only deflate is currently defined (method zero).
 	compressionMethod := data[0]
 	if compressionMethod != 0 {
@@ -131,6 +138,14 @@ func decompressZTXt(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	defer z.Close()
-	p, err := io.ReadAll(z)
-	return p, err
+
+	// Bound the inflated size; a small zlib stream can otherwise expand to gigabytes.
+	p, err := io.ReadAll(io.LimitReader(z, maxBufSize+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(p) > maxBufSize {
+		return nil, fmt.Errorf("uncompressed zTXt size exceeds max %d", maxBufSize)
+	}
+	return p, nil
 }

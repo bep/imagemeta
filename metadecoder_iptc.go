@@ -405,7 +405,7 @@ func resolveCodedCharacterSet(b []byte) string {
 		return characterSetISO88591
 	}
 
-	if len(b) > 3 && b[0] == esc && (b[1] == dot || b[2] == dot || b[3] == dot) && b[4] == latinCapitalA {
+	if len(b) > 4 && b[0] == esc && (b[1] == dot || b[2] == dot || b[3] == dot) && b[4] == latinCapitalA {
 		return characterSetISO88591
 	}
 

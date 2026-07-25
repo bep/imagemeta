@@ -289,6 +289,12 @@ func (e *streamReader) readNFromRIntoBuf(n int, r io.Reader) {
 }
 
 func (e *streamReader) readNFromRIntoBufE(n int, r io.Reader) error {
+	if n < 0 {
+		return newInvalidFormatErrorf("negative length %d", n)
+	}
+	if n > maxBufSize {
+		return newInvalidFormatErrorf("length %d exceeds max %d", n, maxBufSize)
+	}
 	e.allocateBuf(n)
 	n2, err := io.ReadFull(r, e.buf[:n])
 	if err != nil {
