@@ -78,6 +78,19 @@ func putBytesAndReader(br *bytesAndReader) {
 	bytesAndReaderPool.Put(br)
 }
 
+func (br *bytesAndReader) Read(p []byte) (int, error) {
+	return br.r.Read(p)
+}
+
+func (br *bytesAndReader) Seek(offset int64, whence int) (int64, error) {
+	return br.r.Seek(offset, whence)
+}
+
+func (br *bytesAndReader) Close() error {
+	putBytesAndReader(br)
+	return nil
+}
+
 var errShortRead = errors.New("short read")
 
 func newStreamReader(r io.Reader, byteOrder binary.ByteOrder) *streamReader {
@@ -85,12 +98,6 @@ func newStreamReader(r io.Reader, byteOrder binary.ByteOrder) *streamReader {
 		r:         r.(io.ReadSeeker),
 		byteOrder: byteOrder,
 	}
-}
-
-type closerFunc func() error
-
-func (f closerFunc) Close() error {
-	return f()
 }
 
 type decoder interface {
@@ -118,10 +125,6 @@ type streamReader struct {
 	readerOffset int64
 }
 
-var noopCloser closerFunc = func() error {
-	return nil
-}
-
 func (e *streamReader) otherByteOrder() binary.ByteOrder {
 	if e.byteOrder == binary.BigEndian {
 		return binary.LittleEndian
@@ -138,41 +141,20 @@ func (e *streamReader) bufferedReader(length int64) (readerCloser, error) {
 	if length > maxBufSize {
 		return nil, newInvalidFormatErrorf("length %d exceeds max %d", length, maxBufSize)
 	}
-	if length == 0 {
-		return struct {
-			io.ReadSeeker
-			io.Closer
-		}{
-			bytes.NewReader(nil),
-			noopCloser,
-		}, nil
-	}
-
 	if length < 0 {
 		return nil, newInvalidFormatErrorf("negative length")
 	}
 
 	br := getBytesAndReader(int(length))
 
-	_, err := io.ReadFull(e.r, br.b)
-	if err != nil {
-		return nil, err
-	}
-
-	var closer closerFunc = func() error {
+	if _, err := io.ReadFull(e.r, br.b); err != nil {
 		putBytesAndReader(br)
-		return nil
+		return nil, err
 	}
 
 	br.r.Reset(br.b)
 
-	return struct {
-		io.ReadSeeker
-		io.Closer
-	}{
-		br.r,
-		closer,
-	}, nil
+	return br, nil
 }
 
 func (e *streamReader) allocateBuf(length int) {
