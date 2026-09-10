@@ -1,0 +1,31 @@
+[{
+  "SourceFile": "../testdata/images/hugo-issue-15324.jpg",
+  "ExifTool": {
+    "ExifToolVersion": 13.50
+  },
+  "File": {
+    "FileName": "hugo-issue-15324.jpg",
+    "Directory": "../testdata/images",
+    "FileSize": 4081,
+    "FilePermissions": 100644,
+    "FileType": "JPEG",
+    "FileTypeExtension": "JPG",
+    "MIMEType": "image/jpeg",
+    "ImageWidth": 276,
+    "ImageHeight": 38,
+    "EncodingProcess": 0,
+    "BitsPerSample": 8,
+    "ColorComponents": 3,
+    "YCbCrSubSampling": "2 2"
+  },
+  "JFIF": {
+    "JFIFVersion": "1 1",
+    "ResolutionUnit": 0,
+    "XResolution": 1,
+    "YResolution": 1
+  },
+  "XMP": {
+    "XMPToolkit": "Image::ExifTool 13.55",
+    "DigitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia"
+  }
+}]

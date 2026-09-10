@@ -14,10 +14,11 @@ import (
 	"unicode/utf8"
 )
 
+const rdfNamespace = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+
 var xmpSkipNamespaces = map[string]bool{
-	"xmlns": true,
-	"http://www.w3.org/1999/02/22-rdf-syntax-ns#": true,
-	"http://purl.org/dc/elements/1.1/":            true,
+	"xmlns":      true,
+	rdfNamespace: true,
 }
 
 type rdf struct {
@@ -25,42 +26,65 @@ type rdf struct {
 	Descriptions []rdfDescription `xml:"Description"`
 }
 
-// Note: We currently only handle a subset of XMP tags,
-// but a very common subset.
 type rdfDescription struct {
-	XMLName   xml.Name
-	Attrs     []xml.Attr `xml:",any,attr"`
-	Creator   seqList    `xml:"creator"`
-	Publisher bagList    `xml:"publisher"`
-	Subject   bagList    `xml:"subject"`
-	Rights    altList    `xml:"rights"`
-
-	// GPS and other simple child elements from exif namespace.
-	GPSLatitude    string `xml:"GPSLatitude"`
-	GPSLongitude   string `xml:"GPSLongitude"`
-	GPSAltitude    string `xml:"GPSAltitude"`
-	GPSAltitudeRef string `xml:"GPSAltitudeRef"`
+	XMLName xml.Name
+	Attrs   []xml.Attr   `xml:",any,attr"`
+	Elems   []rdfElement `xml:",any"`
 }
 
-type altList struct {
+// rdfElement is a property of an rdf:Description written in element form:
+// a simple text value, an rdf:resource reference or an rdf:Seq/Bag/Alt list.
+// Structs (nested rdf:Description or rdf:parseType="Resource") are not handled.
+type rdfElement struct {
 	XMLName xml.Name
-	Alt     struct {
-		Items []string `xml:"li"`
-	} `xml:"Alt"`
+	Attrs   []xml.Attr `xml:",any,attr"`
+	Text    string     `xml:",chardata"`
+	Seq     *rdfList   `xml:"Seq"`
+	Bag     *rdfList   `xml:"Bag"`
+	Alt     *rdfList   `xml:"Alt"`
 }
 
-type seqList struct {
-	XMLName xml.Name
-	Seq     struct {
-		Items []string `xml:"li"`
-	} `xml:"Seq"`
+type rdfList struct {
+	Items []string `xml:"li"`
 }
 
-type bagList struct {
-	XMLName xml.Name
-	Bag     struct {
-		Items []string `xml:"li"`
-	} `xml:"Bag"`
+// value returns the list items as ExifTool does: a single item as a string,
+// several as a slice, none as nil.
+func (l *rdfList) value() any {
+	var items []string
+	for _, item := range l.Items {
+		if item = strings.TrimSpace(item); item != "" {
+			items = append(items, item)
+		}
+	}
+	switch len(items) {
+	case 0:
+		return nil
+	case 1:
+		return items[0]
+	default:
+		return items
+	}
+}
+
+func (el rdfElement) value() any {
+	switch {
+	case el.Seq != nil:
+		return el.Seq.value()
+	case el.Bag != nil:
+		return el.Bag.value()
+	case el.Alt != nil:
+		return el.Alt.value()
+	}
+	if s := strings.TrimSpace(el.Text); s != "" {
+		return s
+	}
+	for _, attr := range el.Attrs {
+		if attr.Name.Space == rdfNamespace && attr.Name.Local == "resource" {
+			return attr.Value
+		}
+	}
+	return nil
 }
 
 type xmpmeta struct {
@@ -86,63 +110,15 @@ func decodeXMP(r io.Reader, opts Options) error {
 		return newInvalidFormatError(fmt.Errorf("decoding XMP: %w", err))
 	}
 
-	// Process all rdf:Description elements.
 	for _, desc := range meta.RDF.Descriptions {
-		// Process attributes.
 		for _, attr := range desc.Attrs {
-			if xmpSkipNamespaces[attr.Name.Space] {
-				continue
-			}
-
-			tagInfo := TagInfo{
-				Source:    XMP,
-				Tag:       firstUpper(attr.Name.Local),
-				Namespace: attr.Name.Space,
-				Value:     attr.Value,
-			}
-
-			if !opts.ShouldHandleTag(tagInfo) {
-				continue
-			}
-
-			if err := opts.HandleTag(tagInfo); err != nil {
+			if err := handleXMPTag(attr.Name, attr.Value, opts); err != nil {
 				return err
 			}
 		}
-
-		// Process known child element lists.
-		if err := processChildElements(desc.Creator.XMLName, desc.Creator.Seq.Items, opts); err != nil {
-			return err
-		}
-
-		if err := processChildElements(desc.Publisher.XMLName, desc.Publisher.Bag.Items, opts); err != nil {
-			return err
-		}
-
-		if err := processChildElements(desc.Subject.XMLName, desc.Subject.Bag.Items, opts); err != nil {
-			return err
-		}
-
-		if err := processChildElements(desc.Rights.XMLName, desc.Rights.Alt.Items, opts); err != nil {
-			return err
-		}
-
-		// Process GPS child elements.
-		// GPS coordinates in XMP are typically in DMS format like "26,34.951N"
-		// which needs to be converted to decimal degrees.
-		if desc.GPSLatitude != "" {
-			if lat, err := parseXMPGPSCoordinate(desc.GPSLatitude); err == nil {
-				if err := processGPSTag("GPSLatitude", lat, opts); err != nil {
-					return err
-				}
-			}
-		}
-
-		if desc.GPSLongitude != "" {
-			if long, err := parseXMPGPSCoordinate(desc.GPSLongitude); err == nil {
-				if err := processGPSTag("GPSLongitude", long, opts); err != nil {
-					return err
-				}
+		for _, el := range desc.Elems {
+			if err := handleXMPTag(el.XMLName, el.value(), opts); err != nil {
+				return err
 			}
 		}
 	}
@@ -150,20 +126,24 @@ func decodeXMP(r io.Reader, opts Options) error {
 	return nil
 }
 
-func processChildElements(name xml.Name, items []string, opts Options) error {
-	if len(items) == 0 {
+func handleXMPTag(name xml.Name, v any, opts Options) error {
+	if v == nil || name.Local == "" || xmpSkipNamespaces[name.Space] {
 		return nil
 	}
-	if name.Local == "" {
-		return nil
-	}
-	var v any
 
-	// This is how ExifTool does it:
-	if len(items) == 1 {
-		v = items[0]
-	} else {
-		v = items
+	// GPS coordinates in XMP are typically in DMS format like "26,34.951N"
+	// which needs to be converted to decimal degrees.
+	switch name.Local {
+	case "GPSLatitude", "GPSLongitude":
+		s, ok := v.(string)
+		if !ok {
+			return nil
+		}
+		f, err := parseXMPGPSCoordinate(s)
+		if err != nil {
+			return nil
+		}
+		v = f
 	}
 
 	tagInfo := TagInfo{
@@ -184,20 +164,6 @@ func firstUpper(s string) string {
 	}
 	r, n := utf8.DecodeRuneInString(s)
 	return string(unicode.ToUpper(r)) + s[n:]
-}
-
-// processGPSTag creates a TagInfo for a GPS coordinate and passes it to the handler.
-func processGPSTag(tag string, value float64, opts Options) error {
-	tagInfo := TagInfo{
-		Source:    XMP,
-		Tag:       tag,
-		Namespace: "http://ns.adobe.com/exif/1.0/",
-		Value:     value,
-	}
-	if !opts.ShouldHandleTag(tagInfo) {
-		return nil
-	}
-	return opts.HandleTag(tagInfo)
 }
 
 // parseXMPGPSCoordinate parses GPS coordinates from XMP format.

@@ -40,7 +40,7 @@ Many of the tests depends on generated golden files. To update these, run:
  go generate ./gen
 ```
 
-Note that you need a working `exiftool` and `identify`(ImageMagick) in your `PATH` for this to work. This was tested OK with:
+Note that you need a working `exiftool` and `identify`(ImageMagick) in your `PATH` for this to work. `identify` will fail for the truncated RAW fixtures unless ImageMagick is built with libraw (Homebrew's is not); the generator then keeps the committed `.config.json` for those. This was tested OK with:
 
 ```
 exiftool -ver

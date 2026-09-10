@@ -300,8 +300,10 @@ type Options struct {
 	// The function to call for each tag.
 	HandleTag HandleTagFunc
 
-	// The default XMP handler is currently very simple:
-	// It decodes the RDF.Description.Attrs using Go's xml package and passes each tag to HandleTag.
+	// The default XMP handler decodes each rdf:Description using Go's xml package and passes
+	// each property to HandleTag: attributes, child elements with text content or an
+	// rdf:resource reference, and rdf:Seq/Bag/Alt lists (a single item as a string, several
+	// as a []string). Struct-valued properties are not decoded.
 	// If HandleXMP is set, the decoder will call this function for each XMP packet instead.
 	// Note that r must be read completely.
 	HandleXMP func(r io.Reader) error

@@ -56,11 +56,20 @@ func (e *imageDecoderJPEG) decode() error {
 		length -= 2
 
 		if marker == jpegMarker.app1EXIF && sourceSet.Has(EXIF) {
-			sourceSet = sourceSet.Remove(EXIF)
-			if err := e.handleEXIF(int64(length)); err != nil {
+			// APP1 is shared with XMP, so check the header before claiming the segment.
+			oldPos := e.pos()
+			b, err := e.readBytesVolatileE(len(markerEXIF))
+			if err != nil && err != io.ErrUnexpectedEOF {
 				return err
 			}
-			continue
+			e.seek(oldPos)
+			if err == nil && bytes.Equal(b, markerEXIF) {
+				sourceSet = sourceSet.Remove(EXIF)
+				if err := e.handleEXIF(int64(length)); err != nil {
+					return err
+				}
+				continue
+			}
 		}
 
 		if marker == jpegMarker.app13 && sourceSet.Has(IPTC) {
