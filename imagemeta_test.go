@@ -333,7 +333,7 @@ func TestDecodeTIFF(t *testing.T) {
 	c.Assert(err, qt.IsNil)
 
 	c.Assert(len(tags.EXIF()), qt.Equals, 76)
-	c.Assert(len(tags.XMP()), qt.Equals, 149)
+	c.Assert(len(tags.XMP()), qt.Equals, 157)
 	c.Assert(len(tags.IPTC()), qt.Equals, 14)
 
 	c.Assert(tags.EXIF()["ShutterSpeedValue"].Value, eq, 0.005000000)
@@ -633,6 +633,24 @@ func TestDecodeXMPJPG(t *testing.T) {
 	c.Assert(len(tags.EXIF()) == 0, qt.IsTrue)
 	c.Assert(len(tags.IPTC()) == 0, qt.IsTrue)
 	c.Assert(len(tags.XMP()) > 0, qt.IsTrue)
+}
+
+// XMP properties written as child elements of rdf:Description rather than as attributes.
+func TestHugoIssue15324(t *testing.T) {
+	c := qt.New(t)
+
+	_, tags, err := extractTags(t, "hugo-issue-15324.jpg", imagemeta.EXIF|imagemeta.XMP|imagemeta.IPTC)
+	c.Assert(err, qt.IsNil)
+	c.Assert(tags.EXIF(), qt.HasLen, 0)
+	c.Assert(tags.IPTC(), qt.HasLen, 0)
+	xmp := tags.XMP()
+	c.Assert(xmp, qt.HasLen, 1)
+	c.Assert(xmp["DigitalSourceType"].Value, qt.Equals, "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia")
+	c.Assert(xmp["DigitalSourceType"].Namespace, qt.Equals, "http://iptc.org/std/Iptc4xmpExt/2008-02-29/")
+}
+
+func TestGoldenXMPHugoIssue15324(t *testing.T) {
+	compareWithExiftoolOutput(t, "hugo-issue-15324.jpg", imagemeta.XMP)
 }
 
 func TestDecodeErrors(t *testing.T) {

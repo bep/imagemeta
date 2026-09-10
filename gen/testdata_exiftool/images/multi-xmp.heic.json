@@ -1,0 +1,26 @@
+[{
+  "SourceFile": "../testdata/images/multi-xmp.heic",
+  "ExifTool": {
+    "ExifToolVersion": 13.50
+  },
+  "File": {
+    "FileName": "multi-xmp.heic",
+    "Directory": "../testdata/images",
+    "FileSize": 759,
+    "FilePermissions": 100644,
+    "FileType": "HEIC",
+    "FileTypeExtension": "HEIC",
+    "MIMEType": "image/heic"
+  },
+  "QuickTime": {
+    "MajorBrand": "heic",
+    "MinorVersion": "0.0.0",
+    "CompatibleBrands": ["heic"],
+    "MediaDataSize": 519,
+    "MediaDataOffset": 240
+  },
+  "XMP": {
+    "MotionPhoto": 1,
+    "GainMapMax": 2.3
+  }
+}]

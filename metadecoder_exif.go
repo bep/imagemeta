@@ -14,6 +14,7 @@ import (
 )
 
 var markerXMP = []byte("http://ns.adobe.com/xap/1.0/\x00")
+var markerEXIF = []byte("Exif")
 
 // JPEG segment markers and EXIF header.
 var jpegMarker = struct {
