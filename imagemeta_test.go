@@ -4,6 +4,8 @@
 package imagemeta_test
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/andybalholm/brotli"
 	"github.com/bep/imagemeta"
 	"github.com/rwcarlsen/goexif/exif"
 
@@ -30,7 +33,7 @@ import (
 func TestDecodeAllImageFormats(t *testing.T) {
 	c := qt.New(t)
 
-	for _, imageFormat := range []imagemeta.ImageFormat{imagemeta.JPEG, imagemeta.TIFF, imagemeta.PNG, imagemeta.WebP} {
+	for _, imageFormat := range []imagemeta.ImageFormat{imagemeta.JPEG, imagemeta.TIFF, imagemeta.PNG, imagemeta.WebP, imagemeta.JXL} {
 		c.Run(fmt.Sprintf("%v", imageFormat), func(c *qt.C) {
 			img, close := getSunrise(c, imageFormat)
 			c.Cleanup(close)
@@ -41,7 +44,7 @@ func TestDecodeAllImageFormats(t *testing.T) {
 				return nil
 			}
 
-			_, err := imagemeta.Decode(imagemeta.Options{R: img, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf})
+			_, err := imagemeta.Decode(imagemeta.Options{R: img, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, DecompressBrotli: decompressBrotli})
 			c.Assert(err, qt.IsNil)
 
 			allTags := tags.All()
@@ -233,6 +236,176 @@ func TestDecodeAVIF(t *testing.T) {
 	c.Assert(tags.EXIF()["ApertureValue"].Value, eq, 5.6)
 	c.Assert(tags.XMP()["CreatorTool"].Value, qt.Equals, "Adobe Photoshop Lightroom 6.12 (Macintosh)")
 	c.Assert(tags.XMP()["City"].Value, qt.Equals, "Benalmádena")
+}
+
+func TestDecodeJXL(t *testing.T) {
+	c := qt.New(t)
+
+	compressed := readTestDataFileAll(t, "bep/sunrise.jxl")
+
+	// Rewrite the brob boxes as plain Exif and xml boxes.
+	var uncompressed []byte
+	var codestream []byte
+	for b := compressed[12:]; len(b) > 0; {
+		size := binary.BigEndian.Uint32(b)
+		box := b[:size]
+		b = b[size:]
+		switch string(box[4:8]) {
+		case "brob":
+			payload, err := io.ReadAll(brotli.NewReader(bytes.NewReader(box[12:])))
+			c.Assert(err, qt.IsNil)
+			innerType := box[8:12]
+			box = binary.BigEndian.AppendUint32(nil, uint32(8+len(payload)))
+			box = append(append(box, innerType...), payload...)
+		case "jxlp":
+			if codestream == nil {
+				codestream = box[12:]
+			}
+		}
+		uncompressed = append(uncompressed, box...)
+	}
+	uncompressed = append(compressed[:12:12], uncompressed...)
+
+	for _, test := range []struct {
+		name string
+		b    []byte
+	}{
+		{"brob", compressed},
+		{"uncompressed", uncompressed},
+	} {
+		c.Run(test.name, func(c *qt.C) {
+			var tags imagemeta.Tags
+			res, err := imagemeta.Decode(imagemeta.Options{
+				R:           bytes.NewReader(test.b),
+				ImageFormat: imagemeta.JXL,
+				Sources:     imagemeta.EXIF | imagemeta.XMP | imagemeta.CONFIG,
+				HandleTag: func(ti imagemeta.TagInfo) error {
+					tags.Add(ti)
+					return nil
+				},
+				Warnf:            panicWarnf,
+				DecompressBrotli: decompressBrotli,
+			})
+			c.Assert(err, qt.IsNil)
+			c.Assert(res.ImageConfig, qt.Equals, imagemeta.ImageConfig{Width: 1024, Height: 640})
+			c.Assert(tags.EXIF()["Artist"].Value, qt.Equals, "Bjørn Erik Pedersen")
+			c.Assert(tags.EXIF()["ApertureValue"].Value, eq, 5.6)
+			c.Assert(tags.XMP()["CreatorTool"].Value, qt.Equals, "Adobe Photoshop Lightroom Classic 12.4 (Macintosh)")
+		})
+	}
+
+	c.Run("brob without DecompressBrotli", func(c *qt.C) {
+		var warnings []string
+		var tags imagemeta.Tags
+		res, err := imagemeta.Decode(imagemeta.Options{
+			R:           bytes.NewReader(compressed),
+			ImageFormat: imagemeta.JXL,
+			Sources:     imagemeta.EXIF | imagemeta.XMP | imagemeta.CONFIG,
+			HandleTag: func(ti imagemeta.TagInfo) error {
+				tags.Add(ti)
+				return nil
+			},
+			Warnf: func(format string, args ...any) {
+				warnings = append(warnings, fmt.Sprintf(format, args...))
+			},
+		})
+		c.Assert(err, qt.IsNil)
+		c.Assert(res.ImageConfig, qt.Equals, imagemeta.ImageConfig{Width: 1024, Height: 640})
+		c.Assert(tags.All(), qt.HasLen, 0)
+		c.Assert(warnings, qt.DeepEquals, []string{
+			"jxl: skipping Brotli compressed EXIF; set Options.DecompressBrotli to decode it",
+			"jxl: skipping Brotli compressed XMP; set Options.DecompressBrotli to decode it",
+		})
+	})
+
+	c.Run("codestream", func(c *qt.C) {
+		res, err := imagemeta.Decode(imagemeta.Options{
+			R:           bytes.NewReader(codestream),
+			ImageFormat: imagemeta.JXL,
+			Sources:     imagemeta.CONFIG,
+		})
+		c.Assert(err, qt.IsNil)
+		c.Assert(res.ImageConfig, qt.Equals, imagemeta.ImageConfig{Width: 1024, Height: 640})
+	})
+}
+
+func TestDecodeJXLBoxes(t *testing.T) {
+	c := qt.New(t)
+
+	tiny := readTestDataFileAll(t, "tiny-brob.jxl")
+	sig := tiny[:12]
+	var ftyp, jxlp0, jxlp1 []byte
+	var other [][]byte
+	for b := tiny[12:]; len(b) > 0; {
+		size := binary.BigEndian.Uint32(b)
+		box := b[:size]
+		b = b[size:]
+		switch {
+		case string(box[4:8]) == "ftyp":
+			ftyp = box
+		case string(box[4:8]) == "jxlp" && binary.BigEndian.Uint32(box[8:]) == 0:
+			jxlp0 = box
+		case string(box[4:8]) == "jxlp":
+			jxlp1 = box
+		default:
+			other = append(other, box)
+		}
+	}
+	c.Assert(jxlp0, qt.IsNotNil)
+	c.Assert(jxlp1, qt.IsNotNil)
+
+	join := func(boxes ...[]byte) []byte {
+		return bytes.Join(append([][]byte{sig}, boxes...), nil)
+	}
+
+	const xmpRating = `<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">` +
+		`<rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmp:Rating="5"/></rdf:RDF></x:xmpmeta>`
+	xmlBox := append(binary.BigEndian.AppendUint32(nil, uint32(8+len(xmpRating))), "xml "+xmpRating...)
+
+	// ftyp minor version 1 allows jxlp boxes out of order.
+	ftypV1 := bytes.Clone(ftyp)
+	binary.BigEndian.PutUint32(ftypV1[12:], 1)
+
+	decode := func(c *qt.C, b []byte, decompress func(io.Reader) io.Reader) (imagemeta.DecodeResult, imagemeta.Tags, []string) {
+		var tags imagemeta.Tags
+		var warnings []string
+		res, err := imagemeta.Decode(imagemeta.Options{
+			R:           bytes.NewReader(b),
+			ImageFormat: imagemeta.JXL,
+			Sources:     imagemeta.EXIF | imagemeta.XMP | imagemeta.CONFIG,
+			HandleTag: func(ti imagemeta.TagInfo) error {
+				tags.Add(ti)
+				return nil
+			},
+			Warnf: func(format string, args ...any) {
+				warnings = append(warnings, fmt.Sprintf(format, args...))
+			},
+			DecompressBrotli: decompress,
+		})
+		c.Assert(err, qt.IsNil)
+		return res, tags, warnings
+	}
+
+	c.Run("jxlp out of order", func(c *qt.C) {
+		res, tags, _ := decode(c, join(append([][]byte{ftypV1, jxlp1}, append(other, jxlp0)...)...), decompressBrotli)
+		c.Assert(res.ImageConfig, qt.Equals, imagemeta.ImageConfig{Width: 8, Height: 8})
+		c.Assert(tags.EXIF()["Artist"].Value, qt.Equals, "bep")
+	})
+
+	c.Run("multiple XMP packets", func(c *qt.C) {
+		b := join(append([][]byte{ftyp, jxlp0, jxlp1}, append(other, xmlBox)...)...)
+
+		_, tags, warnings := decode(c, b, decompressBrotli)
+		c.Assert(warnings, qt.HasLen, 0)
+		c.Assert(tags.XMP()["CreatorTool"].Value, qt.Equals, "imagemeta")
+		c.Assert(tags.XMP()["Rating"].Value, qt.Equals, "5")
+
+		_, tags, warnings = decode(c, b, nil)
+		c.Assert(warnings, qt.HasLen, 2)
+		_, found := tags.XMP()["CreatorTool"]
+		c.Assert(found, qt.IsFalse)
+		c.Assert(tags.XMP()["Rating"].Value, qt.Equals, "5")
+	})
 }
 
 func TestDecodeXmpChildElements(t *testing.T) {
@@ -851,6 +1024,8 @@ func getSunrise(c *qt.C, imageFormat imagemeta.ImageFormat) (io.ReadSeeker, func
 		ext = ".tif"
 	case imagemeta.AVIF:
 		ext = ".avif"
+	case imagemeta.JXL:
+		ext = ".jxl"
 	default:
 		c.Fatalf("unknown image format: %v", imageFormat)
 	}
@@ -1126,6 +1301,8 @@ func extToFormat(ext string) imagemeta.ImageFormat {
 		return imagemeta.HEIF
 	case ".avif":
 		return imagemeta.AVIF
+	case ".jxl":
+		return imagemeta.JXL
 	case ".dng":
 		return imagemeta.DNG
 	case ".cr2":
@@ -1149,6 +1326,10 @@ func extractTags(t testing.TB, filename string, sources imagemeta.Source, opts .
 		return ti.Namespace != "IFD1"
 	}
 	return extractTagsWithFilter(t, filename, sources, shouldHandle, opts...)
+}
+
+func decompressBrotli(r io.Reader) io.Reader {
+	return brotli.NewReader(r)
 }
 
 type withOptions func(opts *imagemeta.Options)
@@ -1187,7 +1368,7 @@ func extractTagsWithFilter(t testing.TB, filename string, sources imagemeta.Sour
 		panic(errors.New(s))
 	}
 
-	imgOpts := imagemeta.Options{R: f, ImageFormat: imageFormat, ShouldHandleTag: shouldHandle, HandleTag: handleTag, Warnf: warnf, Sources: sources}
+	imgOpts := imagemeta.Options{R: f, ImageFormat: imageFormat, ShouldHandleTag: shouldHandle, HandleTag: handleTag, Warnf: warnf, Sources: sources, DecompressBrotli: decompressBrotli}
 	for _, opt := range opts {
 		opt(&imgOpts)
 	}
@@ -1509,14 +1690,15 @@ func BenchmarkDecode(b *testing.B) {
 		{"nef", imagemeta.NEF, "sample.nef"},
 		{"arw", imagemeta.ARW, "sample.arw"},
 		{"pef", imagemeta.PEF, "bep/jølstravatnet.pef"},
+		{"jxl", imagemeta.JXL, "bep/sunrise.jxl"},
 	} {
 		imageFormat = tt.format
 		runBenchmarkWithFile(b, "exif/"+tt.name, tt.format, tt.filename, func(r io.ReadSeeker) error {
-			_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetEXIF})
+			_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetEXIF, DecompressBrotli: decompressBrotli})
 			return err
 		})
 		runBenchmarkWithFile(b, "all/"+tt.name, tt.format, tt.filename, func(r io.ReadSeeker) error {
-			_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetAll})
+			_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetAll, DecompressBrotli: decompressBrotli})
 			return err
 		})
 		runBenchmarkWithFile(b, "config/"+tt.name, tt.format, tt.filename, func(r io.ReadSeeker) error {

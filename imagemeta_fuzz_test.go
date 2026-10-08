@@ -77,6 +77,15 @@ func FuzzDecodeAVIF(f *testing.F) {
 	})
 }
 
+func FuzzDecodeJXL(f *testing.F) {
+	// Keep the seed small; minimizing inputs with large Brotli streams is very slow.
+	f.Add(readTestDataFileAll(f, "tiny-brob.jxl"))
+
+	f.Fuzz(func(t *testing.T, imageBytes []byte) {
+		fuzzDecodeBytes(t, imageBytes, imagemeta.JXL)
+	})
+}
+
 func FuzzDecodeTIFF(f *testing.F) {
 	filenames := []string{"bep/sunrise.tif"}
 
@@ -141,7 +150,7 @@ func FuzzDecodePEF(f *testing.F) {
 
 func fuzzDecodeBytes(t *testing.T, imageBytes []byte, f imagemeta.ImageFormat) error {
 	r := bytes.NewReader(imageBytes)
-	_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: f, Sources: imagemeta.EXIF | imagemeta.IPTC | imagemeta.XMP | imagemeta.CONFIG, Timeout: 600 * time.Millisecond})
+	_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: f, Sources: imagemeta.EXIF | imagemeta.IPTC | imagemeta.XMP | imagemeta.CONFIG, Timeout: 600 * time.Millisecond, DecompressBrotli: decompressBrotli})
 	if err != nil {
 		if !imagemeta.IsInvalidFormat(err) && !strings.Contains(err.Error(), "timed out") {
 			t.Fatalf("unknown error in Decode: %v %T", err, err)

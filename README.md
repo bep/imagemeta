@@ -8,6 +8,32 @@ Writing is not supported, and never will.
 
 I welcome PRs with fixes, but please raise an issue first if you want to add new features.
 
+## Supported formats
+
+| Format                         | EXIF | IPTC | XMP | CONFIG |
+| ------------------------------ | :--: | :--: | :-: | :----: |
+| JPEG                           |  ✓   |  ✓   |  ✓  |   ✓    |
+| TIFF                           |  ✓   |  ✓   |  ✓  |   ✓    |
+| PNG                            |  ✓   |  ✓   |  ✓  |   ✓    |
+| WebP                           |  ✓   |      |  ✓  |   ✓    |
+| HEIF/HEIC                      |  ✓   |      |  ✓  |   ✓    |
+| AVIF                           |  ✓   |      |  ✓  |   ✓    |
+| JPEG XL                        |  ✓   |      |  ✓  |   ✓    |
+| RAW (DNG, CR2, NEF, ARW, PEF)  |  ✓   |  ✓   |  ✓  |   ✓    |
+
+JPEG XL files often store EXIF and XMP Brotli compressed (e.g. `cjxl` does this by default). We didn't want to force a Brotli decoder into everyone's build, so you need to provide one via the `DecompressBrotli` option to read these, e.g. using [andybalholm/brotli](https://github.com/andybalholm/brotli):
+
+```go
+imagemeta.Decode(imagemeta.Options{
+	// ...
+	DecompressBrotli: func(r io.Reader) io.Reader { return brotli.NewReader(r) },
+})
+```
+
+If not set, compressed metadata is skipped with a warning.
+
+Note that this library has no dependencies outside of the standard library and `golang.org/x/text`. The Brotli decoder is only imported by our tests, so it will not be compiled into your binary, but as with our other test dependencies, it will show up in e.g. `go mod graph`, `go list -m all` and your `go.sum`.
+
 ## Performance
 
 Extracting `EXIF` performs well, ref. the benhcmark below. Note that you can get a significant boost if you only need a subset of the fields (e.g. only the `Orientation`). The last line is with the library that [Hugo](https://github.com/gohugoio/hugo) used before it was replaced with this.

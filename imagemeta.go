@@ -62,6 +62,8 @@ const (
 	ARW
 	// PEF is the Pentax PEF RAW image format.
 	PEF
+	// JXL is the JPEG XL image format.
+	JXL
 )
 
 // ImageConfig contains basic image configuration.
@@ -202,7 +204,7 @@ func Decode(opts Options) (result DecodeResult, err error) {
 		sourceSet = EXIF | XMP | CONFIG
 	case PNG:
 		sourceSet = EXIF | XMP | IPTC | CONFIG
-	case HEIF, AVIF:
+	case HEIF, AVIF, JXL:
 		sourceSet = EXIF | XMP | CONFIG
 	case DNG, CR2, NEF, ARW, PEF:
 		sourceSet = EXIF | XMP | IPTC | CONFIG
@@ -246,6 +248,8 @@ func Decode(opts Options) (result DecodeResult, err error) {
 		dec = &imageDecoderPNG{baseStreamingDecoder: base}
 	case HEIF, AVIF:
 		dec = &imageDecoderHEIF{baseStreamingDecoder: base}
+	case JXL:
+		dec = &imageDecoderJXL{baseStreamingDecoder: base}
 	case DNG, CR2, NEF, ARW, PEF:
 		dec = &imageDecoderRAW{baseStreamingDecoder: base}
 	}
@@ -314,6 +318,14 @@ type Options struct {
 
 	// Warnf will be called for each warning.
 	Warnf func(string, ...any)
+
+	// DecompressBrotli, if set, is used to decompress Brotli compressed metadata,
+	// e.g. EXIF and XMP stored in brob boxes in JPEG XL images.
+	// If not set, Brotli compressed metadata is skipped with a warning.
+	// The tests use https://github.com/andybalholm/brotli:
+	//
+	//	DecompressBrotli: func(r io.Reader) io.Reader { return brotli.NewReader(r) }
+	DecompressBrotli func(r io.Reader) io.Reader
 
 	// Timeout is the maximum time the decoder will spend on reading metadata.
 	// Mostly useful for testing.
