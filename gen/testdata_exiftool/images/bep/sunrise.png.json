@@ -1,8 +1,5 @@
 [{
   "SourceFile": "../testdata/images/bep/sunrise.png",
-  "ExifTool": {
-    "ExifToolVersion": 13.50
-  },
   "File": {
     "FileName": "sunrise.png",
     "Directory": "../testdata/images/bep",

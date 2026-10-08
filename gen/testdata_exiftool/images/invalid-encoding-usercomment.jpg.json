@@ -1,9 +1,5 @@
 [{
   "SourceFile": "../testdata/images/invalid-encoding-usercomment.jpg",
-  "ExifTool": {
-    "ExifToolVersion": 13.50,
-    "Warning": "Invalid EXIF text encoding for UserComment"
-  },
   "File": {
     "FileName": "invalid-encoding-usercomment.jpg",
     "Directory": "../testdata/images",
@@ -24,6 +20,9 @@
     "ResolutionUnit": 0,
     "XResolution": 1,
     "YResolution": 1
+  },
+  "ExifTool": {
+    "Warning": "Invalid EXIF text encoding for UserComment"
   },
   "EXIF": {
     "UserComment": "UserComment"

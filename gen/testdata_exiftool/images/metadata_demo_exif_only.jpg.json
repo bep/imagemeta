@@ -1,8 +1,5 @@
 [{
   "SourceFile": "../testdata/images/metadata_demo_exif_only.jpg",
-  "ExifTool": {
-    "ExifToolVersion": 13.50
-  },
   "File": {
     "FileName": "metadata_demo_exif_only.jpg",
     "Directory": "../testdata/images",

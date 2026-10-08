@@ -1,8 +1,5 @@
 [{
   "SourceFile": "../testdata/images/sample.dng",
-  "ExifTool": {
-    "ExifToolVersion": 13.50
-  },
   "File": {
     "FileName": "sample.dng",
     "Directory": "../testdata/images",

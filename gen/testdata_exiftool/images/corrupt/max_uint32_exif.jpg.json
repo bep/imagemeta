@@ -1,9 +1,5 @@
 [{
   "SourceFile": "../testdata/images/corrupt/max_uint32_exif.jpg",
-  "ExifTool": {
-    "ExifToolVersion": 13.50,
-    "Warning": "JPEG format error"
-  },
   "File": {
     "FileName": "max_uint32_exif.jpg",
     "Directory": "../testdata/images/corrupt",
@@ -18,5 +14,8 @@
     "ResolutionUnit": 1,
     "XResolution": 72,
     "YResolution": 72
+  },
+  "ExifTool": {
+    "Warning": "JPEG format error"
   }
 }]

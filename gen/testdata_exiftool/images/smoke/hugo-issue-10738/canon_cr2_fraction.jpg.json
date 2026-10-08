@@ -1,8 +1,5 @@
 [{
   "SourceFile": "../testdata/images/smoke/hugo-issue-10738/canon_cr2_fraction.jpg",
-  "ExifTool": {
-    "ExifToolVersion": 13.50
-  },
   "File": {
     "FileName": "canon_cr2_fraction.jpg",
     "Directory": "../testdata/images/smoke/hugo-issue-10738",

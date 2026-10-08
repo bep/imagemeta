@@ -1,8 +1,5 @@
 [{
   "SourceFile": "../testdata/images/metadata-extractor/nikonMakernoteType1.jpg",
-  "ExifTool": {
-    "ExifToolVersion": 13.50
-  },
   "File": {
     "FileName": "nikonMakernoteType1.jpg",
     "Directory": "../testdata/images/metadata-extractor",

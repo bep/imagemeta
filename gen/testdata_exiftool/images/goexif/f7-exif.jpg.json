@@ -1,8 +1,5 @@
 [{
   "SourceFile": "../testdata/images/goexif/f7-exif.jpg",
-  "ExifTool": {
-    "ExifToolVersion": 13.50
-  },
   "File": {
     "FileName": "f7-exif.jpg",
     "Directory": "../testdata/images/goexif",

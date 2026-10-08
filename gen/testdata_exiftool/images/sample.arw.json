@@ -1,8 +1,5 @@
 [{
   "SourceFile": "../testdata/images/sample.arw",
-  "ExifTool": {
-    "ExifToolVersion": 13.50
-  },
   "File": {
     "FileName": "sample.arw",
     "Directory": "../testdata/images",

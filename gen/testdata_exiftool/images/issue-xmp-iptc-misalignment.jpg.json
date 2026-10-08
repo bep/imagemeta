@@ -1,8 +1,5 @@
 [{
   "SourceFile": "../testdata/images/issue-xmp-iptc-misalignment.jpg",
-  "ExifTool": {
-    "ExifToolVersion": 13.50
-  },
   "File": {
     "FileName": "issue-xmp-iptc-misalignment.jpg",
     "Directory": "../testdata/images",
@@ -160,8 +157,7 @@
     "FirmwareVersion51": "01.02.05.01",
     "NEFCompression": 3,
     "FirmwareVersion56": "01.00",
-    "BurstGroupID": 0,
-    "PixelShiftID": 0,
+    "PixelShiftActive": 0,
     "LensType": 8,
     "Lens": "105 105 2.8 2.8",
     "FlashMode": 0,

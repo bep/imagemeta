@@ -1,8 +1,5 @@
 [{
   "SourceFile": "../testdata/images/smoke/hugo-issue-10738/nikon_nef_integer.jpg",
-  "ExifTool": {
-    "ExifToolVersion": 13.50
-  },
   "File": {
     "FileName": "nikon_nef_integer.jpg",
     "Directory": "../testdata/images/smoke/hugo-issue-10738",

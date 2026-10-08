@@ -1,8 +1,5 @@
 [{
   "SourceFile": "../testdata/images/hugo-issue-15324.jpg",
-  "ExifTool": {
-    "ExifToolVersion": 13.50
-  },
   "File": {
     "FileName": "hugo-issue-15324.jpg",
     "Directory": "../testdata/images",

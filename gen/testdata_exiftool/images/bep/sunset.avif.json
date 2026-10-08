@@ -1,8 +1,5 @@
 [{
   "SourceFile": "../testdata/images/bep/sunset.avif",
-  "ExifTool": {
-    "ExifToolVersion": 13.50
-  },
   "File": {
     "FileName": "sunset.avif",
     "Directory": "../testdata/images/bep",

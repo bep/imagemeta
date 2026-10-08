@@ -1,9 +1,5 @@
 [{
   "SourceFile": "../testdata/images/goexif/FailedHash-NoDate-sep-remembory.jpg",
-  "ExifTool": {
-    "ExifToolVersion": 13.50,
-    "Warning": "JPEG format error"
-  },
   "File": {
     "FileName": "FailedHash-NoDate-sep-remembory.jpg",
     "Directory": "../testdata/images/goexif",
@@ -47,5 +43,8 @@
     "BlueMatrixColumn": "0.18309 0.07219 0.71997",
     "VideoCardGamma": "(Binary data 48 bytes, use -b option to extract)",
     "ProfileDescription": "Brother sRGB Scanner"
+  },
+  "ExifTool": {
+    "Warning": "JPEG format error"
   }
 }]

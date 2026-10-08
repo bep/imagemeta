@@ -1,9 +1,5 @@
 [{
   "SourceFile": "../testdata/images/metadata-extractor/crash01.jpg",
-  "ExifTool": {
-    "ExifToolVersion": 13.50,
-    "Warning": "Bad InteropOffset SubDirectory start"
-  },
   "File": {
     "FileName": "crash01.jpg",
     "Directory": "../testdata/images/metadata-extractor",
@@ -55,5 +51,8 @@
     "ColorSpace": 1,
     "ExifImageWidth": 1792,
     "ExifImageHeight": 1200
+  },
+  "ExifTool": {
+    "Warning": "Bad InteropOffset SubDirectory start"
   }
 }]

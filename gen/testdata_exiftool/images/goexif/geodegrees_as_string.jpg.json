@@ -1,8 +1,5 @@
 [{
   "SourceFile": "../testdata/images/goexif/geodegrees_as_string.jpg",
-  "ExifTool": {
-    "ExifToolVersion": 13.50
-  },
   "File": {
     "FileName": "geodegrees_as_string.jpg",
     "Directory": "../testdata/images/goexif",

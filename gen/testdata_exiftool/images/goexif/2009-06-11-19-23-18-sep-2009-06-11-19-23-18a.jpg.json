@@ -1,9 +1,5 @@
 [{
   "SourceFile": "../testdata/images/goexif/2009-06-11-19-23-18-sep-2009-06-11-19-23-18a.jpg",
-  "ExifTool": {
-    "ExifToolVersion": 13.50,
-    "Warning": "JPEG format error"
-  },
   "File": {
     "FileName": "2009-06-11-19-23-18-sep-2009-06-11-19-23-18a.jpg",
     "Directory": "../testdata/images/goexif",
@@ -18,5 +14,8 @@
     "ResolutionUnit": 1,
     "XResolution": 350,
     "YResolution": 350
+  },
+  "ExifTool": {
+    "Warning": "JPEG format error"
   }
 }]

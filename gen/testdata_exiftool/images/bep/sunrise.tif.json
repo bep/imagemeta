@@ -1,9 +1,5 @@
 [{
   "SourceFile": "../testdata/images/bep/sunrise.tif",
-  "ExifTool": {
-    "ExifToolVersion": 13.50,
-    "Warning": "IPTCDigest is not current. XMP may be out of sync"
-  },
   "File": {
     "FileName": "sunrise.tif",
     "Directory": "../testdata/images/bep",
@@ -307,6 +303,9 @@
     "CopyrightFlag": 1,
     "PhotoshopThumbnail": "(Binary data 5901 bytes, use -b option to extract)",
     "IPTCDigest": "3973c18c424c7aa78b7a4e78c6c18645"
+  },
+  "ExifTool": {
+    "Warning": "IPTCDigest is not current. XMP may be out of sync"
   },
   "ICC_Profile": {
     "ProfileCMMType": "Lino",

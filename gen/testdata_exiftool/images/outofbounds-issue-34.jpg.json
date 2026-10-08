@@ -1,9 +1,5 @@
 [{
   "SourceFile": "../testdata/images/outofbounds-issue-34.jpg",
-  "ExifTool": {
-    "ExifToolVersion": 13.50,
-    "Warning": "[minor] Bad PreviewIFD directory"
-  },
   "File": {
     "FileName": "outofbounds-issue-34.jpg",
     "Directory": "../testdata/images",
@@ -122,6 +118,9 @@
     "IFD0_Offset": 5600,
     "PreviewIFD_Offset": 5500,
     "NEFBitDepth": "12 0 0 0"
+  },
+  "ExifTool": {
+    "Warning": "[minor] Bad PreviewIFD directory"
   },
   "XMP": {
     "XMPToolkit": "XMP Core 4.1.1",

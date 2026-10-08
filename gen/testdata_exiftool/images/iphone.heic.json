@@ -1,8 +1,5 @@
 [{
   "SourceFile": "../testdata/images/iphone.heic",
-  "ExifTool": {
-    "ExifToolVersion": 13.50
-  },
   "File": {
     "FileName": "iphone.heic",
     "Directory": "../testdata/images",

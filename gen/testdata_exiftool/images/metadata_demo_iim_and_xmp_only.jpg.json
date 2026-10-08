@@ -1,9 +1,5 @@
 [{
   "SourceFile": "../testdata/images/metadata_demo_iim_and_xmp_only.jpg",
-  "ExifTool": {
-    "ExifToolVersion": 13.50,
-    "Warning": "IPTCDigest is not current. XMP may be out of sync"
-  },
   "File": {
     "FileName": "metadata_demo_iim_and_xmp_only.jpg",
     "Directory": "../testdata/images",
@@ -66,6 +62,9 @@
     "Prefs": "0:0:0:-00001",
     "DigitalCreationDate": "2017:05:29",
     "DigitalCreationTime": "11:11:16"
+  },
+  "ExifTool": {
+    "Warning": "IPTCDigest is not current. XMP may be out of sync"
   },
   "XMP": {
     "XMPToolkit": "Image::ExifTool 10.96",

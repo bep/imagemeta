@@ -36,7 +36,8 @@ func main() {
 			"-json", "-n", "-g", "-e",
 			"-x", "FileModifyDate",
 			"-x", "FileAccessDate",
-			"-x", "FileInodeChangeDate")
+			"-x", "FileInodeChangeDate",
+			"-x", "ExifToolVersion")
 		cmd.Stdout = &buf
 		cmd.Stderr = os.Stderr
 
