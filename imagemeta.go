@@ -64,12 +64,18 @@ const (
 	PEF
 	// JXL is the JPEG XL image format.
 	JXL
+	// GIF is the GIF image format. Only the CONFIG source is supported.
+	GIF
 )
 
 // ImageConfig contains basic image configuration.
 type ImageConfig struct {
 	Width  int
 	Height int
+
+	// FrameCount is the number of frames in the image, 1 for still images.
+	// It's read for GIF, animated PNG (APNG), WebP and AVIF/HEIF image sequences.
+	FrameCount int
 }
 
 // DecodeResult contains the result of a Decode operation.
@@ -208,6 +214,8 @@ func Decode(opts Options) (result DecodeResult, err error) {
 		sourceSet = EXIF | XMP | CONFIG
 	case DNG, CR2, NEF, ARW, PEF:
 		sourceSet = EXIF | XMP | IPTC | CONFIG
+	case GIF:
+		sourceSet = CONFIG
 	default:
 		return result, fmt.Errorf("unsupported image format")
 
@@ -234,6 +242,12 @@ func Decode(opts Options) (result DecodeResult, err error) {
 		result:       &result,
 	}
 
+	defer func() {
+		if c := &result.ImageConfig; c.Width > 0 && c.FrameCount == 0 {
+			c.FrameCount = 1
+		}
+	}()
+
 	var dec decoder
 
 	switch opts.ImageFormat {
@@ -252,6 +266,9 @@ func Decode(opts Options) (result DecodeResult, err error) {
 		dec = &imageDecoderJXL{baseStreamingDecoder: base}
 	case DNG, CR2, NEF, ARW, PEF:
 		dec = &imageDecoderRAW{baseStreamingDecoder: base}
+	case GIF:
+		base.byteOrder = binary.LittleEndian
+		dec = &imageDecoderGIF{baseStreamingDecoder: base}
 	}
 
 	decode := func() chan error {

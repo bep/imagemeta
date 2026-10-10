@@ -20,6 +20,8 @@ type imageDecoderPNG struct {
 var (
 	pngTagIDExif          = []byte("eXIf")
 	pngTagIDIHDR          = []byte("IHDR")
+	pngTagIDACTL          = []byte("acTL") // APNG animation control, must precede the first IDAT.
+	pngTagIDIDAT          = []byte("IDAT")
 	pngCompressedText     = []byte("zTXt") // See https://exiftool.org/forum/index.php?topic=7988.msg40759#msg40759
 	pngRawProfileTypeIPTC = []byte("Raw profile type iptc")
 	pngRawProfileTypeEXIF = []byte("Raw profile type exif")
@@ -36,12 +38,26 @@ func (e *imageDecoderPNG) decode() error {
 		e.skip(4) // skip CRC
 	}
 
+	lookForACTL := sources.Has(CONFIG)
+
 	for {
-		if sources.IsZero() {
+		if sources.IsZero() && !lookForACTL {
 			return nil
 		}
 		chunkLength := e.read4()
 		tagID := e.readBytesVolatile(4)
+		if lookForACTL {
+			if bytes.Equal(tagID, pngTagIDACTL) {
+				lookForACTL = false
+				e.result.ImageConfig.FrameCount = int(e.read4())
+				e.skip(int64(chunkLength) - 4)
+				e.skip(4) // Skip CRC.
+				continue
+			}
+			if bytes.Equal(tagID, pngTagIDIDAT) {
+				lookForACTL = false
+			}
+		}
 		if sources.Has(CONFIG) && bytes.Equal(tagID, pngTagIDIHDR) {
 			sources = sources.Remove(CONFIG)
 			// IHDR: 4 bytes width, 4 bytes height, then other fields.
