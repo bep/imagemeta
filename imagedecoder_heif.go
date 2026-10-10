@@ -3,7 +3,10 @@
 
 package imagemeta
 
-import "math"
+import (
+	"io"
+	"math"
+)
 
 // ISOBMFF box and item types used in HEIF/AVIF containers.
 var heifFCC = struct {
@@ -11,6 +14,8 @@ var heifFCC = struct {
 	iinf, infe, iloc                   fourCC
 	iprp, ipco, ipma, ispe, irot, pitm fourCC
 	exif, mime                         fourCC
+	moov, trak, mdia, hdlr, minf, stbl fourCC
+	stsz, stz2, pict                   fourCC
 }{
 	ftyp: fourCC{'f', 't', 'y', 'p'},
 	meta: fourCC{'m', 'e', 't', 'a'},
@@ -25,6 +30,15 @@ var heifFCC = struct {
 	pitm: fourCC{'p', 'i', 't', 'm'},
 	exif: fourCC{'E', 'x', 'i', 'f'},
 	mime: fourCC{'m', 'i', 'm', 'e'},
+	moov: fourCC{'m', 'o', 'o', 'v'},
+	trak: fourCC{'t', 'r', 'a', 'k'},
+	mdia: fourCC{'m', 'd', 'i', 'a'},
+	hdlr: fourCC{'h', 'd', 'l', 'r'},
+	minf: fourCC{'m', 'i', 'n', 'f'},
+	stbl: fourCC{'s', 't', 'b', 'l'},
+	stsz: fourCC{'s', 't', 's', 'z'},
+	stz2: fourCC{'s', 't', 'z', '2'},
+	pict: fourCC{'p', 'i', 'c', 't'},
 }
 
 type imageDecoderHEIF struct {
@@ -78,26 +92,103 @@ func (e *imageDecoderHEIF) decode() error {
 		e.seek(ftypStart + int64(ftypSize))
 	}
 
-	// Step 2: Scan top-level boxes for the meta box.
-	var (
-		metaStart int64
-		metaSize  uint64
-	)
-	for {
-		s, size, boxType := readBox()
-		if e.isEOF {
-			return nil // No meta box found; nothing to decode.
+	// eachBox calls f for each box up to end, with the stream positioned at the box payload.
+	// It stops at the first box with a size not covering its header or exceeding end.
+	eachBox := func(end int64, f func(boxType fourCC, boxEnd int64)) {
+		for e.pos()+8 <= end {
+			start, size, boxType := readBox()
+			if e.isEOF || int64(size) < e.pos()-start || size > uint64(end-start) {
+				return
+			}
+			boxEnd := start + int64(size)
+			f(boxType, boxEnd)
+			e.seek(boxEnd)
 		}
-		if boxType == heifFCC.meta {
-			metaStart = s
-			metaSize = size
+	}
+
+	// Step 2: Scan top-level boxes for the meta box and,
+	// for CONFIG, the moov box of image sequences (e.g. animated AVIF).
+	needMoov := e.opts.Sources.Has(CONFIG)
+	var (
+		metaStart   int64
+		metaSize    uint64
+		foundMeta   bool
+		moovPayload int64
+		moovEnd     int64
+		foundMoov   bool
+	)
+	pos := e.pos()
+	streamEnd, err := e.r.Seek(0, io.SeekEnd)
+	if err != nil {
+		return err
+	}
+	e.seek(pos)
+	for e.pos()+8 <= streamEnd {
+		s, size, boxType := readBox()
+		if size != 0 && int64(size) < e.pos()-s {
 			break
 		}
-		if size == 0 {
-			return nil // Box extends to EOF; no meta found.
+		switch boxType {
+		case heifFCC.meta:
+			metaStart, metaSize, foundMeta = s, size, true
+		case heifFCC.moov:
+			moovPayload, moovEnd, foundMoov = e.pos(), streamEnd, true
+			if size != 0 {
+				moovEnd = min(moovEnd, s+int64(size))
+			}
+		}
+		if size == 0 || (foundMeta && (foundMoov || !needMoov)) {
+			break
 		}
 		e.seek(s + int64(size))
 	}
+
+	if foundMoov && needMoov {
+		// The frame count is the sample count of the image sequence ('pict') track.
+		e.seek(moovPayload)
+		eachBox(moovEnd, func(boxType fourCC, boxEnd int64) {
+			if boxType != heifFCC.trak {
+				return
+			}
+			var (
+				handler fourCC
+				count   uint32
+			)
+			eachBox(boxEnd, func(boxType fourCC, boxEnd int64) {
+				if boxType != heifFCC.mdia {
+					return
+				}
+				eachBox(boxEnd, func(boxType fourCC, boxEnd int64) {
+					switch boxType {
+					case heifFCC.hdlr:
+						e.skip(8) // version+flags, pre_defined
+						e.readBytes(handler[:])
+					case heifFCC.minf:
+						eachBox(boxEnd, func(boxType fourCC, boxEnd int64) {
+							if boxType != heifFCC.stbl {
+								return
+							}
+							eachBox(boxEnd, func(boxType fourCC, boxEnd int64) {
+								if boxType == heifFCC.stsz || boxType == heifFCC.stz2 {
+									e.skip(8) // version+flags, sample_size (stsz) or field_size (stz2)
+									count = e.read4()
+								}
+							})
+						})
+					}
+				})
+			})
+			if handler == heifFCC.pict {
+				e.result.ImageConfig.FrameCount = max(e.result.ImageConfig.FrameCount, int(count))
+			}
+		})
+	}
+
+	if !foundMeta {
+		return nil
+	}
+	e.seek(metaStart)
+	readBox()
 
 	// Step 3: Parse the meta FullBox (skip 4 bytes version+flags).
 	e.skip(4)
@@ -410,7 +501,7 @@ func (e *imageDecoderHEIF) decode() error {
 			if cfgRotate {
 				cfgWidth, cfgHeight = cfgHeight, cfgWidth
 			}
-			e.result.ImageConfig = ImageConfig{Width: int(cfgWidth), Height: int(cfgHeight)}
+			e.result.ImageConfig.Width, e.result.ImageConfig.Height = int(cfgWidth), int(cfgHeight)
 		}
 	}
 

@@ -179,6 +179,125 @@ func TestDecodeRAW(t *testing.T) {
 	c.Assert(tags.EXIF()["Model"].Value, qt.Equals, "PENTAX K-3 II")
 }
 
+func TestDecodeFrameCount(t *testing.T) {
+	c := qt.New(t)
+
+	for _, test := range []struct {
+		filename string
+		format   imagemeta.ImageFormat
+		sources  imagemeta.Source
+		expect   imagemeta.ImageConfig
+	}{
+		{"animated/anim.gif", imagemeta.GIF, imagemeta.CONFIG, imagemeta.ImageConfig{Width: 16, Height: 12, FrameCount: 3}},
+		{"animated/anim.png", imagemeta.PNG, imagemeta.CONFIG, imagemeta.ImageConfig{Width: 16, Height: 12, FrameCount: 3}},
+		{"animated/anim.webp", imagemeta.WebP, imagemeta.CONFIG, imagemeta.ImageConfig{Width: 16, Height: 12, FrameCount: 3}},
+		{"animated/anim.webp", imagemeta.WebP, imagemeta.CONFIG | imagemeta.EXIF | imagemeta.XMP, imagemeta.ImageConfig{Width: 16, Height: 12, FrameCount: 3}},
+		{"animated/anim.avif", imagemeta.AVIF, imagemeta.CONFIG, imagemeta.ImageConfig{Width: 16, Height: 12, FrameCount: 3}},
+		{"animated/anim.avif", imagemeta.AVIF, imagemeta.CONFIG | imagemeta.EXIF | imagemeta.XMP, imagemeta.ImageConfig{Width: 16, Height: 12, FrameCount: 3}},
+		{"images/bep/sunrise.png", imagemeta.PNG, imagemeta.CONFIG, imagemeta.ImageConfig{Width: 1024, Height: 640, FrameCount: 1}},
+		{"images/bep/sunrise.webp", imagemeta.WebP, imagemeta.CONFIG, imagemeta.ImageConfig{Width: 1024, Height: 640, FrameCount: 1}},
+		{"images/bep/sunrise.avif", imagemeta.AVIF, imagemeta.CONFIG, imagemeta.ImageConfig{Width: 1024, Height: 640, FrameCount: 1}},
+	} {
+		c.Run(test.filename, func(c *qt.C) {
+			f, err := os.Open(filepath.Join("testdata", test.filename))
+			c.Assert(err, qt.IsNil)
+			defer f.Close()
+
+			res, err := imagemeta.Decode(imagemeta.Options{R: f, ImageFormat: test.format, Sources: test.sources, Warnf: panicWarnf})
+			c.Assert(err, qt.IsNil)
+			c.Assert(res.ImageConfig, qt.Equals, test.expect)
+		})
+	}
+}
+
+func TestDecodeFrameCountWebPOddChunkBeforeFrames(t *testing.T) {
+	c := qt.New(t)
+
+	b, err := os.ReadFile(filepath.Join("testdata", "animated", "anim.webp"))
+	c.Assert(err, qt.IsNil)
+
+	// Insert an odd-length XMP chunk (plus padding) between VP8X and the ANMF chunks.
+	xmp := []byte(`<x:xmpmeta xmlns:x="adobe:ns:meta/"></x:xmpmeta>`)
+	if len(xmp)%2 == 0 {
+		xmp = append(xmp, ' ')
+	}
+	chunk := binary.LittleEndian.AppendUint32([]byte("XMP "), uint32(len(xmp)))
+	chunk = append(append(chunk, xmp...), 0)
+	const vp8xEnd = 30
+	b = append(b[:vp8xEnd:vp8xEnd], append(chunk, b[vp8xEnd:]...)...)
+	b[20] |= 1 << 2 // XMP flag in VP8X.
+	binary.LittleEndian.PutUint32(b[4:], uint32(len(b)-8))
+
+	res, err := imagemeta.Decode(imagemeta.Options{R: bytes.NewReader(b), ImageFormat: imagemeta.WebP, Sources: imagemeta.CONFIG | imagemeta.XMP, Warnf: panicWarnf})
+	c.Assert(err, qt.IsNil)
+	c.Assert(res.ImageConfig, qt.Equals, imagemeta.ImageConfig{Width: 16, Height: 12, FrameCount: 3})
+}
+
+func TestDecodeFrameCountWebPOutsideRIFF(t *testing.T) {
+	c := qt.New(t)
+
+	orig, err := os.ReadFile(filepath.Join("testdata", "animated", "anim.webp"))
+	c.Assert(err, qt.IsNil)
+	last := bytes.LastIndex(orig, []byte("ANMF"))
+	c.Assert(last, qt.Not(qt.Equals), -1)
+
+	for _, test := range []struct {
+		name string
+		b    []byte
+		want int
+	}{
+		{"trailing ANMF after RIFF end", append(bytes.Clone(orig), orig[last:]...), 3},
+		{"truncated last ANMF", orig[:len(orig)-4], 2},
+	} {
+		c.Run(test.name, func(c *qt.C) {
+			res, err := imagemeta.Decode(imagemeta.Options{R: bytes.NewReader(test.b), ImageFormat: imagemeta.WebP, Sources: imagemeta.CONFIG})
+			c.Assert(err, qt.IsNil)
+			c.Assert(res.ImageConfig, qt.Equals, imagemeta.ImageConfig{Width: 16, Height: 12, FrameCount: test.want})
+		})
+	}
+}
+
+func TestDecodeFrameCountAVIFInvalidBoxSizes(t *testing.T) {
+	c := qt.New(t)
+
+	orig, err := os.ReadFile(filepath.Join("testdata", "animated", "anim.avif"))
+	c.Assert(err, qt.IsNil)
+
+	for _, test := range []struct {
+		name string
+		box  string
+		size uint32
+	}{
+		{"trak smaller than header", "trak", 3},
+		{"stsz exceeds parent", "stsz", 1 << 30},
+	} {
+		c.Run(test.name, func(c *qt.C) {
+			b := bytes.Clone(orig)
+			i := bytes.Index(b, []byte(test.box))
+			c.Assert(i, qt.Not(qt.Equals), -1)
+			binary.BigEndian.PutUint32(b[i-4:], test.size)
+
+			res, err := imagemeta.Decode(imagemeta.Options{R: bytes.NewReader(b), ImageFormat: imagemeta.AVIF, Sources: imagemeta.CONFIG, Timeout: 5 * time.Second})
+			c.Assert(err, qt.IsNil)
+			c.Assert(res.ImageConfig, qt.Equals, imagemeta.ImageConfig{Width: 16, Height: 12, FrameCount: 1})
+		})
+	}
+}
+
+func TestDecodeGIFTruncated(t *testing.T) {
+	c := qt.New(t)
+
+	b, err := os.ReadFile(filepath.Join("testdata", "animated", "anim.gif"))
+	c.Assert(err, qt.IsNil)
+
+	for n := range len(b) {
+		_, err := imagemeta.Decode(imagemeta.Options{R: bytes.NewReader(b[:n]), ImageFormat: imagemeta.GIF, Sources: imagemeta.CONFIG})
+		if err != nil {
+			c.Assert(imagemeta.IsInvalidFormat(err), qt.IsTrue, qt.Commentf("n=%d: %v", n, err))
+		}
+	}
+}
+
 func TestDecodeRAWConfig(t *testing.T) {
 	c := qt.New(t)
 
@@ -287,7 +406,7 @@ func TestDecodeJXL(t *testing.T) {
 				DecompressBrotli: decompressBrotli,
 			})
 			c.Assert(err, qt.IsNil)
-			c.Assert(res.ImageConfig, qt.Equals, imagemeta.ImageConfig{Width: 1024, Height: 640})
+			c.Assert(res.ImageConfig, qt.Equals, imagemeta.ImageConfig{Width: 1024, Height: 640, FrameCount: 1})
 			c.Assert(tags.EXIF()["Artist"].Value, qt.Equals, "Bjørn Erik Pedersen")
 			c.Assert(tags.EXIF()["ApertureValue"].Value, eq, 5.6)
 			c.Assert(tags.XMP()["CreatorTool"].Value, qt.Equals, "Adobe Photoshop Lightroom Classic 12.4 (Macintosh)")
@@ -310,7 +429,7 @@ func TestDecodeJXL(t *testing.T) {
 			},
 		})
 		c.Assert(err, qt.IsNil)
-		c.Assert(res.ImageConfig, qt.Equals, imagemeta.ImageConfig{Width: 1024, Height: 640})
+		c.Assert(res.ImageConfig, qt.Equals, imagemeta.ImageConfig{Width: 1024, Height: 640, FrameCount: 1})
 		c.Assert(tags.All(), qt.HasLen, 0)
 		c.Assert(warnings, qt.DeepEquals, []string{
 			"jxl: skipping Brotli compressed EXIF; set Options.DecompressBrotli to decode it",
@@ -325,7 +444,7 @@ func TestDecodeJXL(t *testing.T) {
 			Sources:     imagemeta.CONFIG,
 		})
 		c.Assert(err, qt.IsNil)
-		c.Assert(res.ImageConfig, qt.Equals, imagemeta.ImageConfig{Width: 1024, Height: 640})
+		c.Assert(res.ImageConfig, qt.Equals, imagemeta.ImageConfig{Width: 1024, Height: 640, FrameCount: 1})
 	})
 }
 
@@ -388,7 +507,7 @@ func TestDecodeJXLBoxes(t *testing.T) {
 
 	c.Run("jxlp out of order", func(c *qt.C) {
 		res, tags, _ := decode(c, join(append([][]byte{ftypV1, jxlp1}, append(other, jxlp0)...)...), decompressBrotli)
-		c.Assert(res.ImageConfig, qt.Equals, imagemeta.ImageConfig{Width: 8, Height: 8})
+		c.Assert(res.ImageConfig, qt.Equals, imagemeta.ImageConfig{Width: 8, Height: 8, FrameCount: 1})
 		c.Assert(tags.EXIF()["Artist"].Value, qt.Equals, "bep")
 	})
 
@@ -1413,6 +1532,9 @@ func readGoldenInfo(t testing.TB, filename string) goldenFileInfo {
 	if err == nil {
 		if err := json.Unmarshal(b, &m.Config); err != nil {
 			t.Fatal(err)
+		}
+		if m.Config.Width > 0 {
+			m.Config.FrameCount = 1
 		}
 	}
 
