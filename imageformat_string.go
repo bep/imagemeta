@@ -20,15 +20,17 @@ func _() {
 	_ = x[NEF-9]
 	_ = x[ARW-10]
 	_ = x[PEF-11]
+	_ = x[JXL-12]
 }
 
-const _ImageFormat_name = "ImageFormatAutoJPEGTIFFPNGWebPHEIFAVIFDNGCR2NEFARWPEF"
+const _ImageFormat_name = "ImageFormatAutoJPEGTIFFPNGWebPHEIFAVIFDNGCR2NEFARWPEFJXL"
 
-var _ImageFormat_index = [...]uint8{0, 15, 19, 23, 26, 30, 34, 38, 41, 44, 47, 50, 53}
+var _ImageFormat_index = [...]uint8{0, 15, 19, 23, 26, 30, 34, 38, 41, 44, 47, 50, 53, 56}
 
 func (i ImageFormat) String() string {
-	if i < 0 || i >= ImageFormat(len(_ImageFormat_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_ImageFormat_index)-1 {
 		return "ImageFormat(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _ImageFormat_name[_ImageFormat_index[i]:_ImageFormat_index[i+1]]
+	return _ImageFormat_name[_ImageFormat_index[idx]:_ImageFormat_index[idx+1]]
 }

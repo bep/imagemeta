@@ -1,0 +1,29 @@
+[{
+  "SourceFile": "../testdata/images/tiny-brob.jxl",
+  "File": {
+    "FileName": "tiny-brob.jxl",
+    "Directory": "../testdata/images",
+    "FileSize": 641,
+    "FilePermissions": 100644,
+    "FileType": "JXL",
+    "FileTypeExtension": "JXL",
+    "MIMEType": "image/jxl",
+    "ImageWidth": 8,
+    "ImageHeight": 8,
+    "ExifByteOrder": "MM"
+  },
+  "Jpeg2000": {
+    "MajorBrand": "jxl ",
+    "MinorVersion": "0.0.0",
+    "CompatibleBrands": ["jxl "]
+  },
+  "EXIF": {
+    "Orientation": 6,
+    "Artist": "bep",
+    "YCbCrPositioning": 1
+  },
+  "XMP": {
+    "XMPToolkit": "Image::ExifTool 13.55",
+    "CreatorTool": "imagemeta"
+  }
+}]
