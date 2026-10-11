@@ -31,7 +31,7 @@ func FuzzDecodeJPG(f *testing.F) {
 }
 
 func FuzzDecodeWebP(f *testing.F) {
-	filenames := []string{"bep/sunrise.webp"}
+	filenames := []string{"bep/sunrise.webp", "../animated/anim.webp"}
 
 	for _, filename := range filenames {
 		f.Add(readTestDataFileAll(f, filename))
@@ -43,7 +43,7 @@ func FuzzDecodeWebP(f *testing.F) {
 }
 
 func FuzzDecodePNG(f *testing.F) {
-	filenames := []string{"bep/sunrise.png"}
+	filenames := []string{"bep/sunrise.png", "../animated/anim.png"}
 
 	for _, filename := range filenames {
 		f.Add(readTestDataFileAll(f, filename))
@@ -66,8 +66,7 @@ func FuzzDecodeHEIF(f *testing.F) {
 }
 
 func FuzzDecodeAVIF(f *testing.F) {
-	// Use a HEIF file as seed corpus since we don't have a dedicated AVIF test image.
-	filenames := []string{"iphone.heic"}
+	filenames := []string{"iphone.heic", "../animated/anim.avif"}
 	for _, filename := range filenames {
 		f.Add(readTestDataFileAll(f, filename))
 	}
@@ -83,6 +82,14 @@ func FuzzDecodeJXL(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, imageBytes []byte) {
 		fuzzDecodeBytes(t, imageBytes, imagemeta.JXL)
+	})
+}
+
+func FuzzDecodeGIF(f *testing.F) {
+	f.Add(readTestDataFileAll(f, "../animated/anim.gif"))
+
+	f.Fuzz(func(t *testing.T, imageBytes []byte) {
+		fuzzDecodeBytes(t, imageBytes, imagemeta.GIF)
 	})
 }
 

@@ -3,11 +3,13 @@
 
 package imagemeta
 
+import "io"
+
 // WebP chunk types.
 var webpFCC = struct {
 	riff, webp      fourCC
 	vp8x, vp8, vp8l fourCC
-	exif, xmp       fourCC
+	exif, xmp, anmf fourCC
 }{
 	riff: fourCC{'R', 'I', 'F', 'F'},
 	webp: fourCC{'W', 'E', 'B', 'P'},
@@ -16,6 +18,7 @@ var webpFCC = struct {
 	vp8l: fourCC{'V', 'P', '8', 'L'},
 	exif: fourCC{'E', 'X', 'I', 'F'},
 	xmp:  fourCC{'X', 'M', 'P', ' '},
+	anmf: fourCC{'A', 'N', 'M', 'F'},
 }
 
 func (e *decoderWebP) decode() error {
@@ -38,16 +41,21 @@ func (e *decoderWebP) decode() error {
 		return errInvalidFormat
 	}
 
-	// File size.
-	e.skip(4)
+	riffEnd := e.pos() + 4 + int64(e.read4())
 
 	e.readBytes(chunkID[:])
 	if chunkID != webpFCC.webp {
 		return errInvalidFormat
 	}
 
+	var countFrames bool
+
 	for {
-		if sourceSet.IsZero() {
+		if sourceSet.IsZero() && !countFrames {
+			return nil
+		}
+
+		if e.pos()+8 > riffEnd {
 			return nil
 		}
 
@@ -57,6 +65,11 @@ func (e *decoderWebP) decode() error {
 		}
 
 		chunkLen := e.read4()
+		if e.isEOF || e.pos()+int64(chunkLen) > riffEnd {
+			return nil
+		}
+		// Chunks are padded to an even size.
+		next := e.pos() + int64(chunkLen) + int64(chunkLen&1)
 
 		switch {
 		case chunkID == webpFCC.vp8x:
@@ -65,6 +78,7 @@ func (e *decoderWebP) decode() error {
 			}
 
 			const (
+				animationBit    = 1 << 1
 				xmpMetadataBit  = 1 << 2
 				exifMetadataBit = 1 << 3
 			)
@@ -91,11 +105,20 @@ func (e *decoderWebP) decode() error {
 					Height: height,
 				}
 				sourceSet = sourceSet.Remove(CONFIG)
+				countFrames = buf[0]&animationBit != 0
+				if countFrames {
+					// Don't count a truncated last frame.
+					pos := e.pos()
+					end, err := e.r.Seek(0, io.SeekEnd)
+					if err != nil {
+						return err
+					}
+					riffEnd = min(riffEnd, end)
+					e.seek(pos)
+				}
 			}
-
-			if sourceSet.IsZero() {
-				return nil
-			}
+		case chunkID == webpFCC.anmf && countFrames:
+			e.result.ImageConfig.FrameCount++
 		case chunkID == webpFCC.exif && sourceSet.Has(EXIF):
 			sourceSet = sourceSet.Remove(EXIF)
 			thumbnailOffset := e.pos()
@@ -138,7 +161,6 @@ func (e *decoderWebP) decode() error {
 					Height: height,
 				}
 			}
-			e.skip(int64(chunkLen) - 10)
 
 		case chunkID == webpFCC.vp8l && sourceSet.Has(CONFIG):
 			sourceSet = sourceSet.Remove(CONFIG)
@@ -156,10 +178,8 @@ func (e *decoderWebP) decode() error {
 					Height: height,
 				}
 			}
-			e.skip(int64(chunkLen) - 5)
-
-		default:
-			e.skip(int64(chunkLen))
 		}
+
+		e.seek(next)
 	}
 }

@@ -20,6 +20,9 @@ I welcome PRs with fixes, but please raise an issue first if you want to add new
 | AVIF                           |  ✓   |      |  ✓  |   ✓    |
 | JPEG XL                        |  ✓   |      |  ✓  |   ✓    |
 | RAW (DNG, CR2, NEF, ARW, PEF)  |  ✓   |  ✓   |  ✓  |   ✓    |
+| GIF                            |      |      |     |   ✓    |
+
+CONFIG includes the frame count for GIF, animated PNG (APNG), WebP and AVIF/HEIF image sequences. JPEG XL animations are not detected and always report 1 frame.
 
 JPEG XL files often store EXIF and XMP Brotli compressed (e.g. `cjxl` does this by default). We didn't want to force a Brotli decoder into everyone's build, so you need to provide one via the `DecompressBrotli` option to read these, e.g. using [andybalholm/brotli](https://github.com/andybalholm/brotli):
 

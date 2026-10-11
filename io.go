@@ -13,8 +13,9 @@ import (
 )
 
 type bufferedReadSeeker struct {
-	rs io.ReadSeeker
-	br *bufio.Reader
+	rs  io.ReadSeeker
+	br  *bufio.Reader
+	pos int64
 }
 
 var bufferedReadSeekerPool = &sync.Pool{
@@ -27,6 +28,7 @@ func getBufferedReadSeeker(rs io.ReadSeeker) *bufferedReadSeeker {
 	b := bufferedReadSeekerPool.Get().(*bufferedReadSeeker)
 	b.rs = rs
 	b.br.Reset(rs)
+	b.pos, _ = rs.Seek(0, io.SeekCurrent)
 	return b
 }
 
@@ -37,17 +39,41 @@ func putBufferedReadSeeker(b *bufferedReadSeeker) {
 }
 
 func (b *bufferedReadSeeker) Read(p []byte) (int, error) {
-	return b.br.Read(p)
+	n, err := b.br.Read(p)
+	b.pos += int64(n)
+	return n, err
 }
 
+// Seek discards from the buffer when possible, avoiding a reset of the buffer
+// when e.g. skipping many small chunks.
 func (b *bufferedReadSeeker) Seek(offset int64, whence int) (int64, error) {
-	if whence == io.SeekCurrent {
-		// Adjust for buffered but unread data.
-		offset -= int64(b.br.Buffered())
+	target := offset
+	switch whence {
+	case io.SeekCurrent:
+		target += b.pos
+	case io.SeekEnd:
+		n, err := b.rs.Seek(offset, whence)
+		if err != nil {
+			return n, err
+		}
+		b.br.Reset(b.rs)
+		b.pos = n
+		return n, nil
 	}
-	n, err := b.rs.Seek(offset, whence)
+
+	if d := target - b.pos; d >= 0 && d <= int64(b.br.Buffered()) {
+		b.br.Discard(int(d))
+		b.pos = target
+		return target, nil
+	}
+
+	n, err := b.rs.Seek(target, io.SeekStart)
+	if err != nil {
+		return n, err
+	}
 	b.br.Reset(b.rs)
-	return n, err
+	b.pos = n
+	return n, nil
 }
 
 type bytesAndReader struct {
