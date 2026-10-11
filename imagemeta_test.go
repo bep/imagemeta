@@ -24,7 +24,6 @@ import (
 
 	"github.com/andybalholm/brotli"
 	"github.com/bep/imagemeta"
-	"github.com/rwcarlsen/goexif/exif"
 
 	qt "github.com/frankban/quicktest"
 	"github.com/google/go-cmp/cmp"
@@ -1262,7 +1261,7 @@ func compareWithExiftoolOutput(t testing.TB, filename string, sources imagemeta.
 	)
 
 	for _, v := range tagsSorted {
-		normalizeUs := func(s string, our any, source imagemeta.Source) any {
+		normalizeUs := func(our any) any {
 			// JSON umarshaled to a map has very limited types.
 			// Normalize to make them comparable.
 			switch v := our.(type) {
@@ -1389,7 +1388,7 @@ func compareWithExiftoolOutput(t testing.TB, filename string, sources imagemeta.
 				continue
 			}
 			expect := normalizeThem(v.Tag, exifToolValue, v.Source)
-			got := normalizeUs(v.Tag, v.Value, v.Source)
+			got := normalizeUs(v.Value)
 			if v, ok := got.(float64); ok {
 				if math.IsInf(v, 1) {
 					panic(fmt.Errorf("inf: %v", v))
@@ -1786,7 +1785,7 @@ func BenchmarkDecode(b *testing.B) {
 		return err
 	})
 
-	runBenchmarkWithFile := func(b *testing.B, name string, imageFormat imagemeta.ImageFormat, filename string, f func(r io.ReadSeeker) error) {
+	runBenchmarkWithFile := func(b *testing.B, name string, filename string, f func(r io.ReadSeeker) error) {
 		img, err := os.Open(filepath.Join("testdata", "images", filename))
 		if err != nil {
 			b.Fatal(err)
@@ -1815,72 +1814,19 @@ func BenchmarkDecode(b *testing.B) {
 		{"jxl", imagemeta.JXL, "bep/sunrise.jxl"},
 	} {
 		imageFormat = tt.format
-		runBenchmarkWithFile(b, "exif/"+tt.name, tt.format, tt.filename, func(r io.ReadSeeker) error {
+		runBenchmarkWithFile(b, "exif/"+tt.name, tt.filename, func(r io.ReadSeeker) error {
 			_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetEXIF, DecompressBrotli: decompressBrotli})
 			return err
 		})
-		runBenchmarkWithFile(b, "all/"+tt.name, tt.format, tt.filename, func(r io.ReadSeeker) error {
+		runBenchmarkWithFile(b, "all/"+tt.name, tt.filename, func(r io.ReadSeeker) error {
 			_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: sourceSetAll, DecompressBrotli: decompressBrotli})
 			return err
 		})
-		runBenchmarkWithFile(b, "config/"+tt.name, tt.format, tt.filename, func(r io.ReadSeeker) error {
+		runBenchmarkWithFile(b, "config/"+tt.name, tt.filename, func(r io.ReadSeeker) error {
 			_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: imageFormat, HandleTag: handleTag, Warnf: panicWarnf, Sources: imagemeta.CONFIG})
 			return err
 		})
 	}
-}
-
-func BenchmarkDecodeCompareWithGoexif(b *testing.B) {
-	runBenchmark := func(b *testing.B, name string, imageFormat imagemeta.ImageFormat, f func(r io.ReadSeeker) error) {
-		img, close := getSunrise(qt.New(b), imageFormat)
-		b.Cleanup(close)
-		b.Run(name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				if err := f(img); err != nil {
-					b.Fatal(err)
-				}
-				img.Seek(0, 0)
-			}
-		})
-	}
-
-	imageFormat := imagemeta.JPEG
-	for _, imageFormat := range []imagemeta.ImageFormat{imagemeta.JPEG} {
-		name := strings.ToLower(imageFormat.String())
-		runBenchmark(b, fmt.Sprintf("bep/imagemeta/exif/%s/alltags", name), imageFormat, func(r io.ReadSeeker) error {
-			_, err := imagemeta.Decode(imagemeta.Options{
-				R: r, ImageFormat: imageFormat,
-
-				HandleTag: func(ti imagemeta.TagInfo) error {
-					return nil
-				},
-				Sources: imagemeta.EXIF,
-			})
-			return err
-		})
-
-		runBenchmark(b, fmt.Sprintf("bep/imagemeta/exif/%s/orientation", name), imageFormat, func(r io.ReadSeeker) error {
-			_, err := imagemeta.Decode(imagemeta.Options{
-				R: r, ImageFormat: imageFormat,
-				ShouldHandleTag: func(ti imagemeta.TagInfo) bool {
-					return ti.Tag == "Orientation"
-				},
-				HandleTag: func(ti imagemeta.TagInfo) error {
-					if ti.Tag == "Orientation" {
-						return imagemeta.ErrStopWalking
-					}
-					return nil
-				},
-				Sources: imagemeta.EXIF,
-			})
-			return err
-		})
-	}
-
-	runBenchmark(b, "rwcarlsen/goexif/exif/jpg/alltags", imageFormat, func(r io.ReadSeeker) error {
-		_, err := exif.Decode(r)
-		return err
-	})
 }
 
 func panicWarnf(format string, args ...any) {

@@ -6,7 +6,6 @@ require (
 	github.com/andybalholm/brotli v1.2.6
 	github.com/frankban/quicktest v1.14.6
 	github.com/google/go-cmp v0.7.0
-	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	golang.org/x/text v0.41.0
 )
 

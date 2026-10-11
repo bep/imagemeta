@@ -13,8 +13,10 @@ import (
 	"strings"
 )
 
-var markerXMP = []byte("http://ns.adobe.com/xap/1.0/\x00")
-var markerEXIF = []byte("Exif")
+var (
+	markerXMP  = []byte("http://ns.adobe.com/xap/1.0/\x00")
+	markerEXIF = []byte("Exif")
+)
 
 // JPEG segment markers and EXIF header.
 var jpegMarker = struct {
@@ -234,7 +236,7 @@ func (e *metaDecoderEXIF) doConvertValue(typ exifType, r io.Reader) any {
 		if d == 0 {
 			return undef
 		}
-		r, err := NewRat[uint32](n, d)
+		r, err := NewRat(n, d)
 		if err != nil {
 			e.opts.Warnf("failed to convert rational: %v", err)
 			return 0
@@ -244,7 +246,7 @@ func (e *metaDecoderEXIF) doConvertValue(typ exifType, r io.Reader) any {
 		return e.read4sr(r)
 	case exifTypeSignedRat8:
 		n, d := e.read4sr(r), e.read4sr(r)
-		r, err := NewRat[int32](n, d)
+		r, err := NewRat(n, d)
 		if err != nil {
 			e.opts.Warnf("failed to convert signed rational: %v", err)
 			return 0
@@ -543,7 +545,8 @@ func (e *metaDecoderEXIF) decodeTagsAt(namespace string, offset int64) error {
 		func() error {
 			e.seek(offset + e.readerOffset)
 			return e.decodeTags(namespace)
-		})
+		},
+	)
 }
 
 type valueConverterContext struct {
