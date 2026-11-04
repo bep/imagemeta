@@ -177,6 +177,7 @@ func Decode(opts Options) (result DecodeResult, err error) {
 	}
 
 	opts.tagCount = new(uint32)
+	opts.cancel = make(chan struct{})
 	shouldHandleTag := opts.ShouldHandleTag
 	opts.ShouldHandleTag = func(ti TagInfo) bool {
 		// EXIF tags are counted in decodeTag, including the ones skipped before getting here.
@@ -228,7 +229,7 @@ func Decode(opts Options) (result DecodeResult, err error) {
 		return result, nil
 	}
 
-	brs := getBufferedReadSeeker(opts.R)
+	brs := getBufferedReadSeeker(cancellableReadSeeker{opts.R, opts.cancel})
 	defer putBufferedReadSeeker(brs)
 
 	br := &streamReader{
@@ -286,10 +287,14 @@ func Decode(opts Options) (result DecodeResult, err error) {
 	}
 
 	if opts.Timeout > 0 {
+		errc := decode()
 		select {
 		case <-time.After(opts.Timeout):
+			// Signal the decoder to stop and wait for it, so no callbacks run after we return.
+			close(opts.cancel)
+			<-errc
 			err = fmt.Errorf("timed out after %s", opts.Timeout)
-		case err = <-decode():
+		case err = <-errc:
 		}
 	} else {
 		err = dec.decode()
@@ -360,14 +365,41 @@ type Options struct {
 	LimitTagSize uint32
 
 	tagCount *uint32
+	cancel   chan struct{}
+}
+
+func (o Options) isCancelled() bool {
+	select {
+	case <-o.cancel:
+		return true
+	default:
+		return false
+	}
 }
 
 // countTag counts a tag read against LimitNumTags and stops the walk when the limit is exceeded.
 func (o Options) countTag() {
+	if o.isCancelled() {
+		panic(errStop)
+	}
 	*o.tagCount++
 	if *o.tagCount > o.LimitNumTags {
 		panic(ErrStopWalking)
 	}
+}
+
+type cancellableReadSeeker struct {
+	io.ReadSeeker
+	cancel chan struct{}
+}
+
+func (r cancellableReadSeeker) Read(p []byte) (int, error) {
+	select {
+	case <-r.cancel:
+		return 0, errStop
+	default:
+	}
+	return r.ReadSeeker.Read(p)
 }
 
 // TagInfo contains information about a tag.

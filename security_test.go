@@ -7,6 +7,10 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
+	"io"
+	"os"
+	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -176,4 +180,41 @@ func TestSubIFDFanOutLimitNumTags(t *testing.T) {
 			c.Assert(err, qt.IsNil, qt.Commentf("%s %d", f, sources))
 		}
 	}
+}
+
+type slowReadSeeker struct {
+	io.ReadSeeker
+}
+
+func (r slowReadSeeker) Read(p []byte) (int, error) {
+	time.Sleep(time.Millisecond)
+	return r.ReadSeeker.Read(p[:min(len(p), 16)])
+}
+
+// No callbacks must be invoked after Decode has returned on timeout.
+func TestTimeoutStopsDecoding(t *testing.T) {
+	c := qt.New(t)
+
+	f, err := os.Open(filepath.Join("testdata", "images", "largeexif.png"))
+	c.Assert(err, qt.IsNil)
+	defer f.Close()
+
+	var returned, calledAfterReturn atomic.Bool
+	_, err = Decode(Options{
+		R:            slowReadSeeker{f},
+		ImageFormat:  PNG,
+		Timeout:      20 * time.Millisecond,
+		LimitNumTags: 1000000,
+		LimitTagSize: 10000000,
+		ShouldHandleTag: func(TagInfo) bool {
+			if returned.Load() {
+				calledAfterReturn.Store(true)
+			}
+			return true
+		},
+	})
+	returned.Store(true)
+	c.Assert(err, qt.ErrorMatches, "timed out after 20ms")
+	time.Sleep(100 * time.Millisecond)
+	c.Assert(calledAfterReturn.Load(), qt.IsFalse)
 }
