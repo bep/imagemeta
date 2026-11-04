@@ -350,6 +350,7 @@ func (e *metaDecoderEXIF) decode() (err error) {
 //   - 4 bytes for the value itself, if it fits, otherwise for a pointer to another location where the data may be found;
 //     this could be a pointer to the beginning of another IFD.
 func (e *metaDecoderEXIF) decodeTag(namespace string) error {
+	e.opts.countTag()
 	tagID := e.read2()
 	dataType := e.read2()
 	count := e.read4()

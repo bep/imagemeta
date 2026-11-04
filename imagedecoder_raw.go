@@ -62,6 +62,7 @@ func (e *imageDecoderRAW) decode() error {
 
 		numTags := e.read2()
 		for range int(numTags) {
+			e.opts.countTag()
 			tagID := e.read2()
 			dataType := e.read2()
 			count := e.read4()
@@ -223,6 +224,7 @@ func (e *imageDecoderRAW) readIFDDimensions(wTag, hTag uint16) (int, int) {
 	numTags := e.read2()
 	var w, h int
 	for range int(numTags) {
+		e.opts.countTag()
 		tagID := e.read2()
 		dataType := e.read2()
 		_ = e.read4() // count
@@ -256,6 +258,7 @@ func (e *imageDecoderRAW) readSubIFDInfo() (int, int, int, int) {
 	numTags := e.read2()
 	var w, h, cropW, cropH int
 	for range int(numTags) {
+		e.opts.countTag()
 		tagID := e.read2()
 		dataType := e.read2()
 		count := e.read4()
