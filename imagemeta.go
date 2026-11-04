@@ -176,12 +176,12 @@ func Decode(opts Options) (result DecodeResult, err error) {
 		opts.LimitTagSize = defaultLimitTagSize
 	}
 
-	var tagCount uint32
+	opts.tagCount = new(uint32)
 	shouldHandleTag := opts.ShouldHandleTag
 	opts.ShouldHandleTag = func(ti TagInfo) bool {
-		tagCount++
-		if tagCount > opts.LimitNumTags {
-			panic(ErrStopWalking)
+		// EXIF tags are counted in decodeTag, including the ones skipped before getting here.
+		if ti.Source != EXIF {
+			opts.countTag()
 		}
 		return shouldHandleTag(ti)
 	}
@@ -358,6 +358,16 @@ type Options struct {
 	// Note that this limit is not relevant for the XMP source.
 	// Default value is 10000.
 	LimitTagSize uint32
+
+	tagCount *uint32
+}
+
+// countTag counts a tag read against LimitNumTags and stops the walk when the limit is exceeded.
+func (o Options) countTag() {
+	*o.tagCount++
+	if *o.tagCount > o.LimitNumTags {
+		panic(ErrStopWalking)
+	}
 }
 
 // TagInfo contains information about a tag.
