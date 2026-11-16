@@ -116,6 +116,7 @@ var (
 		"GPSVersionID":            exifConverters.convertBytesToStringSpaceDelim,
 		"SubjectArea":             exifConverters.convertNumbersToSpaceLimited,
 		"BitsPerSample":           exifConverters.convertNumbersToSpaceLimited,
+		"YCbCrSubSampling":        exifConverters.convertNumbersToSpaceLimited,
 		"PageNumber":              exifConverters.convertNumbersToSpaceLimited,
 		"StripByteCounts":         exifConverters.convertNumbersToSpaceLimited,
 		"StripOffsets":            exifConverters.convertNumbersToSpaceLimited,
@@ -383,7 +384,9 @@ func (e *metaDecoderEXIF) decodeTag(namespace string) error {
 
 	size, ok := exifTypeSize[typ]
 	if !ok {
-		return newInvalidFormatErrorf("unknown EXIF type %d", typ)
+		// Skip malformed entries (e.g. zero-padded IFDs), as exiftool does.
+		e.skip(4)
+		return nil
 	}
 	valLen := size * count
 

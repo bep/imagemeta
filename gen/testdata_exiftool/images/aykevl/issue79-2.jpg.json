@@ -1,0 +1,62 @@
+[{
+  "SourceFile": "../testdata/images/aykevl/issue79-2.jpg",
+  "File": {
+    "FileName": "issue79-2.jpg",
+    "Directory": "../testdata/images/aykevl",
+    "FileSize": 518155,
+    "FilePermissions": 100644,
+    "FileType": "JPEG",
+    "FileTypeExtension": "JPG",
+    "MIMEType": "image/jpeg",
+    "ExifByteOrder": "MM",
+    "ImageWidth": 3072,
+    "ImageHeight": 4096,
+    "EncodingProcess": 0,
+    "BitsPerSample": 8,
+    "ColorComponents": 3,
+    "YCbCrSubSampling": "2 2"
+  },
+  "JFIF": {
+    "JFIFVersion": "1 1",
+    "ResolutionUnit": 0,
+    "XResolution": 1,
+    "YResolution": 1
+  },
+  "EXIF": {
+    "ImageWidth": 4096,
+    "ImageHeight": 3072,
+    "Compression": 6,
+    "Make": "Fairphone",
+    "Model": "Fairphone (Gen. 6)",
+    "Orientation": 1,
+    "Software": "Picasa",
+    "ModifyDate": "2025:11:27 15:16:09",
+    "YCbCrSubSampling": "2 2",
+    "YCbCrPositioning": 1,
+    "XResolution": 72,
+    "YResolution": 72,
+    "ResolutionUnit": 2,
+    "ExposureTime": 0.039999,
+    "FNumber": 1.88,
+    "ISO": 1532,
+    "ExifVersion": "0220",
+    "DateTimeOriginal": "2025:11:27 15:16:09",
+    "CreateDate": "2025:11:27 15:16:09",
+    "ComponentsConfiguration": "1 2 3",
+    "Flash": 16,
+    "FocalLength": 5.59,
+    "SubSecTime": 807,
+    "SubSecTimeOriginal": 807,
+    "SubSecTimeDigitized": 807,
+    "ColorSpace": 1,
+    "ExifImageWidth": 3072,
+    "ExifImageHeight": 4096,
+    "WhiteBalance": 0,
+    "ImageUniqueID": "2c1af3f0cce993880000000000000000",
+    "ThumbnailOffset": 707,
+    "ThumbnailLength": 4150
+  },
+  "ExifTool": {
+    "Warning": "Bad InteropIFD directory"
+  }
+}]

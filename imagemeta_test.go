@@ -652,7 +652,7 @@ func TestDecodeCorrupt(t *testing.T) {
 		}
 		_, err = imagemeta.Decode(imagemeta.Options{R: img, ImageFormat: format, HandleTag: handleTag, Warnf: panicWarnf})
 
-		if !imagemeta.IsInvalidFormat(err) {
+		if err != nil && !imagemeta.IsInvalidFormat(err) {
 			c.Assert(err, qt.ErrorMatches, "UserComment: expected \\[\\]uint8, got string", qt.Commentf("file: %s", file))
 		}
 
