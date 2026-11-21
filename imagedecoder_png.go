@@ -18,13 +18,17 @@ type imageDecoderPNG struct {
 
 // See https://exiftool.org/TagNames/PNG.html
 var (
+	pngSignature          = []byte("\x89PNG\r\n\x1a\n")
 	pngTagIDExif          = []byte("eXIf")
 	pngTagIDIHDR          = []byte("IHDR")
 	pngTagIDACTL          = []byte("acTL") // APNG animation control, must precede the first IDAT.
 	pngTagIDIDAT          = []byte("IDAT")
+	pngTagIDiTXt          = []byte("iTXt")
+	pngTagIDIEND          = []byte("IEND")
 	pngCompressedText     = []byte("zTXt") // See https://exiftool.org/forum/index.php?topic=7988.msg40759#msg40759
 	pngRawProfileTypeIPTC = []byte("Raw profile type iptc")
 	pngRawProfileTypeEXIF = []byte("Raw profile type exif")
+	pngXMPKeyword         = []byte("XML:com.adobe.xmp\x00")
 )
 
 func (e *imageDecoderPNG) decode() error {
@@ -85,6 +89,15 @@ func (e *imageDecoderPNG) decode() error {
 				return err
 			}
 			e.skip(4) // skip CRC
+		} else if sources.Has(XMP) && bytes.Equal(tagID, pngTagIDiTXt) && chunkLength > uint32(len(pngXMPKeyword)) {
+			found, err := e.decodeXMPiTXt(chunkLength)
+			if err != nil {
+				return err
+			}
+			if found {
+				sources = sources.Remove(XMP)
+			}
+			e.skip(4) // skip CRC
 		} else if bytes.Equal(tagID, pngCompressedText) {
 			// Profile Name is 1-79 bytes, followed by the null character.
 			// Note that profileNameLength includes the null character.
@@ -137,6 +150,44 @@ func (e *imageDecoderPNG) decode() error {
 			skipTag(chunkLength)
 		}
 	}
+}
+
+// decodeXMPiTXt decodes XMP in an iTXt chunk, skipping the chunk if it's not XMP.
+func (e *imageDecoderPNG) decodeXMPiTXt(chunkLength uint32) (bool, error) {
+	prefix := e.readBytesVolatile(len(pngXMPKeyword))
+	rem := int64(chunkLength) - int64(len(pngXMPKeyword))
+	if !bytes.Equal(prefix, pngXMPKeyword) {
+		e.skip(rem)
+		return false, nil
+	}
+	r, err := e.bufferedReader(rem)
+	if err != nil {
+		return false, err
+	}
+	defer r.Close()
+	data := r.(*bytesAndReader).b
+	// Compression flag, compression method, language tag and translated keyword.
+	if len(data) < 2 {
+		return false, newInvalidFormatErrorf("png: invalid iTXt chunk")
+	}
+	compFlag, compMethod := data[0], data[1]
+	if compFlag != 0 && compFlag != 1 {
+		return false, newInvalidFormatErrorf("png: invalid iTXt compression flag %d", compFlag)
+	}
+	data = data[2:]
+	for range 2 {
+		i := bytes.IndexByte(data, 0)
+		if i == -1 {
+			return false, newInvalidFormatErrorf("png: invalid iTXt chunk")
+		}
+		data = data[i+1:]
+	}
+	if compFlag == 1 {
+		if data, err = decompressZTXt(append([]byte{compMethod}, data...)); err != nil {
+			return false, newInvalidFormatError(fmt.Errorf("decompressing iTXt: %w", err))
+		}
+	}
+	return true, decodeXMP(bytes.NewReader(data), e.opts)
 }
 
 func decompressZTXt(data []byte) ([]byte, error) {

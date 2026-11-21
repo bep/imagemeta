@@ -14,13 +14,16 @@ import (
 )
 
 var (
-	markerXMP  = []byte("http://ns.adobe.com/xap/1.0/\x00")
-	markerEXIF = []byte("Exif")
+	markerXMP        = []byte("http://ns.adobe.com/xap/1.0/\x00")
+	markerEXIF       = []byte("Exif")
+	markerEXIFHeader = []byte("Exif\x00\x00")
 )
 
 // JPEG segment markers and EXIF header.
 var jpegMarker = struct {
 	soi              uint16
+	eoi              uint16
+	app0             uint16
 	app1EXIF         uint16
 	app1XMP          uint16
 	app13            uint16
@@ -29,6 +32,8 @@ var jpegMarker = struct {
 	exifHeader       uint32
 }{
 	soi:        0xffd8,
+	eoi:        0xffd9,
+	app0:       0xffe0,
 	app1EXIF:   0xffe1,
 	app1XMP:    0xffe1,
 	app13:      0xffed,
@@ -42,13 +47,15 @@ var jpegMarker = struct {
 // TIFF byte-order markers and EXIF IFD tag IDs.
 var tiffMarker = struct {
 	byteOrderBE, byteOrderLE uint16
+	meaningOfLife            uint16
 	xmp                      uint16 // ApplicationNotes
 	iptc                     uint16 // IPTC-NAA
 }{
-	byteOrderBE: 0x4d4d,
-	byteOrderLE: 0x4949,
-	xmp:         0x02bc,
-	iptc:        0x83bb,
+	byteOrderBE:   0x4d4d,
+	byteOrderLE:   0x4949,
+	meaningOfLife: 42,
+	xmp:           0x02bc,
+	iptc:          0x83bb,
 }
 
 const tagNameThumbnailOffset = "ThumbnailOffset"

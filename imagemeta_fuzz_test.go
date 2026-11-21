@@ -155,6 +155,44 @@ func FuzzDecodePEF(f *testing.F) {
 	})
 }
 
+func FuzzWrite(f *testing.F) {
+	for _, name := range []string{"lossy.webp", "lossless-alpha.webp", "lossy-alpha.webp", "animated.webp", "opaque.avif", "alpha.avif"} {
+		b, err := os.ReadFile(filepath.Join("testdata", "write", name))
+		if err != nil {
+			f.Fatal(err)
+		}
+		f.Add(b)
+	}
+	f.Add(readTestDataFileAll(f, "bep/sunrise.jpg"))
+	f.Add(readTestDataFileAll(f, "bep/sunrise.png"))
+	f.Add(readTestDataFileAll(f, "bep/sunrise.tif"))
+
+	meta := imagemeta.Meta{
+		Copyright:   "© 2026 Test",
+		Creator:     "Tester",
+		Title:       "Title",
+		Description: "Description",
+		Date:        time.Date(2025, 7, 14, 16, 32, 5, 0, time.UTC),
+		LatLong:     &imagemeta.LatLong{Lat: 60.0, Long: -5.0},
+	}
+
+	formats := []imagemeta.ImageFormat{imagemeta.JPEG, imagemeta.PNG, imagemeta.WebP, imagemeta.TIFF, imagemeta.AVIF}
+	f.Fuzz(func(t *testing.T, imageBytes []byte) {
+		for _, format := range formats {
+			var buf bytes.Buffer
+			err := imagemeta.Write(imagemeta.WriteOptions{
+				R:           bytes.NewReader(imageBytes),
+				W:           &buf,
+				ImageFormat: format,
+				Meta:        meta,
+			})
+			if err == nil {
+				fuzzDecodeBytes(t, buf.Bytes(), format)
+			}
+		}
+	})
+}
+
 func fuzzDecodeBytes(t *testing.T, imageBytes []byte, f imagemeta.ImageFormat) error {
 	r := bytes.NewReader(imageBytes)
 	_, err := imagemeta.Decode(imagemeta.Options{R: r, ImageFormat: f, Sources: imagemeta.EXIF | imagemeta.IPTC | imagemeta.XMP | imagemeta.CONFIG, Timeout: 600 * time.Millisecond, DecompressBrotli: decompressBrotli})
