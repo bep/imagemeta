@@ -2,9 +2,9 @@
 [![codecov](https://codecov.io/gh/bep/imagemeta/branch/main/graph/badge.svg)](https://codecov.io/gh/bep/imagemeta)
 [![GoDoc](https://godoc.org/github.com/bep/imagemeta?status.svg)](https://godoc.org/github.com/bep/imagemeta)
 
-## This is about READING image metadata
+## Reading and writing image metadata
 
-Writing is not supported, and never will.
+This library is primarily about reading image metadata, with limited support for writing common metadata fields (copyright, creator, title, description, date and GPS position) to images without existing metadata via `Write`.
 
 I welcome PRs with fixes, but please raise an issue first if you want to add new features.
 

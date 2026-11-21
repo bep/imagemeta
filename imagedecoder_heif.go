@@ -10,8 +10,8 @@ import (
 
 // ISOBMFF box and item types used in HEIF/AVIF containers.
 var heifFCC = struct {
-	ftyp, meta                         fourCC
-	iinf, infe, iloc                   fourCC
+	ftyp, meta, mdat                   fourCC
+	iinf, infe, iloc, iref, cdsc       fourCC
 	iprp, ipco, ipma, ispe, irot, pitm fourCC
 	exif, mime                         fourCC
 	moov, trak, mdia, hdlr, minf, stbl fourCC
@@ -19,9 +19,12 @@ var heifFCC = struct {
 }{
 	ftyp: fourCC{'f', 't', 'y', 'p'},
 	meta: fourCC{'m', 'e', 't', 'a'},
+	mdat: fourCC{'m', 'd', 'a', 't'},
 	iinf: fourCC{'i', 'i', 'n', 'f'},
 	infe: fourCC{'i', 'n', 'f', 'e'},
 	iloc: fourCC{'i', 'l', 'o', 'c'},
+	iref: fourCC{'i', 'r', 'e', 'f'},
+	cdsc: fourCC{'c', 'd', 's', 'c'},
 	iprp: fourCC{'i', 'p', 'r', 'p'},
 	ipco: fourCC{'i', 'p', 'c', 'o'},
 	ipma: fourCC{'i', 'p', 'm', 'a'},
@@ -40,6 +43,8 @@ var heifFCC = struct {
 	stz2: fourCC{'s', 't', 'z', '2'},
 	pict: fourCC{'p', 'i', 'c', 't'},
 }
+
+var heifXMPContentType = []byte("application/rdf+xml\x00")
 
 type imageDecoderHEIF struct {
 	*baseStreamingDecoder

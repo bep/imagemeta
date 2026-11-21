@@ -13,7 +13,6 @@ type imageDecoderTIF struct {
 
 func (e *imageDecoderTIF) decode() error {
 	const (
-		meaningOfLife  = 42
 		tagImageWidth  = 0x0100
 		tagImageHeight = 0x0101
 	)
@@ -28,7 +27,7 @@ func (e *imageDecoderTIF) decode() error {
 		return errInvalidFormat
 	}
 
-	if id := e.read2(); id != meaningOfLife {
+	if id := e.read2(); id != tiffMarker.meaningOfLife {
 		return errInvalidFormat
 	}
 

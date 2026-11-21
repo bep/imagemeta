@@ -627,11 +627,16 @@ func (t *Tags) getSourceMap(source Source) map[string]TagInfo {
 func (t Tags) dateTime() (string, bool) {
 	// Try EXIF first.
 	exif := t.EXIF()
-	if ti, ok := exif["DateTimeOriginal"]; ok {
-		return ti.Value.(string), false
-	}
-	if ti, ok := exif["DateTime"]; ok {
-		return ti.Value.(string), false
+	for _, tags := range [][2]string{{"DateTimeOriginal", "OffsetTimeOriginal"}, {"DateTime", "OffsetTime"}} {
+		ti, ok := exif[tags[0]]
+		if !ok {
+			continue
+		}
+		s := ti.Value.(string)
+		if off, ok := exif[tags[1]].Value.(string); ok && isValidOffsetTime(off) {
+			return s + off, true
+		}
+		return s, false
 	}
 
 	// Try XMP.
@@ -659,6 +664,20 @@ func (t Tags) dateTime() (string, bool) {
 	}
 
 	return "", false
+}
+
+func isValidOffsetTime(s string) bool {
+	if len(s) != 6 || (s[0] != '+' && s[0] != '-') || s[3] != ':' {
+		return false
+	}
+	for _, i := range [4]int{1, 2, 4, 5} {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	h := (s[1]-'0')*10 + (s[2] - '0')
+	m := (s[4]-'0')*10 + (s[5] - '0')
+	return h <= 23 && m <= 59
 }
 
 // Borrowed from github.com/rwcarlsen/goexif

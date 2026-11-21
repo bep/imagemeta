@@ -5,6 +5,14 @@ package imagemeta
 
 import "io"
 
+// WebP VP8X chunk flag bits.
+const (
+	webpFlagAnimation = 1 << 1
+	webpFlagXMP       = 1 << 2
+	webpFlagEXIF      = 1 << 3
+	webpFlagAlpha     = 1 << 4
+)
+
 // WebP chunk types.
 var webpFCC = struct {
 	riff, webp      fourCC
@@ -77,16 +85,10 @@ func (e *decoderWebP) decode() error {
 				return errInvalidFormat
 			}
 
-			const (
-				animationBit    = 1 << 1
-				xmpMetadataBit  = 1 << 2
-				exifMetadataBit = 1 << 3
-			)
-
 			e.readBytes(buf[:])
 
-			hasEXIF := buf[0]&exifMetadataBit != 0
-			hasXMP := buf[0]&xmpMetadataBit != 0
+			hasEXIF := buf[0]&webpFlagEXIF != 0
+			hasXMP := buf[0]&webpFlagXMP != 0
 
 			if !hasEXIF {
 				sourceSet = sourceSet.Remove(EXIF)
@@ -105,7 +107,7 @@ func (e *decoderWebP) decode() error {
 					Height: height,
 				}
 				sourceSet = sourceSet.Remove(CONFIG)
-				countFrames = buf[0]&animationBit != 0
+				countFrames = buf[0]&webpFlagAnimation != 0
 				if countFrames {
 					// Don't count a truncated last frame.
 					pos := e.pos()
