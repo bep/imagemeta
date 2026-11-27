@@ -1344,7 +1344,7 @@ func compareWithExiftoolOutput(t testing.TB, filename string, sources imagemeta.
 			case float64:
 				switch s {
 				case "SerialNumber", "LensSerialNumber", "ObjectName":
-					return fmt.Sprintf("%d", int(v))
+					return strconv.FormatInt(int64(v), 10)
 				case "Software":
 					// ExifTool may output numeric-looking software versions (e.g. iOS "26.3")
 					// as float64 in JSON. Convert back to string for comparison.

@@ -46,6 +46,11 @@ jobs:
         run: golint ./...
       - name: Test
         run: go test -race ./... -coverpkg=./... -coverprofile=coverage.txt -covermode=atomic
+      - name: Test 386
+        if: matrix.platform == 'ubuntu-latest'
+        run: go test ./...
+        env:
+          GOARCH: "386"
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
