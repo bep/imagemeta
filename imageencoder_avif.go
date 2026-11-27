@@ -81,7 +81,7 @@ func fixLastChildSizeToEOF(raw []byte, base int, boxes []isoBox) ([]byte, error)
 	if !last.sizeToEOF {
 		return raw, nil
 	}
-	if last.hdr != 8 || last.end-last.start > math.MaxUint32 {
+	if last.hdr != 8 || uint64(last.end-last.start) > math.MaxUint32 {
 		return nil, errors.New("avif: cannot fix size of last child box")
 	}
 	out := slices.Clone(raw)
@@ -533,7 +533,7 @@ func (e *imageEncoderAVIF) encode() error {
 	mdatBox := appendISOBox(nil, heifFCC.mdat, mdat...)
 
 	if last := top[len(top)-1]; last.sizeToEOF && mi != len(top)-1 {
-		if last.hdr != 8 || last.end-last.start > math.MaxUint32 {
+		if last.hdr != 8 || uint64(last.end-last.start) > math.MaxUint32 {
 			return errors.New("avif: cannot fix size of last box")
 		}
 		var lastSize [4]byte
